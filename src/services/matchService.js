@@ -38,24 +38,31 @@ export const selectTrapMatches = (matches) => {
 export const prepareDailyMatches = () => {
   const { todayMatches, tomorrowMatches } = getAvailableMatches();
   
+  // Combinar partidos de hoy y mañana
   let combinedMatches = [...todayMatches];
   
+  // Si no hay suficientes partidos hoy, agregar de mañana
   if (combinedMatches.length < 7) {
     const needed = 7 - combinedMatches.length;
     combinedMatches = [...combinedMatches, ...tomorrowMatches.slice(0, needed)];
   }
   
+  // Si aún no hay suficientes, repetir los existentes (caso extremo)
   while (combinedMatches.length < 7) {
     combinedMatches = [...combinedMatches, ...combinedMatches];
   }
   
+  // Tomar solo los primeros 7
   const finalMatches = combinedMatches.slice(0, 7);
+  
+  // Seleccionar trap matches
   const trapIds = selectTrapMatches(finalMatches);
   
+  // Agregar propiedades necesarias
   return finalMatches.map((match, index) => ({
     ...match,
     isTrap: trapIds.includes(match.id),
-    odds: { home: 2.0, draw: 3.0, away: 3.0 },
+    odds: { home: 2.0, draw: 3.0, away: 3.0 }, // Cuotas fijas
     status: 'upcoming'
   }));
 };
