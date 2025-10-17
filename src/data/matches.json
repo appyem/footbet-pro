@@ -176,6 +176,33 @@
   ],
   "2025-10-17": [
     {
+      "id": "chico_santafe_1710",
+      "homeTeam": "Boyaca chico",
+      "awayTeam": "Ind. santafe",
+      "league": "Betplay",
+      "time": "20:30",
+      "country": "Colombia",
+      "popularity": 80
+    },
+    {
+      "id": "medellin_fortaleza_1710",
+      "homeTeam": "Ind. medellin",
+      "awayTeam": "Fortaleza FC",
+      "league": "Betplay",
+      "time": "20:10",
+      "country": "Colombia",
+      "popularity": 80
+    },
+    {
+      "id": "magdalena_envigado_1710",
+      "homeTeam": "Magdalena",
+      "awayTeam": "Envigado",
+      "league": "Betplay",
+      "time": "18:00",
+      "country": "Colombia",
+      "popularity": 80
+    },
+    {
       "id": "unionberlin_gladbach_1710",
       "homeTeam": "FC Union Berlin",
       "awayTeam": "Borussia Mönchengladbach",
