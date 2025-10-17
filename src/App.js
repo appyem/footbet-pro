@@ -1508,21 +1508,21 @@ const App = () => {
   // Cargar partidos diarios desde JSON - CÓDIGO DEFINITIVO PARA PRODUCCIÓN
 useEffect(() => {
   const loadDailyMatches = () => {
-  const dailyMatches = prepareDailyMatches();
-  setMatches(dailyMatches);
-};
+    const dailyMatches = prepareDailyMatches();
+    setMatches(dailyMatches);
+  };
   
   loadDailyMatches();
   
-  // Verificar cada minuto si algún partido debe cerrarse
   const interval = setInterval(() => {
-    const updatedMatches = matches.map(match => {
-      if (shouldCloseMatch(match.time) && match.status === 'upcoming') {
-        return { ...match, status: 'closed' };
-      }
-      return match;
+    setMatches(prevMatches => {
+      return prevMatches.map(match => {
+        if (shouldCloseMatch(match.time) && match.status === 'upcoming') {
+          return { ...match, status: 'closed' };
+        }
+        return match;
+      });
     });
-    setMatches(updatedMatches);
   }, 60000);
   
   return () => clearInterval(interval);
@@ -1611,56 +1611,62 @@ useEffect(() => {
     });
   }, [matches]);
 
-  const generateTicket = useCallback(() => {
-    if (!customerName || !customerPhone) {
-      alert('Por favor complete toda la información del cliente');
-      return;
-    }
-    if (selectedBets.size !== 7) {
-      alert('Debe seleccionar los 7 partidos para generar el ticket. Monto fijo: $5,000 COP');
-      return;
-    }
-    
-    // Verificar que ningún partido esté cerrado
-    const closedMatches = Array.from(selectedBets.keys()).some(matchId => {
-      const match = matches.find(m => m.id === matchId);
-      return match && match.status === 'closed';
-    });
-    
-    if (closedMatches) {
-      alert('Algunos partidos ya están cerrados. Por favor actualice la página.');
-      return;
-    }
+  const generateTicket = useCallback(async () => {
+  if (!customerName || !customerPhone) {
+    alert('Por favor complete toda la información del cliente');
+    return;
+  }
+  if (selectedBets.size !== 7) {
+    alert('Debe seleccionar los 7 partidos para generar el ticket. Monto fijo: $5,000 COP');
+    return;
+  }
+  
+  const closedMatches = Array.from(selectedBets.keys()).some(matchId => {
+    const match = matches.find(m => m.id === matchId);
+    return match && match.status === 'closed';
+  });
+  
+  if (closedMatches) {
+    alert('Algunos partidos ya están cerrados. Por favor actualice la página.');
+    return;
+  }
 
-    let formattedPhone = customerPhone.trim();
-    if (!formattedPhone.startsWith('+57')) {
-      formattedPhone = `+57 ${formattedPhone}`;
-    }
-    const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-    const betsArray = Array.from(selectedBets.values()).map(bet => ({
-      ...bet,
-      stake: 5000
-    }));
-    const newTicket = {
-      id: `TKT${String(tickets.length + 1).padStart(3, '0')}`,
-      customerId: `CUST${String(tickets.length + 1).padStart(3, '0')}`,
-      customerName: customerName,
-      customerPhone: formattedPhone,
-      bets: betsArray,
-      totalStake: 5000,
-      verificationCode,
-      sellerId: currentUser.id,
-      sellerName: currentUser.name,
-      date: getCurrentDate(),
-      time: getCurrentTime()
-    };
+  let formattedPhone = customerPhone.trim();
+  if (!formattedPhone.startsWith('+57')) {
+    formattedPhone = `+57 ${formattedPhone}`;
+  }
+  const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+  const betsArray = Array.from(selectedBets.values()).map(bet => ({
+    ...bet,
+    stake: 5000
+  }));
+  const newTicket = {
+    id: `TKT${String(tickets.length + 1).padStart(3, '0')}`,
+    customerId: `CUST${String(tickets.length + 1).padStart(3, '0')}`,
+    customerName: customerName,
+    customerPhone: formattedPhone,
+    bets: betsArray,
+    totalStake: 5000,
+    verificationCode,
+    sellerId: currentUser.id,
+    sellerName: currentUser.name,
+    date: getCurrentDate(),
+    time: getCurrentTime()
+  };
+  
+  try {
+    await addDoc(collection(db, 'tickets'), newTicket);
     setTickets(prev => [...prev, newTicket]);
     setCurrentTicket(newTicket);
     setShowTicketPreview(true);
     setSelectedBets(new Map());
     setCustomerName('');
     setCustomerPhone('');
-  }, [customerName, customerPhone, selectedBets, tickets.length, currentUser]);
+  } catch (error) {
+    console.error('Error al guardar ticket:', error);
+    alert('Error al guardar el ticket. Intente nuevamente.');
+  }
+}, [customerName, customerPhone, selectedBets, tickets.length, currentUser, matches, getCurrentDate, getCurrentTime]);
 
   // Función para guardar resultados
   const handleSaveResult = async (matchId, result) => {
@@ -1681,9 +1687,16 @@ useEffect(() => {
     }
   };
 
-  const handleCreateSeller = (newSeller) => {
-    setSellerUsers(prev => [...prev, newSeller]);
-  };
+  const handleCreateSeller = async (newSeller) => {
+  try {
+    const docRef = await addDoc(collection(db, 'sellers'), newSeller);
+    const sellerWithId = { ...newSeller, id: docRef.id };
+    setSellerUsers(prev => [...prev, sellerWithId]);
+  } catch (error) {
+    console.error('Error al crear vendedor:', error);
+    alert('Error al crear el vendedor. Intente nuevamente.');
+  }
+};
 
   const handleDeleteSeller = (sellerId) => {
     setSellerUsers(prev => prev.filter(seller => seller.id !== sellerId));
