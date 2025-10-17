@@ -4,6 +4,8 @@ import { Phone, LogOut, Home, Ticket, FileText, BarChart3, Settings, Plus, User,
 // Firebase - Configuración correcta para Create React App
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
+// Importar funciones de servicios
+import { prepareDailyMatches, shouldCloseMatch } from './services/matchService';
 
 // Configuración de Firebase
 const firebaseConfig = {
@@ -631,8 +633,7 @@ const copyToWhatsApp = (ticket) => {
   }, 1000);
 };
 
-// Funciones auxiliares para manejo de fechas
-// Función para obtener la fecha actual en Colombia (UTC-5)
+// Función definitiva para producción - Obtiene la fecha real de Colombia
 const getCurrentDate = () => {
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -640,18 +641,22 @@ const getCurrentDate = () => {
   return colombiaTime.toISOString().split('T')[0];
 };
 
-// Función para obtener la hora actual en Colombia (UTC-5)
+// Función definitiva para producción - Obtiene la fecha de mañana en Colombia
+const getTomorrowDate = () => {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const colombiaTime = new Date(utc + (-5 * 3600000)); // UTC-5
+  const tomorrow = new Date(colombiaTime);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toISOString().split('T')[0];
+};
+
+// Función definitiva para producción - Obtiene la hora actual en Colombia
 const getCurrentTime = () => {
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
   const colombiaTime = new Date(utc + (-5 * 3600000)); // UTC-5
   return colombiaTime.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-};
-
-const getTomorrowDate = () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toLocaleDateString('en-CA');
 };
 
 // Componente de ventas - versión para vendedor (solo sus ventas)
@@ -1500,101 +1505,28 @@ const App = () => {
     { id: 'seller2', email: 'maria@footbet.com', password: 'maria123', name: 'Maria Garcia', commission: 12 }
   ]);
 
-  // Cargar partidos diarios
-  useEffect(() => {
-    const loadDailyMatches = () => {
-      // Partidos de ejemplo para pruebas
-      const sampleMatches = [
-        {
-          id: 1,
-          homeTeam: 'América de Cali',
-          awayTeam: 'Junior FC',
-          league: 'Copa BetPlay Dimayor',
-          time: '20:20',
-          country: 'Colombia',
-          popularity: 95,
-          isTrap: false,
-          odds: { home: 2.0, draw: 3.0, away: 3.0 },
-          status: 'upcoming'
-        },
-        {
-          id: 2,
-          homeTeam: 'Fortaleza',
-          awayTeam: 'Vasco Da Gama',
-          league: 'Brasileirão',
-          time: '19:30',
-          country: 'Brasil',
-          popularity: 70,
-          isTrap: false,
-          odds: { home: 2.0, draw: 3.0, away: 3.0 },
-          status: 'upcoming'
-        },
-        {
-          id: 3,
-          homeTeam: 'Atlético Mineiro',
-          awayTeam: 'Cruzeiro',
-          league: 'Brasileirão',
-          time: '19:30',
-          country: 'Brasil',
-          popularity: 75,
-          isTrap: false,
-          odds: { home: 2.0, draw: 3.0, away: 3.0 },
-          status: 'upcoming'
-        },
-        {
-          id: 4,
-          homeTeam: 'Santos',
-          awayTeam: 'Corinthians',
-          league: 'Brasileirão',
-          time: '19:30',
-          country: 'Brasil',
-          popularity: 80,
-          isTrap: false,
-          odds: { home: 2.0, draw: 3.0, away: 3.0 },
-          status: 'upcoming'
-        },
-        {
-          id: 5,
-          homeTeam: 'Jaiba Brava',
-          awayTeam: 'Mineros De Zacatecas',
-          league: 'Liga de Expansión MX',
-          time: '22:00',
-          country: 'México',
-          popularity: 40,
-          isTrap: true,
-          odds: { home: 2.0, draw: 3.0, away: 3.0 },
-          status: 'upcoming'
-        },
-        {
-          id: 6,
-          homeTeam: 'Olympic El Qanal',
-          awayTeam: 'El Entag El Harby',
-          league: 'Segunda División de Egipto',
-          time: '07:30',
-          country: 'Egipto',
-          popularity: 10,
-          isTrap: true,
-          odds: { home: 2.0, draw: 3.0, away: 3.0 },
-          status: 'upcoming'
-        },
-        {
-          id: 7,
-          homeTeam: 'El Dakhleya FC',
-          awayTeam: 'Abo Qir Semad',
-          league: 'Segunda División de Egipto',
-          time: '07:30',
-          country: 'Egipto',
-          popularity: 8,
-          isTrap: true,
-          odds: { home: 2.0, draw: 3.0, away: 3.0 },
-          status: 'upcoming'
-        }
-      ];
-      setMatches(sampleMatches);
-    };
-    
-    loadDailyMatches();
-  }, []);
+  // Cargar partidos diarios desde JSON - CÓDIGO DEFINITIVO PARA PRODUCCIÓN
+useEffect(() => {
+  const loadDailyMatches = () => {
+  const dailyMatches = prepareDailyMatches();
+  setMatches(dailyMatches);
+};
+  
+  loadDailyMatches();
+  
+  // Verificar cada minuto si algún partido debe cerrarse
+  const interval = setInterval(() => {
+    const updatedMatches = matches.map(match => {
+      if (shouldCloseMatch(match.time) && match.status === 'upcoming') {
+        return { ...match, status: 'closed' };
+      }
+      return match;
+    });
+    setMatches(updatedMatches);
+  }, 60000);
+  
+  return () => clearInterval(interval);
+}, []);
 
   // Cargar resultados al montar
   useEffect(() => {
