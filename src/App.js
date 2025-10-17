@@ -2190,29 +2190,7 @@ useEffect(() => {
           <p className="text-gray-400">Sistema de Apuestas Profesional</p>
         </div>
         
-        <div className="mb-6 bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-          <h3 className="text-green-400 font-bold mb-3 flex items-center gap-2">
-            <Key className="w-4 h-4" />
-            Credenciales de Prueba
-          </h3>
-          <div className="space-y-3 text-sm">
-            <div className="bg-blue-900/30 rounded p-3">
-              <div className="font-medium text-blue-300">Administrador:</div>
-              <div className="text-gray-300">Email: admin@footbet.com</div>
-              <div className="text-gray-300">Contraseña: admin123</div>
-            </div>
-            <div className="bg-green-900/30 rounded p-3">
-              <div className="font-medium text-green-300">Vendedor Juan:</div>
-              <div className="text-gray-300">Email: juan@footbet.com</div>
-              <div className="text-gray-300">Contraseña: juan123</div>
-            </div>
-            <div className="bg-purple-900/30 rounded p-3">
-              <div className="font-medium text-purple-300">Vendedora María:</div>
-              <div className="text-gray-300">Email: maria@footbet.com</div>
-              <div className="text-gray-300">Contraseña: maria123</div>
-            </div>
-          </div>
-        </div>
+    
         
         <div className="space-y-6">
           <div>
