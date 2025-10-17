@@ -1505,6 +1505,43 @@ const App = () => {
     { id: 'seller2', email: 'maria@footbet.com', password: 'maria123', name: 'Maria Garcia', commission: 12 }
   ]);
 
+
+// Cargar datos de Firebase al montar el componente
+useEffect(() => {
+  const loadFirebaseData = async () => {
+    try {
+      // Cargar vendedores
+      const sellersSnapshot = await getDocs(collection(db, 'sellers'));
+      const sellersData = sellersSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return { ...data, id: doc.id };
+      });
+      setSellerUsers(sellersData);
+      
+      // Cargar tickets
+      const ticketsSnapshot = await getDocs(collection(db, 'tickets'));
+      const ticketsData = ticketsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return { ...data, id: doc.id };
+      });
+      setTickets(ticketsData);
+      
+      // Cargar resultados
+      const resultsSnapshot = await getDocs(collection(db, 'match_results'));
+      const resultsData = {};
+      resultsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        resultsData[data.matchId] = data.result;
+      });
+      setMatchResults(resultsData);
+    } catch (error) {
+      console.error('Error al cargar datos de Firebase:', error);
+    }
+  };
+  
+  loadFirebaseData();
+}, []);
+
   // Cargar partidos diarios desde JSON - CÓDIGO DEFINITIVO PARA PRODUCCIÓN
 useEffect(() => {
   const loadDailyMatches = () => {
@@ -1528,26 +1565,7 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, []);
 
-  // Cargar resultados al montar
-  useEffect(() => {
-    const loadResults = async () => {
-      try {
-        const q = query(collection(db, 'match_results'), where('date', '==', getCurrentDate()));
-        const querySnapshot = await getDocs(q);
-        const results = {};
-        
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          results[data.matchId] = data.result;
-        });
-        
-        setMatchResults(results);
-      } catch (error) {
-        console.error('Error al obtener resultados:', error);
-      }
-    };
-    loadResults();
-  }, []);
+
 
   // Authentication data
   const adminUsers = useMemo(() => [
@@ -1692,6 +1710,7 @@ useEffect(() => {
     const docRef = await addDoc(collection(db, 'sellers'), newSeller);
     const sellerWithId = { ...newSeller, id: docRef.id };
     setSellerUsers(prev => [...prev, sellerWithId]);
+    alert('Vendedor creado exitosamente');
   } catch (error) {
     console.error('Error al crear vendedor:', error);
     alert('Error al crear el vendedor. Intente nuevamente.');
