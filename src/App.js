@@ -1,5 +1,23 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Phone, LogOut, Home, Ticket, FileText, BarChart3, Settings, Plus, User, Mail, Percent, Calendar, Clock, Eye, Copy, CheckCircle, AlertCircle, Key, X, Save, Trash2, Filter, Download, TrendingUp, Award, Users, DollarSign, Database, Globe, Zap, Star, Crown, Target, Activity, PieChart, BarChart2, LineChart, Search, ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Info } from 'lucide-react';
+import { Phone, LogOut, Home, Ticket, FileText, BarChart3, Settings, Plus, User, Mail, Percent, Calendar, Clock, Eye, Copy, CheckCircle, AlertCircle, Key, X, Save, Trash2, Filter, Download, TrendingUp, Award, Users, DollarSign, Database, Globe, Zap, Star, Crown, Target, Activity, PieChart, BarChart2, LineChart, Search, ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Info, Play, Square } from 'lucide-react';
+
+// Firebase - Configuración correcta para Create React App
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
+
+// Configuración de Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyBHz3LsqwCDxQkhmUdj1E86kAYPXnQrkGg",
+  authDomain: "footbet-pro.firebaseapp.com",
+  projectId: "footbet-pro",
+  storageBucket: "footbet-pro.firebasestorage.app",
+  messagingSenderId: "768296334899",
+  appId: "1:768296334899:web:708aa3e1883b0a89a2d546"
+};
+
+// Inicializar Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 // Componente aislado para los inputs del cliente
 const CustomerInfoForm = React.memo(({ customerName, customerPhone, onNameChange, onPhoneChange }) => {
@@ -45,7 +63,6 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
       default: return 'bg-gray-700 hover:bg-gray-600';
     }
   };
-
   return (
     <div className={`bg-gray-800 rounded-xl p-4 border ${isTrapMatch ? 'border-purple-600' : 'border-gray-700'} hover:border-gray-600 transition-colors`}>
       <div className="flex justify-between items-start mb-3">
@@ -74,6 +91,7 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
               ? 'bg-green-600 text-white shadow-lg'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
+          disabled={match.status === 'closed'}
         >
           <div className="font-bold">1</div>
           <div className="text-xs mt-1 opacity-90">{match.odds.home}</div>
@@ -85,6 +103,7 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
               ? 'bg-yellow-600 text-white shadow-lg'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
+          disabled={match.status === 'closed'}
         >
           <div className="font-bold">X</div>
           <div className="text-xs mt-1 opacity-90">{match.odds.draw}</div>
@@ -96,6 +115,7 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
               ? 'bg-red-600 text-white shadow-lg'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
+          disabled={match.status === 'closed'}
         >
           <div className="font-bold">2</div>
           <div className="text-xs mt-1 opacity-90">{match.odds.away}</div>
@@ -611,6 +631,29 @@ const copyToWhatsApp = (ticket) => {
   }, 1000);
 };
 
+// Funciones auxiliares para manejo de fechas
+// Función para obtener la fecha actual en Colombia (UTC-5)
+const getCurrentDate = () => {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const colombiaTime = new Date(utc + (-5 * 3600000)); // UTC-5
+  return colombiaTime.toISOString().split('T')[0];
+};
+
+// Función para obtener la hora actual en Colombia (UTC-5)
+const getCurrentTime = () => {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const colombiaTime = new Date(utc + (-5 * 3600000)); // UTC-5
+  return colombiaTime.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+};
+
+const getTomorrowDate = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toLocaleDateString('en-CA');
+};
+
 // Componente de ventas - versión para vendedor (solo sus ventas)
 const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -622,12 +665,8 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
   const [showResendModal, setShowResendModal] = useState(false);
   const [ticketToResend, setTicketToResend] = useState(null);
   
-  // Obtener fecha actual en formato YYYY-MM-DD
-  const getCurrentDate = () => {
-    return new Date().toLocaleDateString('en-CA');
-  };
-  
   const today = getCurrentDate();
+  
   // Filtrar tickets - solo del vendedor actual si es vendedor
   const filteredTickets = useMemo(() => {
     let filtered = [...tickets];
@@ -650,24 +689,30 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
     }
     return filtered.sort((a, b) => new Date(`${b.date} ${b.time}`) - new Date(`${a.date} ${a.time}`));
   }, [tickets, searchTerm, timeFilter, userRole, currentUser, today]);
+  
   const totalSales = filteredTickets.reduce((sum, t) => sum + t.totalStake, 0);
   const averageTicket = filteredTickets.length > 0 ? totalSales / filteredTickets.length : 0;
+  
   const handleShowDetails = (ticket) => {
     setSelectedTicket(ticket);
     setShowDetailsModal(true);
   };
+  
   const handleDeleteTicket = (ticket) => {
     setTicketToDelete(ticket);
     setShowDeleteTicketModal(true);
   };
+  
   const handleResendTicket = (ticket) => {
     setTicketToResend(ticket);
     setShowResendModal(true);
   };
+  
   const handleResendConfirm = (newPhone) => {
     const updatedTicket = { ...ticketToResend, customerPhone: newPhone };
     copyToWhatsApp(updatedTicket);
   };
+  
   return (
     <div className="pb-24 px-4">
       <div className="mb-6">
@@ -681,6 +726,7 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
           )}
         </div>
       </div>
+      
       {/* Filtros */}
       <div className="bg-gray-800 rounded-xl p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -711,6 +757,7 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
           </div>
         </div>
       </div>
+      
       {/* Resumen */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-4 shadow-lg">
@@ -741,6 +788,7 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
           </div>
         </div>
       </div>
+      
       {/* Lista de tickets */}
       <div className="bg-gray-800 rounded-xl p-6">
         <h2 className="text-white text-lg font-bold mb-4">Tickets ({filteredTickets.length})</h2>
@@ -800,6 +848,7 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
           </div>
         )}
       </div>
+      
       {showDetailsModal && selectedTicket && (
         <TicketDetailsModal
           ticket={selectedTicket}
@@ -835,12 +884,8 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
 const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) => {
   const [activeReport, setActiveReport] = useState('daily');
   
-  // Obtener fecha actual en formato YYYY-MM-DD
-  const getCurrentDate = () => {
-    return new Date().toLocaleDateString('en-CA');
-  };
-  
   const today = getCurrentDate();
+  
   // Datos para reportes
   const dailySales = useMemo(() => {
     const todayTickets = tickets.filter(t => t.date === today);
@@ -857,6 +902,7 @@ const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) =
     });
     return hourlyData;
   }, [tickets, today]);
+  
   const sellerPerformance = useMemo(() => {
     const performance = {};
     sellerUsers.forEach(seller => {
@@ -873,6 +919,7 @@ const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) =
     });
     return Object.values(performance).sort((a, b) => b.totalSales - a.totalSales);
   }, [tickets, sellerUsers]);
+  
   const winningTickets = useMemo(() => {
     // Simular tickets ganadores (30% de probabilidad)
     return tickets.filter(ticket => {
@@ -880,6 +927,7 @@ const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) =
       return randomWin < 0.3 && ticket.bets.length >= 5;
     });
   }, [tickets]);
+  
   const renderReportContent = () => {
     switch (activeReport) {
       case 'daily':
@@ -1027,6 +1075,7 @@ const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) =
         return null;
     }
   };
+  
   return (
     <div className="pb-24 px-4">
       <div className="mb-6">
@@ -1038,6 +1087,7 @@ const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) =
           </button>
         </div>
       </div>
+      
       {/* Navegación de reportes */}
       <div className="bg-gray-800 rounded-xl p-4 mb-6">
         <div className="flex flex-wrap gap-2">
@@ -1081,6 +1131,7 @@ const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) =
           </button>
         </div>
       </div>
+      
       {renderReportContent()}
     </div>
   );
@@ -1100,18 +1151,22 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
     notifications: true,
     theme: 'dark'
   });
+  
   const handleSaveBusiness = () => {
     alert('Configuración de negocio guardada exitosamente');
   };
+  
   const handleSaveSystem = () => {
     alert('Configuración del sistema guardada exitosamente');
   };
+  
   return (
     <div className="pb-24 px-4">
       <div className="mb-6">
         <h1 className="text-white text-2xl font-bold">Configuración</h1>
         <p className="text-gray-400">Gestiona la configuración de tu sistema de apuestas</p>
       </div>
+      
       {/* Tabs de configuración */}
       <div className="bg-gray-800 rounded-xl p-4 mb-6">
         <div className="flex flex-wrap gap-2">
@@ -1155,6 +1210,7 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
           </button>
         </div>
       </div>
+      
       {activeTab === 'business' && (
         <div className="bg-gray-800 rounded-xl p-6">
           <h2 className="text-white text-lg font-bold mb-4">Configuración de Negocio</h2>
@@ -1213,6 +1269,7 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
           </button>
         </div>
       )}
+      
       {activeTab === 'users' && userRole === 'admin' && (
         <div className="bg-gray-800 rounded-xl p-6">
           <div className="flex justify-between items-center mb-4">
@@ -1257,6 +1314,7 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
           </div>
         </div>
       )}
+      
       {activeTab === 'system' && (
         <div className="bg-gray-800 rounded-xl p-6">
           <h2 className="text-white text-lg font-bold mb-4">Configuración del Sistema</h2>
@@ -1276,6 +1334,7 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
                 <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
               </label>
             </div>
+            
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-white font-medium">Notificaciones</p>
@@ -1291,6 +1350,7 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
                 <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
               </label>
             </div>
+            
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-white font-medium">Tema</p>
@@ -1315,6 +1375,7 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
           </button>
         </div>
       )}
+      
       {activeTab === 'data' && (
         <div className="bg-gray-800 rounded-xl p-6">
           <h2 className="text-white text-lg font-bold mb-4">Gestión de Datos</h2>
@@ -1329,6 +1390,7 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
                 Crear Backup
               </button>
             </div>
+            
             <div className="bg-gray-700/50 rounded-lg p-4">
               <div className="flex items-center gap-3 mb-3">
                 <Download className="w-6 h-6 text-green-400" />
@@ -1347,6 +1409,66 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// Panel de resultados en el admin dashboard
+const ResultsPanel = ({ matchResults, handleSaveResult, matches }) => {
+  const todayMatches = matches.filter(match => match.status !== 'closed');
+  
+  return (
+    <div className="bg-gray-800 rounded-xl p-6 mb-6">
+      <h2 className="text-white text-lg font-bold mb-4">Marcar Resultados</h2>
+      <div className="space-y-3">
+        {todayMatches.map(match => (
+          <div key={match.id} className="bg-gray-700 rounded-lg p-4">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-white font-medium">
+                {match.homeTeam} vs {match.awayTeam}
+              </span>
+              {matchResults[match.id] && (
+                <span className="bg-green-600 text-white text-xs px-2 py-1 rounded">
+                  {matchResults[match.id] === '1' ? 'Local' : 
+                   matchResults[match.id] === 'X' ? 'Empate' : 'Visitante'}
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleSaveResult(match.id, '1')}
+                className={`px-3 py-1 rounded text-sm ${
+                  matchResults[match.id] === '1' 
+                    ? 'bg-green-600 text-white' 
+                    : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                }`}
+              >
+                1
+              </button>
+              <button
+                onClick={() => handleSaveResult(match.id, 'X')}
+                className={`px-3 py-1 rounded text-sm ${
+                  matchResults[match.id] === 'X' 
+                    ? 'bg-yellow-600 text-white' 
+                    : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                }`}
+              >
+                X
+              </button>
+              <button
+                onClick={() => handleSaveResult(match.id, '2')}
+                className={`px-3 py-1 rounded text-sm ${
+                  matchResults[match.id] === '2' 
+                    ? 'bg-red-600 text-white' 
+                    : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                }`}
+              >
+                2
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
@@ -1371,206 +1493,135 @@ const App = () => {
   const [ticketToDelete, setTicketToDelete] = useState(null);
   const [showResendModal, setShowResendModal] = useState(false);
   const [ticketToResend, setTicketToResend] = useState(null);
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [matchResults, setMatchResults] = useState({});
   const [sellerUsers, setSellerUsers] = useState([
     { id: 'seller1', email: 'juan@footbet.com', password: 'juan123', name: 'Juan Perez', commission: 15 },
     { id: 'seller2', email: 'maria@footbet.com', password: 'maria123', name: 'Maria Garcia', commission: 12 }
   ]);
 
-  // Obtener fecha actual en formato YYYY-MM-DD
-  const getCurrentDate = () => {
-    return new Date().toLocaleDateString('en-CA');
-  };
-
-  // Obtener hora actual en formato HH:MM
-  const getCurrentTime = () => {
-    return new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-  };
-
-  // Cargar partidos reales de TheSportsDB al montar el componente
+  // Cargar partidos diarios
   useEffect(() => {
-    const fetchTodayMatches = async () => {
-      try {
-        const now = new Date();
-        const day = now.getDate();
-        const month = now.getMonth() + 1;
-        const year = now.getFullYear();
-        
-        const response = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${day}&m=${month}&y=${year}`);
-        const data = await response.json();
-        
-        if (data.events && data.events.length > 0) {
-          // Procesar partidos reales - limitar a 7
-          const processedMatches = data.events.slice(0, 7).map((event, index) => ({
-            id: event.idEvent,
-            homeTeam: event.strHomeTeam || 'Equipo Local',
-            awayTeam: event.strAwayTeam || 'Equipo Visitante',
-            league: event.strLeague || 'Liga Desconocida',
-            time: event.strTime || '20:00',
-            odds: { home: 2.0, draw: 3.0, away: 3.0 },
-            status: 'upcoming',
-            isTrap: index >= 4 // Últimos 3 como trap (índices 4, 5, 6)
-          }));
-          setMatches(processedMatches);
-        } else {
-          // Partidos de respaldo si no hay datos de la API
-          setMatches([
-            {
-              id: 1,
-              homeTeam: 'América de Cali',
-              awayTeam: 'Deportivo Cali',
-              league: 'Liga Colombiana',
-              time: '19:00',
-              odds: { home: 2.0, draw: 3.0, away: 3.0 },
-              status: 'upcoming',
-              isTrap: false
-            },
-            {
-              id: 2,
-              homeTeam: 'Liverpool',
-              awayTeam: 'Chelsea',
-              league: 'Premier League',
-              time: '15:30',
-              odds: { home: 2.0, draw: 3.0, away: 3.0 },
-              status: 'upcoming',
-              isTrap: false
-            },
-            {
-              id: 3,
-              homeTeam: 'Real Madrid',
-              awayTeam: 'Barcelona',
-              league: 'LaLiga',
-              time: '20:00',
-              odds: { home: 2.0, draw: 3.0, away: 3.0 },
-              status: 'upcoming',
-              isTrap: false
-            },
-            {
-              id: 4,
-              homeTeam: 'Bayern Munich',
-              awayTeam: 'Borussia Dortmund',
-              league: 'Bundesliga',
-              time: '14:30',
-              odds: { home: 2.0, draw: 3.0, away: 3.0 },
-              status: 'upcoming',
-              isTrap: false
-            },
-            {
-              id: 5,
-              homeTeam: 'PSG',
-              awayTeam: 'Marseille',
-              league: 'Ligue 1',
-              time: '21:00',
-              odds: { home: 2.0, draw: 3.0, away: 3.0 },
-              status: 'upcoming',
-              isTrap: true
-            },
-            {
-              id: 6,
-              homeTeam: 'Juventus',
-              awayTeam: 'AC Milan',
-              league: 'Serie A',
-              time: '16:45',
-              odds: { home: 2.0, draw: 3.0, away: 3.0 },
-              status: 'upcoming',
-              isTrap: true
-            },
-            {
-              id: 7,
-              homeTeam: 'Ajax',
-              awayTeam: 'Feyenoord',
-              league: 'Eredivisie',
-              time: '13:30',
-              odds: { home: 2.0, draw: 3.0, away: 3.0 },
-              status: 'upcoming',
-              isTrap: true
-            }
-          ]);
+    const loadDailyMatches = () => {
+      // Partidos de ejemplo para pruebas
+      const sampleMatches = [
+        {
+          id: 1,
+          homeTeam: 'América de Cali',
+          awayTeam: 'Junior FC',
+          league: 'Copa BetPlay Dimayor',
+          time: '20:20',
+          country: 'Colombia',
+          popularity: 95,
+          isTrap: false,
+          odds: { home: 2.0, draw: 3.0, away: 3.0 },
+          status: 'upcoming'
+        },
+        {
+          id: 2,
+          homeTeam: 'Fortaleza',
+          awayTeam: 'Vasco Da Gama',
+          league: 'Brasileirão',
+          time: '19:30',
+          country: 'Brasil',
+          popularity: 70,
+          isTrap: false,
+          odds: { home: 2.0, draw: 3.0, away: 3.0 },
+          status: 'upcoming'
+        },
+        {
+          id: 3,
+          homeTeam: 'Atlético Mineiro',
+          awayTeam: 'Cruzeiro',
+          league: 'Brasileirão',
+          time: '19:30',
+          country: 'Brasil',
+          popularity: 75,
+          isTrap: false,
+          odds: { home: 2.0, draw: 3.0, away: 3.0 },
+          status: 'upcoming'
+        },
+        {
+          id: 4,
+          homeTeam: 'Santos',
+          awayTeam: 'Corinthians',
+          league: 'Brasileirão',
+          time: '19:30',
+          country: 'Brasil',
+          popularity: 80,
+          isTrap: false,
+          odds: { home: 2.0, draw: 3.0, away: 3.0 },
+          status: 'upcoming'
+        },
+        {
+          id: 5,
+          homeTeam: 'Jaiba Brava',
+          awayTeam: 'Mineros De Zacatecas',
+          league: 'Liga de Expansión MX',
+          time: '22:00',
+          country: 'México',
+          popularity: 40,
+          isTrap: true,
+          odds: { home: 2.0, draw: 3.0, away: 3.0 },
+          status: 'upcoming'
+        },
+        {
+          id: 6,
+          homeTeam: 'Olympic El Qanal',
+          awayTeam: 'El Entag El Harby',
+          league: 'Segunda División de Egipto',
+          time: '07:30',
+          country: 'Egipto',
+          popularity: 10,
+          isTrap: true,
+          odds: { home: 2.0, draw: 3.0, away: 3.0 },
+          status: 'upcoming'
+        },
+        {
+          id: 7,
+          homeTeam: 'El Dakhleya FC',
+          awayTeam: 'Abo Qir Semad',
+          league: 'Segunda División de Egipto',
+          time: '07:30',
+          country: 'Egipto',
+          popularity: 8,
+          isTrap: true,
+          odds: { home: 2.0, draw: 3.0, away: 3.0 },
+          status: 'upcoming'
         }
+      ];
+      setMatches(sampleMatches);
+    };
+    
+    loadDailyMatches();
+  }, []);
+
+  // Cargar resultados al montar
+  useEffect(() => {
+    const loadResults = async () => {
+      try {
+        const q = query(collection(db, 'match_results'), where('date', '==', getCurrentDate()));
+        const querySnapshot = await getDocs(q);
+        const results = {};
+        
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          results[data.matchId] = data.result;
+        });
+        
+        setMatchResults(results);
       } catch (error) {
-        console.error('Error al cargar partidos de TheSportsDB:', error);
-        // Partidos de respaldo en caso de error
-        setMatches([
-          {
-            id: 1,
-            homeTeam: 'Millonarios',
-            awayTeam: 'Nacional',
-            league: 'Liga Colombiana',
-            time: '19:45',
-            odds: { home: 2.0, draw: 3.0, away: 3.0 },
-            status: 'upcoming',
-            isTrap: false
-          },
-          {
-            id: 2,
-            homeTeam: 'Manchester City',
-            awayTeam: 'Arsenal',
-            league: 'Premier League',
-            time: '15:00',
-            odds: { home: 2.0, draw: 3.0, away: 3.0 },
-            status: 'upcoming',
-            isTrap: false
-          },
-          {
-            id: 3,
-            homeTeam: 'Colombia',
-            awayTeam: 'Brasil',
-            league: 'Fechas FIFA',
-            time: '18:30',
-            odds: { home: 2.0, draw: 3.0, away: 3.0 },
-            status: 'upcoming',
-            isTrap: false
-          },
-          {
-            id: 4,
-            homeTeam: 'Barcelona',
-            awayTeam: 'Real Madrid',
-            league: 'LaLiga',
-            time: '20:00',
-            odds: { home: 2.0, draw: 3.0, away: 3.0 },
-            status: 'upcoming',
-            isTrap: false
-          },
-          {
-            id: 5,
-            homeTeam: 'FC Volyn',
-            awayTeam: 'Dinamo Brest',
-            league: 'Liga Ucraniana',
-            time: '19:15',
-            odds: { home: 2.0, draw: 3.0, away: 3.0 },
-            status: 'upcoming',
-            isTrap: true
-          },
-          {
-            id: 6,
-            homeTeam: 'FK Zalgiris',
-            awayTeam: 'Shakhter Karagandy',
-            league: 'Liga de Kazajistán',
-            time: '16:00',
-            odds: { home: 2.0, draw: 3.0, away: 3.0 },
-            status: 'upcoming',
-            isTrap: true
-          },
-          {
-            id: 7,
-            homeTeam: 'Estrella Roja',
-            awayTeam: 'Partizan',
-            league: 'Liga Serbia',
-            time: '17:30',
-            odds: { home: 2.0, draw: 3.0, away: 3.0 },
-            status: 'upcoming',
-            isTrap: true
-          }
-        ]);
+        console.error('Error al obtener resultados:', error);
       }
     };
-
-    fetchTodayMatches();
+    loadResults();
   }, []);
 
   // Authentication data
   const adminUsers = useMemo(() => [
     { id: 'admin1', email: 'admin@footbet.com', password: 'admin123', name: 'Administrador' }
   ], []);
+
   const handleLogin = useCallback(() => {
     const admin = adminUsers.find(u => u.email === loginEmail && u.password === loginPassword);
     if (admin) {
@@ -1588,6 +1639,7 @@ const App = () => {
     }
     alert('Credenciales incorrectas');
   }, [loginEmail, loginPassword, adminUsers, sellerUsers]);
+
   const handleLogout = useCallback(() => {
     setCurrentView('login');
     setUserRole(null);
@@ -1598,14 +1650,20 @@ const App = () => {
     setCustomerPhone('');
     setSelectedBets(new Map());
   }, []);
+
   const toggleBetSelection = useCallback((matchId, selection, odds) => {
+    // No permitir selección en partidos cerrados
+    const match = matches.find(m => m.id === matchId);
+    if (match && match.status === 'closed') {
+      return;
+    }
+    
     setSelectedBets(prev => {
       const newMap = new Map(prev);
       const existingBet = newMap.get(matchId);
       if (existingBet && existingBet.selection === selection) {
         newMap.delete(matchId);
       } else {
-        const match = matches.find(m => m.id === matchId);
         newMap.set(matchId, {
           matchId,
           homeTeam: match?.homeTeam || '',
@@ -1614,23 +1672,34 @@ const App = () => {
           time: match?.time || '',
           selection,
           odds,
-          stake: 5000 // Monto fijo de $5,000
+          stake: 5000
         });
       }
       return newMap;
     });
   }, [matches]);
+
   const generateTicket = useCallback(() => {
     if (!customerName || !customerPhone) {
       alert('Por favor complete toda la información del cliente');
       return;
     }
-    // Validación: deben seleccionarse exactamente 7 partidos
     if (selectedBets.size !== 7) {
       alert('Debe seleccionar los 7 partidos para generar el ticket. Monto fijo: $5,000 COP');
       return;
     }
-    // Formatear el número de teléfono con +57
+    
+    // Verificar que ningún partido esté cerrado
+    const closedMatches = Array.from(selectedBets.keys()).some(matchId => {
+      const match = matches.find(m => m.id === matchId);
+      return match && match.status === 'closed';
+    });
+    
+    if (closedMatches) {
+      alert('Algunos partidos ya están cerrados. Por favor actualice la página.');
+      return;
+    }
+
     let formattedPhone = customerPhone.trim();
     if (!formattedPhone.startsWith('+57')) {
       formattedPhone = `+57 ${formattedPhone}`;
@@ -1638,7 +1707,7 @@ const App = () => {
     const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
     const betsArray = Array.from(selectedBets.values()).map(bet => ({
       ...bet,
-      stake: 5000 // Monto fijo
+      stake: 5000
     }));
     const newTicket = {
       id: `TKT${String(tickets.length + 1).padStart(3, '0')}`,
@@ -1646,7 +1715,7 @@ const App = () => {
       customerName: customerName,
       customerPhone: formattedPhone,
       bets: betsArray,
-      totalStake: 5000, // Monto fijo
+      totalStake: 5000,
       verificationCode,
       sellerId: currentUser.id,
       sellerName: currentUser.name,
@@ -1659,10 +1728,31 @@ const App = () => {
     setSelectedBets(new Map());
     setCustomerName('');
     setCustomerPhone('');
-  }, [customerName, customerPhone, selectedBets, tickets.length, currentUser, getCurrentDate, getCurrentTime]);
+  }, [customerName, customerPhone, selectedBets, tickets.length, currentUser]);
+
+  // Función para guardar resultados
+  const handleSaveResult = async (matchId, result) => {
+    try {
+      const resultData = {
+        matchId,
+        result, // '1', 'X', o '2'
+        date: getCurrentDate(),
+        timestamp: new Date().toISOString()
+      };
+      
+      const docRef = await addDoc(collection(db, 'match_results'), resultData);
+      setMatchResults(prev => ({ ...prev, [matchId]: result }));
+      alert('Resultado guardado exitosamente');
+    } catch (error) {
+      console.error('Error al guardar resultado:', error);
+      alert('Error al guardar el resultado');
+    }
+  };
+
   const handleCreateSeller = (newSeller) => {
     setSellerUsers(prev => [...prev, newSeller]);
   };
+
   const handleDeleteSeller = (sellerId) => {
     setSellerUsers(prev => prev.filter(seller => seller.id !== sellerId));
     // Si el vendedor eliminado estaba logueado, cerrar sesión
@@ -1672,157 +1762,23 @@ const App = () => {
     // Eliminar tickets asociados al vendedor eliminado
     setTickets(prev => prev.filter(ticket => ticket.sellerId !== sellerId));
   };
+
   const handleDeleteTicket = (ticketId) => {
     setTickets(prev => prev.filter(ticket => ticket.id !== ticketId));
   };
+
   const handleResendTicket = (ticket) => {
     setTicketToResend(ticket);
     setShowResendModal(true);
   };
+
   const handleResendConfirm = (newPhone) => {
     const updatedTicket = { ...ticketToResend, customerPhone: newPhone };
     copyToWhatsApp(updatedTicket);
     setShowResendModal(false);
     setTicketToResend(null);
   };
-  // Login Screen Component
-  const LoginScreen = useCallback(() => (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-gray-900 to-green-800 flex items-center justify-center p-4">
-      <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md shadow-2xl border border-gray-700">
-        <div className="text-center mb-6">
-          <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-green-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-white text-3xl font-bold">⚽</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">FootBet Pro</h1>
-          <p className="text-gray-400">Sistema de Apuestas Profesional</p>
-        </div>
-        <div className="mb-6 bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-          <h3 className="text-green-400 font-bold mb-3 flex items-center gap-2">
-            <Key className="w-4 h-4" />
-            Credenciales de Prueba
-          </h3>
-          <div className="space-y-3 text-sm">
-            <div className="bg-blue-900/30 rounded p-3">
-              <div className="font-medium text-blue-300">Administrador:</div>
-              <div className="text-gray-300">Email: admin@footbet.com</div>
-              <div className="text-gray-300">Contraseña: admin123</div>
-            </div>
-            <div className="bg-green-900/30 rounded p-3">
-              <div className="font-medium text-green-300">Vendedor Juan:</div>
-              <div className="text-gray-300">Email: juan@footbet.com</div>
-              <div className="text-gray-300">Contraseña: juan123</div>
-            </div>
-            <div className="bg-purple-900/30 rounded p-3">
-              <div className="font-medium text-purple-300">Vendedora María:</div>
-              <div className="text-gray-300">Email: maria@footbet.com</div>
-              <div className="text-gray-300">Contraseña: maria123</div>
-            </div>
-          </div>
-        </div>
-        <div className="space-y-6">
-          <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
-              <Mail className="w-4 h-4" />
-              Correo Electrónico
-            </label>
-            <input
-              type="email"
-              value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
-              className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
-              placeholder="usuario@footbet.com"
-            />
-          </div>
-          <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
-              <LockIcon className="w-4 h-4" />
-              Contraseña
-            </label>
-            <input
-              type="password"
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-              className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
-              placeholder="••••••••"
-            />
-          </div>
-          <button
-            onClick={handleLogin}
-            className="w-full bg-gradient-to-r from-green-600 to-green-800 hover:from-green-700 hover:to-green-900 text-white font-bold py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
-          >
-            Iniciar Sesión
-          </button>
-        </div>
-      </div>
-    </div>
-  ), [loginEmail, loginPassword, handleLogin]);
-  const BetSelectionScreen = useCallback(() => {
-    const todayMatches = matches.filter(match => match.status === 'upcoming');
-    return (
-      <div className="min-h-screen bg-gray-900 pb-8">
-        <div className="bg-gradient-to-r from-green-600 to-green-800 p-4 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <button 
-              onClick={() => setCurrentView('seller-dashboard')}
-              className="text-white hover:text-green-200 text-2xl transition-colors"
-            >
-              ←
-            </button>
-            <h1 className="text-white text-xl font-bold">Seleccionar Apuestas</h1>
-            <div className="w-6"></div>
-          </div>
-          <CustomerInfoForm
-            customerName={customerName}
-            customerPhone={customerPhone}
-            onNameChange={setCustomerName}
-            onPhoneChange={setCustomerPhone}
-          />
-        </div>
-        <div className="px-4 py-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-white text-xl font-bold">Partidos de Hoy</h2>
-            <span className="bg-green-600 text-white text-sm px-3 py-1 rounded-full flex items-center gap-1">
-              <Ticket className="w-3 h-3" />
-              {selectedBets.size}/7 seleccionados
-            </span>
-          </div>
-          <div className="space-y-4">
-            {todayMatches.map(match => (
-              <MatchBetCard
-                key={match.id}
-                match={match}
-                selectedBet={selectedBets.get(match.id)}
-                onSelectionChange={toggleBetSelection}
-                isTrapMatch={match.isTrap}
-              />
-            ))}
-          </div>
-          {/* Panel de generación de ticket - AHORA ESTÁ EN EL FLUJO NORMAL, NO FIJO */}
-          <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-4 mt-6 shadow-lg border border-green-700">
-            <div className="text-center mb-3">
-              <p className="text-white font-bold text-lg">Monto del Ticket: {formatCOP(5000)}</p>
-              <p className="text-green-200 text-sm">
-                🎯 Premios: 5 aciertos = Recupera apuesta | 6 aciertos = $500K | 7 aciertos = $5M
-              </p>
-            </div>
-            <button
-              onClick={generateTicket}
-              disabled={selectedBets.size !== 7}
-              className={`w-full font-bold py-3 rounded-lg transition-colors shadow-lg transform hover:scale-105 ${
-                selectedBets.size === 7
-                  ? 'bg-white text-green-800 hover:bg-green-50'
-                  : 'bg-gray-500 text-gray-300 cursor-not-allowed'
-              }`}
-            >
-              {selectedBets.size === 7 
-                ? 'Generar Ticket - $5,000' 
-                : `Selecciona ${7 - selectedBets.size} partidos más`}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }, [matches, customerName, customerPhone, selectedBets, toggleBetSelection, generateTicket]);
+
   const AdminDashboard = useCallback(() => (
     <div className="pb-24 px-4">
       <div className="mb-6">
@@ -1837,6 +1793,7 @@ const App = () => {
         </div>
         <p className="text-gray-400">Bienvenido, {currentUser?.name}</p>
       </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl p-4 shadow-lg">
           <div className="flex items-center justify-between">
@@ -1866,6 +1823,7 @@ const App = () => {
           </div>
         </div>
       </div>
+      
       <div className="bg-gray-800 rounded-xl p-6 mb-6 shadow-lg border border-gray-700">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-white text-lg font-bold">Vendedores</h2>
@@ -1905,13 +1863,23 @@ const App = () => {
           ))}
         </div>
       </div>
+      
+      {/* Panel de resultados */}
+      <ResultsPanel 
+        matchResults={matchResults}
+        handleSaveResult={handleSaveResult}
+        matches={matches}
+      />
+      
     </div>
-  ), [currentUser, tickets, sellerUsers, handleLogout, formatCOP, getCurrentDate]);
+  ), [currentUser, tickets, sellerUsers, handleLogout, formatCOP, matchResults, matches]);
+
   const SellerDashboard = useCallback(() => {
     const todaySales = tickets.filter(t => t.sellerId === currentUser?.id && t.date === getCurrentDate());
     const todayTotal = todaySales.reduce((sum, t) => sum + t.totalStake, 0);
     const commissionAmount = (todayTotal * (currentUser?.commission || 0)) / 100;
     const amountToPay = todayTotal - commissionAmount;
+    
     return (
       <div className="pb-24 px-4">
         <div className="mb-6">
@@ -1926,6 +1894,7 @@ const App = () => {
           </div>
           <p className="text-gray-400">Bienvenido, {currentUser?.name}</p>
         </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-4 shadow-lg">
             <div className="flex items-center justify-between">
@@ -1946,6 +1915,7 @@ const App = () => {
             </div>
           </div>
         </div>
+        
         <div className="bg-gradient-to-r from-purple-600 to-purple-800 rounded-xl p-4 mb-6 shadow-lg">
           <div className="flex justify-between items-center">
             <div>
@@ -1955,6 +1925,7 @@ const App = () => {
             <AlertCircle className="text-purple-200 w-8 h-8" />
           </div>
         </div>
+        
         <div className="bg-gray-800 rounded-xl p-6 mb-6 shadow-lg border border-gray-700">
           <h2 className="text-white text-lg font-bold mb-4">Acciones Rápidas</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1974,6 +1945,7 @@ const App = () => {
             </button>
           </div>
         </div>
+        
         <div className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-white text-lg font-bold">Tickets de Hoy</h2>
@@ -2039,9 +2011,11 @@ const App = () => {
         </div>
       </div>
     );
-  }, [currentUser, tickets, handleLogout, formatCOP, getCurrentDate]);
+  }, [currentUser, tickets, handleLogout, formatCOP]);
+
   const NavigationBar = () => {
     if (currentView === 'login' || currentView === 'bet-selection') return null;
+    
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800">
         <div className="flex justify-around items-center py-3">
@@ -2128,6 +2102,79 @@ const App = () => {
       </div>
     );
   };
+
+  const BetSelectionScreen = useCallback(() => {
+    const todayMatches = matches.filter(match => match.status === 'upcoming');
+    
+    return (
+      <div className="min-h-screen bg-gray-900 pb-8">
+        <div className="bg-gradient-to-r from-green-600 to-green-800 p-4 shadow-lg">
+          <div className="flex items-center justify-between mb-4">
+            <button 
+              onClick={() => setCurrentView('seller-dashboard')}
+              className="text-white hover:text-green-200 text-2xl transition-colors"
+            >
+              ←
+            </button>
+            <h1 className="text-white text-xl font-bold">Seleccionar Apuestas</h1>
+            <div className="w-6"></div>
+          </div>
+          <CustomerInfoForm
+            customerName={customerName}
+            customerPhone={customerPhone}
+            onNameChange={setCustomerName}
+            onPhoneChange={setCustomerPhone}
+          />
+        </div>
+        
+        <div className="px-4 py-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-white text-xl font-bold">Partidos de Hoy</h2>
+            <span className="bg-green-600 text-white text-sm px-3 py-1 rounded-full flex items-center gap-1">
+              <Ticket className="w-3 h-3" />
+              {selectedBets.size}/7 seleccionados
+            </span>
+          </div>
+          
+          <div className="space-y-4">
+            {todayMatches.map(match => (
+              <MatchBetCard
+                key={match.id}
+                match={match}
+                selectedBet={selectedBets.get(match.id)}
+                onSelectionChange={toggleBetSelection}
+                isTrapMatch={match.isTrap}
+              />
+            ))}
+          </div>
+          
+          {/* Panel de generación de ticket */}
+          <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-4 mt-6 shadow-lg border border-green-700">
+            <div className="text-center mb-3">
+              <p className="text-white font-bold text-lg">Monto del Ticket: {formatCOP(5000)}</p>
+              <p className="text-green-200 text-sm">
+                🎯 Premios: 5 aciertos = Recupera apuesta | 6 aciertos = $500K | 7 aciertos = $5M
+              </p>
+            </div>
+            <button
+              onClick={generateTicket}
+              disabled={selectedBets.size !== 7}
+              className={`w-full font-bold py-3 rounded-lg transition-colors shadow-lg transform hover:scale-105 ${
+                selectedBets.size === 7
+                  ? 'bg-white text-green-800 hover:bg-green-50'
+                  : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+              }`}
+            >
+              {selectedBets.size === 7 
+                ? 'Generar Ticket - $5,000' 
+                : `Selecciona ${7 - selectedBets.size} partidos más`}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }, [matches, customerName, customerPhone, selectedBets, toggleBetSelection, generateTicket]);
+
   const renderCurrentView = () => {
     switch (currentView) {
       case 'login':
@@ -2166,6 +2213,83 @@ const App = () => {
         return LoginScreen();
     }
   };
+
+  // Login Screen Component
+  const LoginScreen = useCallback(() => (
+    <div className="min-h-screen bg-gradient-to-br from-green-900 via-gray-900 to-green-800 flex items-center justify-center p-4">
+      <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md shadow-2xl border border-gray-700">
+        <div className="text-center mb-6">
+          <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-green-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <span className="text-white text-3xl font-bold">⚽</span>
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">FootBet Pro</h1>
+          <p className="text-gray-400">Sistema de Apuestas Profesional</p>
+        </div>
+        
+        <div className="mb-6 bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+          <h3 className="text-green-400 font-bold mb-3 flex items-center gap-2">
+            <Key className="w-4 h-4" />
+            Credenciales de Prueba
+          </h3>
+          <div className="space-y-3 text-sm">
+            <div className="bg-blue-900/30 rounded p-3">
+              <div className="font-medium text-blue-300">Administrador:</div>
+              <div className="text-gray-300">Email: admin@footbet.com</div>
+              <div className="text-gray-300">Contraseña: admin123</div>
+            </div>
+            <div className="bg-green-900/30 rounded p-3">
+              <div className="font-medium text-green-300">Vendedor Juan:</div>
+              <div className="text-gray-300">Email: juan@footbet.com</div>
+              <div className="text-gray-300">Contraseña: juan123</div>
+            </div>
+            <div className="bg-purple-900/30 rounded p-3">
+              <div className="font-medium text-purple-300">Vendedora María:</div>
+              <div className="text-gray-300">Email: maria@footbet.com</div>
+              <div className="text-gray-300">Contraseña: maria123</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="space-y-6">
+          <div>
+            <label className="block text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
+              <Mail className="w-4 h-4" />
+              Correo Electrónico
+            </label>
+            <input
+              type="email"
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
+              className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
+              placeholder="usuario@footbet.com"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
+              <LockIcon className="w-4 h-4" />
+              Contraseña
+            </label>
+            <input
+              type="password"
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+              className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
+              placeholder="••••••••"
+            />
+          </div>
+          
+          <button
+            onClick={handleLogin}
+            className="w-full bg-gradient-to-r from-green-600 to-green-800 hover:from-green-700 hover:to-green-900 text-white font-bold py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+          >
+            Iniciar Sesión
+          </button>
+        </div>
+      </div>
+    </div>
+  ), [loginEmail, loginPassword, handleLogin]);
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {renderCurrentView()}

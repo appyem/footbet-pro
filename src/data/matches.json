@@ -1,0 +1,536 @@
+{
+  "2025-10-15": [
+    {
+      "id": "america_junior_1510",
+      "homeTeam": "América de Cali",
+      "awayTeam": "Junior FC",
+      "league": "Copa BetPlay Dimayor",
+      "time": "20:20",
+      "country": "Colombia",
+      "popularity": 95
+    },
+    {
+      "id": "fortaleza_vasco_1510",
+      "homeTeam": "Fortaleza",
+      "awayTeam": "Vasco Da Gama",
+      "league": "Brasileirão",
+      "time": "19:30",
+      "country": "Brasil",
+      "popularity": 70
+    },
+    {
+      "id": "atletico_cruzeiro_1510",
+      "homeTeam": "Atlético Mineiro",
+      "awayTeam": "Cruzeiro",
+      "league": "Brasileirão",
+      "time": "19:30",
+      "country": "Brasil",
+      "popularity": 75
+    },
+    {
+      "id": "santos_corinthians_1510",
+      "homeTeam": "Santos",
+      "awayTeam": "Corinthians",
+      "league": "Brasileirão",
+      "time": "19:30",
+      "country": "Brasil",
+      "popularity": 80
+    },
+    {
+      "id": "jaiba_mineros_1510",
+      "homeTeam": "Jaiba Brava",
+      "awayTeam": "Mineros De Zacatecas",
+      "league": "Liga de Expansión MX",
+      "time": "22:00",
+      "country": "México",
+      "popularity": 40
+    }
+  ],
+  "2025-10-16": [
+    {
+      "id": "olympic_elqanal_1610",
+      "homeTeam": "Olympic El Qanal",
+      "awayTeam": "El Entag El Harby",
+      "league": "Segunda División de Egipto",
+      "time": "07:30",
+      "country": "Egipto",
+      "popularity": 10
+    },
+    {
+      "id": "eldakhleya_aboqir_1610",
+      "homeTeam": "El Dakhleya FC",
+      "awayTeam": "Abo Qir Semad",
+      "league": "Segunda División de Egipto",
+      "time": "07:30",
+      "country": "Egipto",
+      "popularity": 8
+    },
+    {
+      "id": "aswan_asyut_1610",
+      "homeTeam": "Aswan FC",
+      "awayTeam": "Asyut Petroleum",
+      "league": "Segunda División de Egipto",
+      "time": "07:30",
+      "country": "Egipto",
+      "popularity": 7
+    },
+    {
+      "id": "maleyeit_tanta_1610",
+      "homeTeam": "Maleyeit Kafr El Zayiat",
+      "awayTeam": "Tanta FC",
+      "league": "Segunda División de Egipto",
+      "time": "07:30",
+      "country": "Egipto",
+      "popularity": 9
+    },
+    {
+      "id": "fcmasar_elsakka_1610",
+      "homeTeam": "FC Masar",
+      "awayTeam": "El Sekka El Hadid",
+      "league": "Segunda División de Egipto",
+      "time": "10:00",
+      "country": "Egipto",
+      "popularity": 6
+    },
+    {
+      "id": "egypttelecom_altersana_1610",
+      "homeTeam": "Egypt Telecom",
+      "awayTeam": "Al Tersana",
+      "league": "Segunda División de Egipto",
+      "time": "12:00",
+      "country": "Egipto",
+      "popularity": 5
+    },
+    {
+      "id": "aso_chlef_crbelouizdad_1610",
+      "homeTeam": "ASO Chlef",
+      "awayTeam": "CR Belouizdad",
+      "league": "Ligue 1",
+      "time": "09:00",
+      "country": "Argelia",
+      "popularity": 25
+    },
+    {
+      "id": "es_setif_usm_alger_1610",
+      "homeTeam": "ES Setif",
+      "awayTeam": "USM Alger",
+      "league": "Ligue 1",
+      "time": "09:00",
+      "country": "Argelia",
+      "popularity": 30
+    },
+    {
+      "id": "cs_constantine_olympique_1610",
+      "homeTeam": "CS Constantine",
+      "awayTeam": "Olympique Akbou",
+      "league": "Ligue 1",
+      "time": "09:00",
+      "country": "Argelia",
+      "popularity": 20
+    },
+    {
+      "id": "mc_elbayadh_mc_oran_1610",
+      "homeTeam": "Mc El Bayadh",
+      "awayTeam": "MC Oran",
+      "league": "Ligue 1",
+      "time": "09:00",
+      "country": "Argelia",
+      "popularity": 22
+    },
+    {
+      "id": "js_saoura_js_kabylie_1610",
+      "homeTeam": "JS Saoura",
+      "awayTeam": "JS Kabylie",
+      "league": "Ligue 1",
+      "time": "09:00",
+      "country": "Argelia",
+      "popularity": 28
+    },
+    {
+      "id": "usm_khenchela_mc_alger_1610",
+      "homeTeam": "Usm Khenchela",
+      "awayTeam": "MC Alger",
+      "league": "Ligue 1",
+      "time": "09:00",
+      "country": "Argelia",
+      "popularity": 35
+    },
+    {
+      "id": "paradouac_esmostaganem_1610",
+      "homeTeam": "Paradou AC",
+      "awayTeam": "ES Mostaganem",
+      "league": "Ligue 1",
+      "time": "09:00",
+      "country": "Argelia",
+      "popularity": 18
+    },
+    {
+      "id": "mbr_rouisset_esbenaknoun_1610",
+      "homeTeam": "MB Rouisset",
+      "awayTeam": "Es Ben Aknoun",
+      "league": "Ligue 1",
+      "time": "09:00",
+      "country": "Argelia",
+      "popularity": 15
+    }
+  ],
+  "2025-10-17": [
+    {
+      "id": "unionberlin_gladbach_1710",
+      "homeTeam": "FC Union Berlin",
+      "awayTeam": "Borussia Mönchengladbach",
+      "league": "Bundesliga",
+      "time": "13:30",
+      "country": "Alemania",
+      "popularity": 65
+    },
+    {
+      "id": "oviedo_espanyol_1710",
+      "homeTeam": "Real Oviedo",
+      "awayTeam": "RCD Espanyol",
+      "league": "LaLiga",
+      "time": "14:00",
+      "country": "España",
+      "popularity": 55
+    },
+    {
+      "id": "psg_strasbourg_1710",
+      "homeTeam": "Paris Saint-Germain",
+      "awayTeam": "Estrasburgo",
+      "league": "Ligue 1",
+      "time": "13:45",
+      "country": "Francia",
+      "popularity": 85
+    },
+    {
+      "id": "alfayha_ittihad_1710",
+      "homeTeam": "Al-Fayha FC",
+      "awayTeam": "Ittihad Jeddah",
+      "league": "Liga Profesional Saudí",
+      "time": "10:05",
+      "country": "Arabia Saudita",
+      "popularity": 45
+    },
+    {
+      "id": "alkholood_alnajma_1710",
+      "homeTeam": "Al Kholood",
+      "awayTeam": "Al-Najma",
+      "league": "Liga Profesional Saudí",
+      "time": "10:10",
+      "country": "Arabia Saudita",
+      "popularity": 30
+    },
+    {
+      "id": "alahli_alshabab_1710",
+      "homeTeam": "Al Ahli Jeddah",
+      "awayTeam": "Al Shabab Riyadh",
+      "league": "Liga Profesional Saudí",
+      "time": "13:00",
+      "country": "Arabia Saudita",
+      "popularity": 50
+    },
+    {
+      "id": "amazonas_gremio_1710",
+      "homeTeam": "Amazonas FC",
+      "awayTeam": "Grêmio Novorizontino",
+      "league": "Brasileirão - Série B Superbet",
+      "time": "18:00",
+      "country": "Brasil",
+      "popularity": 25
+    }
+  ],
+  "2025-10-18": [
+    {
+      "id": "columbus_newyork_1810",
+      "homeTeam": "Columbus Crew",
+      "awayTeam": "New York Red Bulls",
+      "league": "MLS",
+      "time": "17:00",
+      "country": "Estados Unidos",
+      "popularity": 60
+    },
+    {
+      "id": "charlotte_philadelphia_1810",
+      "homeTeam": "Charlotte FC",
+      "awayTeam": "Philadelphia Union",
+      "league": "MLS",
+      "time": "17:00",
+      "country": "Estados Unidos",
+      "popularity": 55
+    },
+    {
+      "id": "cincinnati_montreal_1810",
+      "homeTeam": "FC Cincinnati",
+      "awayTeam": "CF Montréal",
+      "league": "MLS",
+      "time": "17:00",
+      "country": "Estados Unidos",
+      "popularity": 50
+    },
+    {
+      "id": "atlanta_dc_1810",
+      "homeTeam": "Atlanta United",
+      "awayTeam": "DC United",
+      "league": "MLS",
+      "time": "17:00",
+      "country": "Estados Unidos",
+      "popularity": 65
+    },
+    {
+      "id": "vancouver_dallas_1810",
+      "homeTeam": "Vancouver Whitecaps",
+      "awayTeam": "FC Dallas",
+      "league": "MLS",
+      "time": "20:00",
+      "country": "Estados Unidos",
+      "popularity": 55
+    },
+    {
+      "id": "galaxy_orlando_1810",
+      "homeTeam": "Los Angeles Galaxy",
+      "awayTeam": "Orlando City Soccer Club",
+      "league": "MLS",
+      "time": "20:00",
+      "country": "Estados Unidos",
+      "popularity": 70
+    },
+    {
+      "id": "stlouis_realsaltlake_1810",
+      "homeTeam": "St. Louis City SC",
+      "awayTeam": "Real Salt Lake",
+      "league": "MLS",
+      "time": "20:00",
+      "country": "Estados Unidos",
+      "popularity": 45
+    },
+    {
+      "id": "sanjose_austin_1810",
+      "homeTeam": "San Jose Earthquakes",
+      "awayTeam": "Austin FC",
+      "league": "MLS",
+      "time": "20:00",
+      "country": "Estados Unidos",
+      "popularity": 50
+    },
+    {
+      "id": "sportingkc_houston_1810",
+      "homeTeam": "Sporting KC",
+      "awayTeam": "Houston Dynamo FC",
+      "league": "MLS",
+      "time": "20:00",
+      "country": "Estados Unidos",
+      "popularity": 55
+    },
+    {
+      "id": "colorado_lafc_1810",
+      "homeTeam": "Colorado Rapids",
+      "awayTeam": "Los Angeles FC",
+      "league": "MLS",
+      "time": "20:00",
+      "country": "Estados Unidos",
+      "popularity": 60
+    },
+    {
+      "id": "portland_sandiego_1810",
+      "homeTeam": "Portland Timbers",
+      "awayTeam": "San Diego FC",
+      "league": "MLS",
+      "time": "20:00",
+      "country": "Estados Unidos",
+      "popularity": 40
+    }
+  ],
+  "2025-10-19": [
+    {
+      "id": "elche_athletic_1910",
+      "homeTeam": "Elche CF",
+      "awayTeam": "Athletic Club",
+      "league": "LaLiga",
+      "time": "07:00",
+      "country": "España",
+      "popularity": 60
+    },
+    {
+      "id": "celta_realsociedad_1910",
+      "homeTeam": "Celta de Vigo",
+      "awayTeam": "Real Sociedad",
+      "league": "LaLiga",
+      "time": "09:15",
+      "country": "España",
+      "popularity": 70
+    },
+    {
+      "id": "levante_rayo_1910",
+      "homeTeam": "Levante UD",
+      "awayTeam": "Rayo Vallecano",
+      "league": "LaLiga",
+      "time": "11:30",
+      "country": "España",
+      "popularity": 65
+    },
+    {
+      "id": "getafe_realmadrid_1910",
+      "homeTeam": "Getafe CF",
+      "awayTeam": "Real Madrid",
+      "league": "LaLiga",
+      "time": "14:00",
+      "country": "España",
+      "popularity": 90
+    },
+    {
+      "id": "tottenham_astonvilla_1910",
+      "homeTeam": "Tottenham Hotspur FC",
+      "awayTeam": "Aston Villa",
+      "league": "Premier League",
+      "time": "08:00",
+      "country": "Inglaterra",
+      "popularity": 85
+    },
+    {
+      "id": "liverpool_manutd_1910",
+      "homeTeam": "Liverpool FC",
+      "awayTeam": "Manchester United FC",
+      "league": "Premier League",
+      "time": "10:30",
+      "country": "Inglaterra",
+      "popularity": 95
+    },
+    {
+      "id": "como_juventus_1910",
+      "homeTeam": "Como",
+      "awayTeam": "Juventus",
+      "league": "Serie A",
+      "time": "05:30",
+      "country": "Italia",
+      "popularity": 80
+    },
+    {
+      "id": "genoa_parma_1910",
+      "homeTeam": "Genoa",
+      "awayTeam": "Parma",
+      "league": "Serie A",
+      "time": "08:00",
+      "country": "Italia",
+      "popularity": 60
+    },
+    {
+      "id": "cagliari_bologna_1910",
+      "homeTeam": "Cagliari Calcio",
+      "awayTeam": "Bologna",
+      "league": "Serie A",
+      "time": "08:00",
+      "country": "Italia",
+      "popularity": 55
+    },
+    {
+      "id": "atalanta_lazio_1910",
+      "homeTeam": "Atalanta Bergamo",
+      "awayTeam": "Lazio",
+      "league": "Serie A",
+      "time": "11:00",
+      "country": "Italia",
+      "popularity": 75
+    },
+    {
+      "id": "acmilan_fiorentina_1910",
+      "homeTeam": "AC Milan",
+      "awayTeam": "Fiorentina",
+      "league": "Serie A",
+      "time": "13:45",
+      "country": "Italia",
+      "popularity": 85
+    }
+  ],
+  "2025-10-20": [
+    {
+      "id": "bocajuniors_barranquilla_2010",
+      "homeTeam": "Boca Juniors Cali",
+      "awayTeam": "Barranquilla FC",
+      "league": "Torneo BetPlay Dimayor",
+      "time": "16:00",
+      "country": "Colombia",
+      "popularity": 45
+    },
+    {
+      "id": "tigres_bogota_2010",
+      "homeTeam": "Tigres FC",
+      "awayTeam": "Bogotá FC",
+      "league": "Torneo BetPlay Dimayor",
+      "time": "16:00",
+      "country": "Colombia",
+      "popularity": 40
+    },
+    {
+      "id": "bogota_realsantander_2010",
+      "homeTeam": "Bogotá FC",
+      "awayTeam": "Real Santander",
+      "league": "Torneo BetPlay Dimayor",
+      "time": "18:05",
+      "country": "Colombia",
+      "popularity": 35
+    },
+    {
+      "id": "alaves_valencia_2010",
+      "homeTeam": "Alavés",
+      "awayTeam": "Valencia CF",
+      "league": "LaLiga",
+      "time": "14:00",
+      "country": "España",
+      "popularity": 70
+    },
+    {
+      "id": "westham_brentford_2010",
+      "homeTeam": "West Ham United FC",
+      "awayTeam": "Brentford FC",
+      "league": "Premier League",
+      "time": "14:00",
+      "country": "Inglaterra",
+      "popularity": 75
+    },
+    {
+      "id": "cremonese_udinese_2010",
+      "homeTeam": "Cremonese",
+      "awayTeam": "Udinese Calcio",
+      "league": "Serie A",
+      "time": "13:45",
+      "country": "Italia",
+      "popularity": 50
+    },
+    {
+      "id": "juventude_bragantino_2010",
+      "homeTeam": "Juventude",
+      "awayTeam": "Bragantino",
+      "league": "Brasileirão",
+      "time": "17:00",
+      "country": "Brasil",
+      "popularity": 60
+    },
+    {
+      "id": "vasco_fluminense_2010",
+      "homeTeam": "Vasco Da Gama",
+      "awayTeam": "Fluminense",
+      "league": "Brasileirão",
+      "time": "17:30",
+      "country": "Brasil",
+      "popularity": 75
+    },
+    {
+      "id": "santos_vitoria_2010",
+      "homeTeam": "Santos",
+      "awayTeam": "Vitória",
+      "league": "Brasileirão",
+      "time": "19:30",
+      "country": "Brasil",
+      "popularity": 70
+    },
+    {
+      "id": "ferroviaria_paysandu_2010",
+      "homeTeam": "Associação Ferroviária de Esportes",
+      "awayTeam": "Paysandu",
+      "league": "Brasileirão - Série B Superbet",
+      "time": "17:30",
+      "country": "Brasil",
+      "popularity": 30
+    }
+  ]
+}
