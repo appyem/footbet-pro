@@ -1542,69 +1542,32 @@ useEffect(() => {
   loadFirebaseData();
 }, []);
 
-// Cargar y mantener actualizados los partidos diarios - CORREGIDO
+// Sistema AUTOMÁTICO estable - Carga una vez y mantiene
+const [initialLoad, setInitialLoad] = useState(false);
+
 useEffect(() => {
-  const loadInitialMatches = () => {
+  if (!initialLoad) {
     const dailyMatches = prepareDailyMatches();
     setMatches(dailyMatches);
-  };
-  
-  // Cargar partidos iniciales
-  loadInitialMatches();
-  
-  // Verificar cada minuto si algún partido debe cerrarse
+    setInitialLoad(true);
+  }
+}, [initialLoad]);
+
+// Cierre automático SIN reemplazo (evita bucles)
+useEffect(() => {
   const interval = setInterval(() => {
-    setMatches(prevMatches => {
-      return prevMatches.map(match => {
-        if (shouldCloseMatch(match.time) && match.status === 'upcoming') {
-          return { ...match, status: 'closed' };
-        }
-        return match;
-      });
-    });
+    setMatches(prev => prev.map(match => {
+      if (shouldCloseMatch(match.time) && match.status === 'upcoming') {
+        return { ...match, status: 'closed' };
+      }
+      return match;
+    }));
   }, 60000);
   
   return () => clearInterval(interval);
 }, []);
 
-// useEffect separado para reemplazar partidos cerrados
-useEffect(() => {
-  const replaceClosedMatches = () => {
-    setMatches(prevMatches => {
-      const closedMatches = prevMatches.filter(match => match.status === 'closed');
-      const activeMatches = prevMatches.filter(match => match.status === 'upcoming');
-      
-      if (activeMatches.length < 7) {
-        const newDailyMatches = prepareDailyMatches();
-        const newActiveMatches = newDailyMatches.filter(match => 
-          !closedMatches.some(closed => closed.id === match.id)
-        );
-        
-        let combinedMatches = [...closedMatches];
-        const needed = 7 - closedMatches.length;
-        
-        if (needed > 0) {
-          combinedMatches = [...combinedMatches, ...newActiveMatches.slice(0, needed)];
-        }
-        
-        // Si aún no hay suficientes, repetir los existentes
-        while (combinedMatches.length < 7) {
-          combinedMatches = [...combinedMatches, ...activeMatches];
-        }
-        
-        return combinedMatches.slice(0, 7);
-      }
-      
-      return prevMatches;
-    });
-  };
-  
-  // Verificar y reemplazar partidos cerrados cada 2 minutos
-  const replaceInterval = setInterval(replaceClosedMatches, 120000);
-  
-  return () => clearInterval(replaceInterval);
-}, []);
-
+// NO hay reemplazo automático - los partidos se mantienen hasta el final del día
 
 
   // Authentication data
