@@ -1542,15 +1542,17 @@ useEffect(() => {
   loadFirebaseData();
 }, []);
 
-  // Cargar partidos diarios desde JSON - CÓDIGO DEFINITIVO PARA PRODUCCIÓN
+// Cargar y mantener actualizados los partidos diarios - CORREGIDO
 useEffect(() => {
-  const loadDailyMatches = () => {
+  const loadInitialMatches = () => {
     const dailyMatches = prepareDailyMatches();
     setMatches(dailyMatches);
   };
   
-  loadDailyMatches();
+  // Cargar partidos iniciales
+  loadInitialMatches();
   
+  // Verificar cada minuto si algún partido debe cerrarse
   const interval = setInterval(() => {
     setMatches(prevMatches => {
       return prevMatches.map(match => {
@@ -1563,6 +1565,44 @@ useEffect(() => {
   }, 60000);
   
   return () => clearInterval(interval);
+}, []);
+
+// useEffect separado para reemplazar partidos cerrados
+useEffect(() => {
+  const replaceClosedMatches = () => {
+    setMatches(prevMatches => {
+      const closedMatches = prevMatches.filter(match => match.status === 'closed');
+      const activeMatches = prevMatches.filter(match => match.status === 'upcoming');
+      
+      if (activeMatches.length < 7) {
+        const newDailyMatches = prepareDailyMatches();
+        const newActiveMatches = newDailyMatches.filter(match => 
+          !closedMatches.some(closed => closed.id === match.id)
+        );
+        
+        let combinedMatches = [...closedMatches];
+        const needed = 7 - closedMatches.length;
+        
+        if (needed > 0) {
+          combinedMatches = [...combinedMatches, ...newActiveMatches.slice(0, needed)];
+        }
+        
+        // Si aún no hay suficientes, repetir los existentes
+        while (combinedMatches.length < 7) {
+          combinedMatches = [...combinedMatches, ...activeMatches];
+        }
+        
+        return combinedMatches.slice(0, 7);
+      }
+      
+      return prevMatches;
+    });
+  };
+  
+  // Verificar y reemplazar partidos cerrados cada 2 minutos
+  const replaceInterval = setInterval(replaceClosedMatches, 120000);
+  
+  return () => clearInterval(replaceInterval);
 }, []);
 
 
