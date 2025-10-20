@@ -1,5 +1,4 @@
 // src/services/matchService.js
-// Datos de partidos HARDCODEADOS para octubre 2025
 const weeklyMatches = {
   "2025-10-18": [
     {
@@ -486,57 +485,108 @@ const weeklyMatches = {
   ]
 };
 
-// Funciones de fecha CORRECTAS para producción
+// Función para obtener la fecha actual en Colombia (UTC-5)
 export const getCurrentDate = () => {
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const colombiaTime = new Date(utc + (-5 * 3600000));
+  const colombiaTime = new Date(utc + (-5 * 3600000)); // UTC-5
   return colombiaTime.toISOString().split('T')[0];
 };
 
+// Función para obtener la fecha de mañana en Colombia (UTC-5)
 export const getTomorrowDate = () => {
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const colombiaTime = new Date(utc + (-5 * 3600000));
+  const colombiaTime = new Date(utc + (-5 * 3600000)); // UTC-5
   const tomorrow = new Date(colombiaTime);
   tomorrow.setDate(tomorrow.getDate() + 1);
   return tomorrow.toISOString().split('T')[0];
 };
 
-// Función ESTABLE que NO causa bucles
-export const prepareDailyMatches = () => {
+export const getAvailableMatches = () => {
   const today = getCurrentDate();
-  const todayMatches = weeklyMatches[today] || [];
+  const tomorrow = getTomorrowDate();
   
-  // Siempre devuelve 7 partidos del día actual
-  if (todayMatches.length >= 7) {
-    return todayMatches.slice(0, 7).map(match => ({
+  const todayMatches = weeklyMatches[today] || [];
+  const tomorrowMatches = weeklyMatches[tomorrow] || [];
+  
+  return { todayMatches, tomorrowMatches };
+};
+
+export const selectTrapMatches = (matches) => {
+  if (matches.length === 0) return [];
+  const sortedByPopularity = [...matches].sort((a, b) => a.popularity - b.popularity);
+  const trapMatches = sortedByPopularity.slice(0, 3);
+  return trapMatches.map(match => match.id);
+};
+
+// Función corregida que PRIORIZA partidos de HOY
+export const prepareDailyMatches = () => {
+  const { todayMatches, tomorrowMatches } = getAvailableMatches();
+  
+  // PRIORIDAD 1: Si hay partidos de hoy, usar SOLO partidos de hoy
+  if (todayMatches.length > 0) {
+    const finalMatches = todayMatches.slice(0, 7);
+    // Si hay menos de 7 partidos de hoy, repetirlos para completar
+    while (finalMatches.length < 7) {
+      finalMatches.push(...todayMatches);
+    }
+    finalMatches.length = 7; // Asegurar exactamente 7 partidos
+    
+    const trapIds = selectTrapMatches(finalMatches);
+    return finalMatches.map((match, index) => ({
       ...match,
-      isTrap: false,
+      isTrap: trapIds.includes(match.id),
       odds: { home: 2.0, draw: 3.0, away: 3.0 },
       status: 'upcoming'
     }));
   }
   
-  // Si hay menos de 7, completa con los mismos partidos
-  const result = [];
-  while (result.length < 7) {
-    result.push(...todayMatches);
+  // PRIORIDAD 2: Solo si NO hay partidos de hoy, usar partidos de mañana
+  if (tomorrowMatches.length > 0) {
+    const finalMatches = tomorrowMatches.slice(0, 7);
+    while (finalMatches.length < 7) {
+      finalMatches.push(...tomorrowMatches);
+    }
+    finalMatches.length = 7;
+    
+    const trapIds = selectTrapMatches(finalMatches);
+    return finalMatches.map((match, index) => ({
+      ...match,
+      isTrap: trapIds.includes(match.id),
+      odds: { home: 2.0, draw: 3.0, away: 3.0 },
+      status: 'upcoming'
+    }));
   }
-  return result.slice(0, 7).map(match => ({
-    ...match,
-    isTrap: false,
-    odds: { home: 2.0, draw: 3.0, away: 3.0 },
-    status: 'upcoming'
+  
+  // CASO EXTREMO: Si no hay partidos ni de hoy ni de mañana
+  const fallbackMatches = [
+    {
+      id: "fallback_1",
+      homeTeam: "Equipo Local",
+      awayTeam: "Equipo Visitante",
+      league: "Liga de Ejemplo",
+      time: "20:00",
+      country: "Colombia",
+      popularity: 50
+    }
+  ];
+  
+  const finalMatches = Array(7).fill().map((_, i) => ({
+    ...fallbackMatches[0],
+    id: `fallback_${i + 1}`
   }));
+  
+  return finalMatches;
 };
 
-// Función de cierre que NO causa problemas
 export const shouldCloseMatch = (matchTime) => {
   const now = new Date();
   const [hours, minutes] = matchTime.split(':').map(Number);
   const matchDate = new Date();
   matchDate.setHours(hours, minutes, 0, 0);
+  
   const fiveMinutesBefore = new Date(matchDate.getTime() - 5 * 60000);
+  
   return now >= fiveMinutesBefore;
 };

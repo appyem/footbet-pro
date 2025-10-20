@@ -93,7 +93,7 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
               ? 'bg-green-600 text-white shadow-lg'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
-          disabled={match.status === 'closed'}
+         
         >
           <div className="font-bold">1</div>
           <div className="text-xs mt-1 opacity-90">{match.odds.home}</div>
@@ -105,7 +105,7 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
               ? 'bg-yellow-600 text-white shadow-lg'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
-          disabled={match.status === 'closed'}
+          
         >
           <div className="font-bold">X</div>
           <div className="text-xs mt-1 opacity-90">{match.odds.draw}</div>
@@ -117,7 +117,7 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
               ? 'bg-red-600 text-white shadow-lg'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
-          disabled={match.status === 'closed'}
+          
         >
           <div className="font-bold">2</div>
           <div className="text-xs mt-1 opacity-90">{match.odds.away}</div>
@@ -1420,7 +1420,8 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
 
 // Panel de resultados en el admin dashboard
 const ResultsPanel = ({ matchResults, handleSaveResult, matches }) => {
-  const todayMatches = matches.filter(match => match.status !== 'closed');
+  // Mostrar TODOS los partidos del día para el administrador (incluyendo cerrados)
+const todayMatches = matches;
   
   return (
     <div className="bg-gray-800 rounded-xl p-6 mb-6">
@@ -1542,31 +1543,16 @@ useEffect(() => {
   loadFirebaseData();
 }, []);
 
-// Sistema AUTOMÁTICO estable - Carga una vez y mantiene
-const [initialLoad, setInitialLoad] = useState(false);
-
+// Cargar partidos del día ACTUAL (solo una vez al iniciar)
 useEffect(() => {
-  if (!initialLoad) {
+  const loadDailyMatches = () => {
     const dailyMatches = prepareDailyMatches();
     setMatches(dailyMatches);
-    setInitialLoad(true);
-  }
-}, [initialLoad]);
-
-// Cierre automático SIN reemplazo (evita bucles)
-useEffect(() => {
-  const interval = setInterval(() => {
-    setMatches(prev => prev.map(match => {
-      if (shouldCloseMatch(match.time) && match.status === 'upcoming') {
-        return { ...match, status: 'closed' };
-      }
-      return match;
-    }));
-  }, 60000);
-  
-  return () => clearInterval(interval);
+  };
+  loadDailyMatches();
 }, []);
-
+      
+      
 // NO hay reemplazo automático - los partidos se mantienen hasta el final del día
 
 
@@ -1642,15 +1628,7 @@ useEffect(() => {
     return;
   }
   
-  const closedMatches = Array.from(selectedBets.keys()).some(matchId => {
-    const match = matches.find(m => m.id === matchId);
-    return match && match.status === 'closed';
-  });
   
-  if (closedMatches) {
-    alert('Algunos partidos ya están cerrados. Por favor actualice la página.');
-    return;
-  }
 
   let formattedPhone = customerPhone.trim();
   if (!formattedPhone.startsWith('+57')) {
