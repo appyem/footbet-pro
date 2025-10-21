@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Phone, LogOut, Home, Ticket, FileText, BarChart3, Settings, Plus, User, Mail, Percent, Calendar, Clock, Eye, Copy, CheckCircle, AlertCircle, Key, X, Save, Trash2, Filter, Download, TrendingUp, Award, Users, DollarSign, Database, Globe, Zap, Star, Crown, Target, Activity, PieChart, BarChart2, LineChart, Search, ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Info, Play, Square } from 'lucide-react';
-
+import { Phone, LogOut, Home, Ticket, FileText, BarChart3, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 // Firebase - Configuración correcta para Create React App
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 // Importar funciones de servicios
-import { prepareDailyMatches, shouldCloseMatch } from './services/matchService';
-
+import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
 // Configuración de Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyBHz3LsqwCDxQkhmUdj1E86kAYPXnQrkGg",
@@ -16,11 +14,9 @@ const firebaseConfig = {
   messagingSenderId: "768296334899",
   appId: "1:768296334899:web:708aa3e1883b0a89a2d546"
 };
-
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
 // Componente aislado para los inputs del cliente
 const CustomerInfoForm = React.memo(({ customerName, customerPhone, onNameChange, onPhoneChange }) => {
   return (
@@ -57,14 +53,10 @@ const CustomerInfoForm = React.memo(({ customerName, customerPhone, onNameChange
 
 // Componente aislado para cada partido
 const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrapMatch }) => {
-  const getSelectionColor = (selection) => {
-    switch (selection) {
-      case '1': return 'bg-green-600 hover:bg-green-500';
-      case 'X': return 'bg-yellow-600 hover:bg-yellow-500';
-      case '2': return 'bg-red-600 hover:bg-red-500';
-      default: return 'bg-gray-700 hover:bg-gray-600';
-    }
-  };
+  // Protección contra match undefined o incompleto
+  if (!match || !match.homeTeam || !match.awayTeam) {
+    return null;
+  }
   return (
     <div className={`bg-gray-800 rounded-xl p-4 border ${isTrapMatch ? 'border-purple-600' : 'border-gray-700'} hover:border-gray-600 transition-colors`}>
       <div className="flex justify-between items-start mb-3">
@@ -93,7 +85,6 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
               ? 'bg-green-600 text-white shadow-lg'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
-         
         >
           <div className="font-bold">1</div>
           <div className="text-xs mt-1 opacity-90">{match.odds.home}</div>
@@ -105,7 +96,6 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
               ? 'bg-yellow-600 text-white shadow-lg'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
-          
         >
           <div className="font-bold">X</div>
           <div className="text-xs mt-1 opacity-90">{match.odds.draw}</div>
@@ -117,7 +107,6 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
               ? 'bg-red-600 text-white shadow-lg'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
-          
         >
           <div className="font-bold">2</div>
           <div className="text-xs mt-1 opacity-90">{match.odds.away}</div>
@@ -210,7 +199,7 @@ const TicketPreviewModal = ({ ticket, onClose, onCopyToWhatsApp, onResend }) => 
               Código de verificación: <span className="font-mono">{ticket.verificationCode}</span>
             </div>
             <div className="text-yellow-300 text-xs mt-2">
-              🎯 Premios: 5 aciertos = Recupera apuesta | 6 aciertos = $500K | 7 aciertos = $5M
+              🎯 Premios: 5 aciertos = Recupera apuesta | 6 aciertos = Ticket Dorado (10 juegos) | 7 aciertos = $5M
             </div>
           </div>
           <div className="flex gap-3">
@@ -240,7 +229,6 @@ const TicketPreviewModal = ({ ticket, onClose, onCopyToWhatsApp, onResend }) => 
     </div>
   );
 };
-
 // Modal de detalles del ticket
 const TicketDetailsModal = ({ ticket, onClose }) => {
   if (!ticket) return null;
@@ -313,7 +301,6 @@ const TicketDetailsModal = ({ ticket, onClose }) => {
     </div>
   );
 };
-
 // Modal para reenviar ticket
 const ResendTicketModal = ({ ticket, onClose, onResend }) => {
   const [customerPhone, setCustomerPhone] = useState(ticket.customerPhone.replace('+57 ', ''));
@@ -372,7 +359,6 @@ const ResendTicketModal = ({ ticket, onClose, onResend }) => {
     </div>
   );
 };
-
 // Modal para crear vendedor
 const CreateSellerModal = ({ onClose, onSellerCreated }) => {
   const [name, setName] = useState('');
@@ -512,7 +498,6 @@ const CreateSellerModal = ({ onClose, onSellerCreated }) => {
     </div>
   );
 };
-
 // Modal para confirmar eliminación de vendedor
 const DeleteSellerModal = ({ seller, onConfirm, onCancel }) => {
   return (
@@ -549,7 +534,6 @@ const DeleteSellerModal = ({ seller, onConfirm, onCancel }) => {
     </div>
   );
 };
-
 // Modal para confirmar eliminación de ticket
 const DeleteTicketModal = ({ ticket, onConfirm, onCancel }) => {
   return (
@@ -586,7 +570,6 @@ const DeleteTicketModal = ({ ticket, onConfirm, onCancel }) => {
     </div>
   );
 };
-
 // Función para formatear COP
 const formatCOP = (amount) => {
   return new Intl.NumberFormat('es-CO', {
@@ -596,7 +579,6 @@ const formatCOP = (amount) => {
     maximumFractionDigits: 0
   }).format(amount);
 };
-
 // Función para copiar a WhatsApp (versión corregida)
 const copyToWhatsApp = (ticket) => {
   if (!ticket) return;
@@ -605,24 +587,38 @@ const copyToWhatsApp = (ticket) => {
   if (!phoneNumber.startsWith('+57')) {
     phoneNumber = `+57 ${phoneNumber}`;
   }
-  const message = `*🎫 TICKET DE APUESTA - ${ticket.id}*\n\n` +
-    `*Cliente:* ${ticket.customerName}\n` +
-    `*Teléfono:* ${phoneNumber}\n` +
-    `*Vendedor:* ${ticket.sellerName}\n` +
-    `*Fecha:* ${ticket.date} ${ticket.time}\n\n` +
-    `*APUESTAS:*\n` +
+  const message = `*🎫 TICKET DE APUESTA - ${ticket.id}*
+` +
+    `*Cliente:* ${ticket.customerName}
+` +
+    `*Teléfono:* ${phoneNumber}
+` +
+    `*Vendedor:* ${ticket.sellerName}
+` +
+    `*Fecha:* ${ticket.date} ${ticket.time}
+` +
+    `*APUESTAS:*
+` +
     ticket.bets.map((bet, index) => 
-      `${index + 1}. ${bet.homeTeam} vs ${bet.awayTeam}\n` +
-      `   - ${bet.selection === '1' ? 'Ganador Local' : bet.selection === 'X' ? 'Empate' : 'Ganador Visitante'} (x${bet.odds})\n`
+      `${index + 1}. ${bet.homeTeam} vs ${bet.awayTeam}
+` +
+      `   - ${bet.selection === '1' ? 'Ganador Local' : bet.selection === 'X' ? 'Empate' : 'Ganador Visitante'} (x${bet.odds})
+`
     ).join('\n') +
-    `\n*TOTAL APOSTADO:* ${formatCOP(ticket.totalStake)}\n` +
-    `*Código de Verificación:* ${ticket.verificationCode}\n\n` +
-    `🏆 *PREMIOS:*\n` +
-    `✅ 5 aciertos: Recupera tu apuesta ($5,000)\n` +
-    `✅ 6 aciertos: Gana $500,000\n` +
-    `✅ 7 aciertos: Gana $5,000,000\n\n` +
+    `
+*TOTAL APOSTADO:* ${formatCOP(ticket.totalStake)}
+` +
+    `*Código de Verificación:* ${ticket.verificationCode}
+` +
+    `🏆 *PREMIOS:*
+` +
+    `✅ 5 aciertos: Recupera tu apuesta ($5,000)
+` +
+    `✅ 6 aciertos: ¡Gana un TICKET DORADO! (10 juegos gratis)
+` +
+    `✅ 7 aciertos: Gana $5,000,000
+` +
     `¡Gracias por confiar en FootBet Pro! 🏆`;
-
   // Usar el esquema whatsapp:// para abrir la app nativa
   const whatsappUrl = `whatsapp://send?phone=${phoneNumber.replace(/\s+/g, '')}&text=${encodeURIComponent(message)}`;
   // Intentar abrir WhatsApp nativo
@@ -632,33 +628,6 @@ const copyToWhatsApp = (ticket) => {
     window.open(`https://wa.me/${phoneNumber.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
   }, 1000);
 };
-
-// Función definitiva para producción - Obtiene la fecha real de Colombia
-const getCurrentDate = () => {
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const colombiaTime = new Date(utc + (-5 * 3600000)); // UTC-5
-  return colombiaTime.toISOString().split('T')[0];
-};
-
-// Función definitiva para producción - Obtiene la fecha de mañana en Colombia
-const getTomorrowDate = () => {
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const colombiaTime = new Date(utc + (-5 * 3600000)); // UTC-5
-  const tomorrow = new Date(colombiaTime);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toISOString().split('T')[0];
-};
-
-// Función definitiva para producción - Obtiene la hora actual en Colombia
-const getCurrentTime = () => {
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const colombiaTime = new Date(utc + (-5 * 3600000)); // UTC-5
-  return colombiaTime.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-};
-
 // Componente de ventas - versión para vendedor (solo sus ventas)
 const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -669,9 +638,7 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
   const [ticketToDelete, setTicketToDelete] = useState(null);
   const [showResendModal, setShowResendModal] = useState(false);
   const [ticketToResend, setTicketToResend] = useState(null);
-  
   const today = getCurrentDate();
-  
   // Filtrar tickets - solo del vendedor actual si es vendedor
   const filteredTickets = useMemo(() => {
     let filtered = [...tickets];
@@ -694,30 +661,24 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
     }
     return filtered.sort((a, b) => new Date(`${b.date} ${b.time}`) - new Date(`${a.date} ${a.time}`));
   }, [tickets, searchTerm, timeFilter, userRole, currentUser, today]);
-  
   const totalSales = filteredTickets.reduce((sum, t) => sum + t.totalStake, 0);
   const averageTicket = filteredTickets.length > 0 ? totalSales / filteredTickets.length : 0;
-  
   const handleShowDetails = (ticket) => {
     setSelectedTicket(ticket);
     setShowDetailsModal(true);
   };
-  
   const handleDeleteTicket = (ticket) => {
     setTicketToDelete(ticket);
     setShowDeleteTicketModal(true);
   };
-  
   const handleResendTicket = (ticket) => {
     setTicketToResend(ticket);
     setShowResendModal(true);
   };
-  
   const handleResendConfirm = (newPhone) => {
     const updatedTicket = { ...ticketToResend, customerPhone: newPhone };
     copyToWhatsApp(updatedTicket);
   };
-  
   return (
     <div className="pb-24 px-4">
       <div className="mb-6">
@@ -731,7 +692,6 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
           )}
         </div>
       </div>
-      
       {/* Filtros */}
       <div className="bg-gray-800 rounded-xl p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -762,7 +722,6 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
           </div>
         </div>
       </div>
-      
       {/* Resumen */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-4 shadow-lg">
@@ -793,7 +752,6 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
           </div>
         </div>
       </div>
-      
       {/* Lista de tickets */}
       <div className="bg-gray-800 rounded-xl p-6">
         <h2 className="text-white text-lg font-bold mb-4">Tickets ({filteredTickets.length})</h2>
@@ -853,7 +811,6 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
           </div>
         )}
       </div>
-      
       {showDetailsModal && selectedTicket && (
         <TicketDetailsModal
           ticket={selectedTicket}
@@ -884,13 +841,10 @@ const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket
     </div>
   );
 };
-
 // Componente de reportes
 const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) => {
   const [activeReport, setActiveReport] = useState('daily');
-  
   const today = getCurrentDate();
-  
   // Datos para reportes
   const dailySales = useMemo(() => {
     const todayTickets = tickets.filter(t => t.date === today);
@@ -907,7 +861,6 @@ const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) =
     });
     return hourlyData;
   }, [tickets, today]);
-  
   const sellerPerformance = useMemo(() => {
     const performance = {};
     sellerUsers.forEach(seller => {
@@ -924,7 +877,6 @@ const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) =
     });
     return Object.values(performance).sort((a, b) => b.totalSales - a.totalSales);
   }, [tickets, sellerUsers]);
-  
   const winningTickets = useMemo(() => {
     // Simular tickets ganadores (30% de probabilidad)
     return tickets.filter(ticket => {
@@ -932,7 +884,6 @@ const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) =
       return randomWin < 0.3 && ticket.bets.length >= 5;
     });
   }, [tickets]);
-  
   const renderReportContent = () => {
     switch (activeReport) {
       case 'daily':
@@ -1080,7 +1031,6 @@ const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) =
         return null;
     }
   };
-  
   return (
     <div className="pb-24 px-4">
       <div className="mb-6">
@@ -1092,7 +1042,6 @@ const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) =
           </button>
         </div>
       </div>
-      
       {/* Navegación de reportes */}
       <div className="bg-gray-800 rounded-xl p-4 mb-6">
         <div className="flex flex-wrap gap-2">
@@ -1136,12 +1085,10 @@ const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser }) =
           </button>
         </div>
       </div>
-      
       {renderReportContent()}
     </div>
   );
 };
-
 // Componente de configuración
 const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, userRole }) => {
   const [activeTab, setActiveTab] = useState('business');
@@ -1156,22 +1103,18 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
     notifications: true,
     theme: 'dark'
   });
-  
   const handleSaveBusiness = () => {
     alert('Configuración de negocio guardada exitosamente');
   };
-  
   const handleSaveSystem = () => {
     alert('Configuración del sistema guardada exitosamente');
   };
-  
   return (
     <div className="pb-24 px-4">
       <div className="mb-6">
         <h1 className="text-white text-2xl font-bold">Configuración</h1>
         <p className="text-gray-400">Gestiona la configuración de tu sistema de apuestas</p>
       </div>
-      
       {/* Tabs de configuración */}
       <div className="bg-gray-800 rounded-xl p-4 mb-6">
         <div className="flex flex-wrap gap-2">
@@ -1215,7 +1158,6 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
           </button>
         </div>
       </div>
-      
       {activeTab === 'business' && (
         <div className="bg-gray-800 rounded-xl p-6">
           <h2 className="text-white text-lg font-bold mb-4">Configuración de Negocio</h2>
@@ -1274,7 +1216,6 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
           </button>
         </div>
       )}
-      
       {activeTab === 'users' && userRole === 'admin' && (
         <div className="bg-gray-800 rounded-xl p-6">
           <div className="flex justify-between items-center mb-4">
@@ -1319,7 +1260,6 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
           </div>
         </div>
       )}
-      
       {activeTab === 'system' && (
         <div className="bg-gray-800 rounded-xl p-6">
           <h2 className="text-white text-lg font-bold mb-4">Configuración del Sistema</h2>
@@ -1339,7 +1279,6 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
                 <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
               </label>
             </div>
-            
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-white font-medium">Notificaciones</p>
@@ -1355,7 +1294,6 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
                 <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
               </label>
             </div>
-            
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-white font-medium">Tema</p>
@@ -1380,7 +1318,6 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
           </button>
         </div>
       )}
-      
       {activeTab === 'data' && (
         <div className="bg-gray-800 rounded-xl p-6">
           <h2 className="text-white text-lg font-bold mb-4">Gestión de Datos</h2>
@@ -1395,7 +1332,6 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
                 Crear Backup
               </button>
             </div>
-            
             <div className="bg-gray-700/50 rounded-lg p-4">
               <div className="flex items-center gap-3 mb-3">
                 <Download className="w-6 h-6 text-green-400" />
@@ -1417,12 +1353,10 @@ const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, 
     </div>
   );
 };
-
 // Panel de resultados en el admin dashboard
 const ResultsPanel = ({ matchResults, handleSaveResult, matches }) => {
   // Mostrar TODOS los partidos del día para el administrador (incluyendo cerrados)
 const todayMatches = matches;
-  
   return (
     <div className="bg-gray-800 rounded-xl p-6 mb-6">
       <h2 className="text-white text-lg font-bold mb-4">Marcar Resultados</h2>
@@ -1478,13 +1412,13 @@ const todayMatches = matches;
     </div>
   );
 };
-
 const App = () => {
   const [currentView, setCurrentView] = useState('login');
   const [userRole, setUserRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [allMatches, setAllMatches] = useState([]); // Para el panel del admin
   const [selectedBets, setSelectedBets] = useState(new Map());
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -1499,15 +1433,24 @@ const App = () => {
   const [ticketToDelete, setTicketToDelete] = useState(null);
   const [showResendModal, setShowResendModal] = useState(false);
   const [ticketToResend, setTicketToResend] = useState(null);
-  const [showResultsModal, setShowResultsModal] = useState(false);
   const [matchResults, setMatchResults] = useState({});
   const [sellerUsers, setSellerUsers] = useState([
     { id: 'seller1', email: 'juan@footbet.com', password: 'juan123', name: 'Juan Perez', commission: 15 },
     { id: 'seller2', email: 'maria@footbet.com', password: 'maria123', name: 'Maria Garcia', commission: 12 }
   ]);
+  // Estados para gestión de partidos
+  const [editingMatch, setEditingMatch] = useState(null);
+  const [matchForm, setMatchForm] = useState({
+    homeTeam: '',
+    awayTeam: '',
+    league: '',
+    time: '20:00',
+    country: 'Colombia',
+    popularity: 50,
+    date: getCurrentDate()
+  });
 
-
-// Cargar datos de Firebase al montar el componente
+// Cargar datos de Firebase al montar el componente y configurar actualización automática
 useEffect(() => {
   const loadFirebaseData = async () => {
     try {
@@ -1518,7 +1461,6 @@ useEffect(() => {
         return { ...data, id: doc.id };
       });
       setSellerUsers(sellersData);
-      
       // Cargar tickets
       const ticketsSnapshot = await getDocs(collection(db, 'tickets'));
       const ticketsData = ticketsSnapshot.docs.map(doc => {
@@ -1526,7 +1468,6 @@ useEffect(() => {
         return { ...data, id: doc.id };
       });
       setTickets(ticketsData);
-      
       // Cargar resultados
       const resultsSnapshot = await getDocs(collection(db, 'match_results'));
       const resultsData = {};
@@ -1539,28 +1480,105 @@ useEffect(() => {
       console.error('Error al cargar datos de Firebase:', error);
     }
   };
-  
   loadFirebaseData();
-}, []);
 
-// Cargar partidos del día ACTUAL (solo una vez al iniciar)
-useEffect(() => {
-  const loadDailyMatches = () => {
-    const dailyMatches = prepareDailyMatches();
-    setMatches(dailyMatches);
+  // Función para obtener partidos de un día específico
+  const getMatchesForDate = async (date) => {
+    const matchesQuery = query(collection(db, 'matches'), where('date', '==', date));
+    const matchesSnapshot = await getDocs(matchesQuery);
+    return matchesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
   };
-  loadDailyMatches();
+
+  // Función para cargar partidos para el ADMIN (todos los del día)
+  const loadAllMatchesForAdmin = async () => {
+    const today = getCurrentDate();
+    const todayMatches = await getMatchesForDate(today);
+    setAllMatches(todayMatches);
+  };
+
+  // Función para seleccionar 7 partidos para el VENDEDOR (ordenados por hora)
+const selectVisibleMatchesForSeller = async () => {
+  const today = getCurrentDate();
+  let allAvailableMatches = [];
+  let currentDate = today;
+  let daysChecked = 0;
+  const maxDays = 7;
+  
+  // Recopilar partidos de hoy y días futuros hasta tener suficientes
+  while (allAvailableMatches.length < 7 && daysChecked < maxDays) {
+    const dayMatches = await getMatchesForDate(currentDate);
+    const activeMatches = dayMatches.filter(match => 
+      match.hidden !== true && 
+      !shouldCloseMatch(match.date, match.time)
+    );
+    allAvailableMatches = [...allAvailableMatches, ...activeMatches];
+    const nextDate = new Date(currentDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+    currentDate = nextDate.toISOString().split('T')[0];
+    daysChecked++;
+  }
+
+  // Ordenar todos los partidos disponibles por hora (HH:mm)
+  allAvailableMatches.sort((a, b) => {
+    const timeA = a.time.split(':').map(Number);
+    const timeB = b.time.split(':').map(Number);
+    const dateA = new Date(0, 0, 0, timeA[0], timeA[1]);
+    const dateB = new Date(0, 0, 0, timeB[0], timeB[1]);
+    return dateA - dateB;
+  });
+
+  // Tomar los primeros 7 partidos (en orden cronológico)
+  const finalMatches = allAvailableMatches.slice(0, 7);
+  
+  // Si hay menos de 7, repetir hasta completar (manteniendo orden)
+  if (finalMatches.length < 7) {
+    const repeated = [];
+    while (repeated.length < 7) {
+      repeated.push(...finalMatches);
+    }
+    setMatches(repeated.slice(0, 7));
+  } else {
+    setMatches(finalMatches);
+  }
+};
+
+  // Función para verificar y ocultar partidos automáticamente
+  const checkMatchesVisibility = async () => {
+    const today = getCurrentDate();
+    const matchesQuery = query(collection(db, 'matches'), where('date', '==', today));
+    const matchesSnapshot = await getDocs(matchesQuery);
+    
+    for (const doc of matchesSnapshot.docs) {
+      const match = doc.data();
+      if (match.hidden) continue;
+      
+      const shouldClose = shouldCloseMatch(match.date, match.time);
+      if (shouldClose) {
+        await updateDoc(doc.ref, { hidden: true });
+      }
+    }
+    
+    // Recargar ambos conjuntos
+    await loadAllMatchesForAdmin();
+    await selectVisibleMatchesForSeller();
+  };
+
+  // Cargar inicialmente
+  loadAllMatchesForAdmin();
+  selectVisibleMatchesForSeller();
+
+  // Verificación automática cada 30 segundos
+  const interval = setInterval(checkMatchesVisibility, 30000);
+  return () => clearInterval(interval);
 }, []);
-      
-      
-// NO hay reemplazo automático - los partidos se mantienen hasta el final del día
 
-
-  // Authentication data
+// Authentication data
   const adminUsers = useMemo(() => [
     { id: 'admin1', email: 'admin@footbet.com', password: 'admin123', name: 'Administrador' }
   ], []);
-
   const handleLogin = useCallback(() => {
     const admin = adminUsers.find(u => u.email === loginEmail && u.password === loginPassword);
     if (admin) {
@@ -1578,7 +1596,6 @@ useEffect(() => {
     }
     alert('Credenciales incorrectas');
   }, [loginEmail, loginPassword, adminUsers, sellerUsers]);
-
   const handleLogout = useCallback(() => {
     setCurrentView('login');
     setUserRole(null);
@@ -1589,14 +1606,12 @@ useEffect(() => {
     setCustomerPhone('');
     setSelectedBets(new Map());
   }, []);
-
   const toggleBetSelection = useCallback((matchId, selection, odds) => {
     // No permitir selección en partidos cerrados
     const match = matches.find(m => m.id === matchId);
     if (match && match.status === 'closed') {
       return;
     }
-    
     setSelectedBets(prev => {
       const newMap = new Map(prev);
       const existingBet = newMap.get(matchId);
@@ -1617,7 +1632,6 @@ useEffect(() => {
       return newMap;
     });
   }, [matches]);
-
   const generateTicket = useCallback(async () => {
   if (!customerName || !customerPhone) {
     alert('Por favor complete toda la información del cliente');
@@ -1627,9 +1641,6 @@ useEffect(() => {
     alert('Debe seleccionar los 7 partidos para generar el ticket. Monto fijo: $5,000 COP');
     return;
   }
-  
-  
-
   let formattedPhone = customerPhone.trim();
   if (!formattedPhone.startsWith('+57')) {
     formattedPhone = `+57 ${formattedPhone}`;
@@ -1652,7 +1663,6 @@ useEffect(() => {
     date: getCurrentDate(),
     time: getCurrentTime()
   };
-  
   try {
     await addDoc(collection(db, 'tickets'), newTicket);
     setTickets(prev => [...prev, newTicket]);
@@ -1665,24 +1675,123 @@ useEffect(() => {
     console.error('Error al guardar ticket:', error);
     alert('Error al guardar el ticket. Intente nuevamente.');
   }
-}, [customerName, customerPhone, selectedBets, tickets.length, currentUser, matches, getCurrentDate, getCurrentTime]);
-
-  // Función para guardar resultados
+}, [customerName, customerPhone, selectedBets, tickets.length, currentUser]);
   const handleSaveResult = async (matchId, result) => {
     try {
       const resultData = {
         matchId,
-        result, // '1', 'X', o '2'
+        result,
         date: getCurrentDate(),
         timestamp: new Date().toISOString()
       };
-      
-      const docRef = await addDoc(collection(db, 'match_results'), resultData);
+      await addDoc(collection(db, 'match_results'), resultData);
       setMatchResults(prev => ({ ...prev, [matchId]: result }));
+    
+    // Eliminar el partido de la lista del admin
+      setMatches(prev => prev.filter(match => match.id !== matchId));
+    
       alert('Resultado guardado exitosamente');
     } catch (error) {
       console.error('Error al guardar resultado:', error);
       alert('Error al guardar el resultado');
+    }
+  };
+
+  // Funciones para gestión de partidos
+  const saveMatch = async () => {
+    if (!matchForm.homeTeam || !matchForm.awayTeam || !matchForm.date) {
+      alert('Por favor complete todos los campos obligatorios');
+      return;
+    }
+    try {
+      if (editingMatch) {
+        await deleteDoc(doc(db, 'matches', editingMatch.id));
+      }
+      const completeMatch = {
+        ...matchForm,
+        hidden: false,
+        status: 'upcoming', // ← ¡Importante!
+        odds: { home: 2.0, draw: 3.0, away: 3.0 },
+        isTrap: false
+      };
+      const docRef = await addDoc(collection(db, 'matches'), completeMatch);
+// Guardar el ID del documento como campo 'id'
+      await updateDoc(docRef, { id: docRef.id });
+      alert('Partido guardado exitosamente');
+      
+      // Recargar partidos
+      const today = getCurrentDate();
+      const matchesQuery = query(collection(db, 'matches'), where('date', '==', today));
+      const matchesSnapshot = await getDocs(matchesQuery);
+      const matchesData = matchesSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          homeTeam: data.homeTeam || 'Equipo Local',
+          awayTeam: data.awayTeam || 'Equipo Visitante',
+          league: data.league || 'Liga',
+          time: data.time || '20:00',
+          country: data.country || 'Colombia',
+          popularity: data.popularity || 50,
+          date: data.date || getCurrentDate(),
+          odds: data.odds || { home: 2.0, draw: 3.0, away: 3.0 },
+          status: data.status || 'upcoming', // ← ¡Importante!
+          isTrap: data.isTrap || false,
+          hidden: data.hidden || false
+        };
+      });
+      setEditingMatch(null);
+    } catch (error) {
+      console.error('Error al guardar partido:', error);
+      alert('Error al guardar el partido');
+    }
+  };
+
+  const deleteMatch = async (matchId) => {
+    if (window.confirm('¿Seguro que desea eliminar este partido?')) {
+      try {
+        await deleteDoc(doc(db, 'matches', matchId));
+        // Recargar partidos
+        const today = getCurrentDate();
+        const matchesQuery = query(collection(db, 'matches'), where('date', '==', today));
+        const matchesSnapshot = await getDocs(matchesQuery);
+        const matchesData = matchesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          status: 'upcoming'
+        }));
+        setMatches(matchesData);
+        alert('Partido eliminado exitosamente');
+      } catch (error) {
+        console.error('Error al eliminar partido:', error);
+        alert('Error al eliminar el partido');
+      }
+    }
+  };
+
+  const hideMatch = async (matchId, hide = true) => {
+    try {
+    // Buscar el documento en Firebase por matchId
+      const matchesQuery = query(collection(db, 'matches'), where('id', '==', matchId));
+      const matchesSnapshot = await getDocs(matchesQuery);
+      if (!matchesSnapshot.empty) {
+        const docRef = doc(db, 'matches', matchesSnapshot.docs[0].id);
+        await updateDoc(docRef, { hidden: hide });
+      
+      // Recargar partidos
+        const today = getCurrentDate();
+        const matchesQuery2 = query(collection(db, 'matches'), where('date', '==', today));
+        const matchesSnapshot2 = await getDocs(matchesQuery2);
+        const matchesData = matchesSnapshot2.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setMatches(matchesData);
+        alert(hide ? 'Partido oculto exitosamente' : 'Partido mostrado exitosamente');
+      }
+    } catch (error) {
+      console.error('Error al ocultar/mostrar partido:', error);
+      alert('Error al cambiar visibilidad del partido');
     }
   };
 
@@ -1697,7 +1806,6 @@ useEffect(() => {
     alert('Error al crear el vendedor. Intente nuevamente.');
   }
 };
-
   const handleDeleteSeller = (sellerId) => {
     setSellerUsers(prev => prev.filter(seller => seller.id !== sellerId));
     // Si el vendedor eliminado estaba logueado, cerrar sesión
@@ -1707,23 +1815,19 @@ useEffect(() => {
     // Eliminar tickets asociados al vendedor eliminado
     setTickets(prev => prev.filter(ticket => ticket.sellerId !== sellerId));
   };
-
   const handleDeleteTicket = (ticketId) => {
     setTickets(prev => prev.filter(ticket => ticket.id !== ticketId));
   };
-
   const handleResendTicket = (ticket) => {
     setTicketToResend(ticket);
     setShowResendModal(true);
   };
-
   const handleResendConfirm = (newPhone) => {
     const updatedTicket = { ...ticketToResend, customerPhone: newPhone };
     copyToWhatsApp(updatedTicket);
     setShowResendModal(false);
     setTicketToResend(null);
   };
-
   const AdminDashboard = useCallback(() => (
     <div className="pb-24 px-4">
       <div className="mb-6">
@@ -1738,7 +1842,6 @@ useEffect(() => {
         </div>
         <p className="text-gray-400">Bienvenido, {currentUser?.name}</p>
       </div>
-      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl p-4 shadow-lg">
           <div className="flex items-center justify-between">
@@ -1768,7 +1871,6 @@ useEffect(() => {
           </div>
         </div>
       </div>
-      
       <div className="bg-gray-800 rounded-xl p-6 mb-6 shadow-lg border border-gray-700">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-white text-lg font-bold">Vendedores</h2>
@@ -1808,23 +1910,132 @@ useEffect(() => {
           ))}
         </div>
       </div>
-      
+
+      {/* Panel de gestión de partidos */}
+      <div className="bg-gray-800 rounded-xl p-6 mb-6">
+        <h2 className="text-white text-lg font-bold mb-4">Gestionar Partidos de Hoy</h2>
+        
+        {/* Formulario */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <input
+            type="text"
+            placeholder="Equipo Local"
+            value={matchForm.homeTeam}
+            onChange={(e) => setMatchForm({...matchForm, homeTeam: e.target.value})}
+            className="bg-gray-700 text-white rounded-lg px-3 py-2"
+          />
+          <input
+            type="text"
+            placeholder="Equipo Visitante"
+            value={matchForm.awayTeam}
+            onChange={(e) => setMatchForm({...matchForm, awayTeam: e.target.value})}
+            className="bg-gray-700 text-white rounded-lg px-3 py-2"
+          />
+          <input
+            type="text"
+            placeholder="Liga"
+            value={matchForm.league}
+            onChange={(e) => setMatchForm({...matchForm, league: e.target.value})}
+            className="bg-gray-700 text-white rounded-lg px-3 py-2"
+          />
+          <input
+            type="time"
+            value={matchForm.time}
+            onChange={(e) => setMatchForm({...matchForm, time: e.target.value})}
+            className="bg-gray-700 text-white rounded-lg px-3 py-2"
+          />
+          <input
+            type="text"
+            placeholder="País"
+            value={matchForm.country}
+            onChange={(e) => setMatchForm({...matchForm, country: e.target.value})}
+            className="bg-gray-700 text-white rounded-lg px-3 py-2"
+          />
+          <input
+            type="number"
+            placeholder="Popularidad (0-100)"
+            value={matchForm.popularity}
+            onChange={(e) => setMatchForm({...matchForm, popularity: parseInt(e.target.value) || 0})}
+            min="0"
+            max="100"
+            className="bg-gray-700 text-white rounded-lg px-3 py-2"
+          />
+        </div>
+          <input
+            type="date"
+            value={matchForm.date}
+            onChange={(e) => setMatchForm({...matchForm, date: e.target.value})}
+            className="bg-gray-700 text-white rounded-lg px-3 py-2"
+          /> 
+        <button
+          onClick={saveMatch}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg mb-4"
+        >
+          {editingMatch ? 'Actualizar Partido' : 'Agregar Partido'}
+        </button>
+        
+        {/* Lista de partidos actuales */}
+        <div className="mt-6">
+          <h3 className="text-white font-medium mb-2">Partidos de Hoy ({allMatches.length})</h3>
+          {matches.length === 0 ? (
+            <p className="text-gray-400">No hay partidos para hoy</p>
+          ) : (
+            <div className="space-y-2">
+              {[...allMatches]
+                .sort((a, b) => {
+                  const [aHours, aMinutes] = a.time.split(':').map(Number);
+                  const [bHours, bMinutes] = b.time.split(':').map(Number);
+                  return aHours * 60 + aMinutes - (bHours * 60 + bMinutes);
+                })
+                .map(match => (
+                  <div key={match.id} className="bg-gray-700 p-3 rounded flex justify-between items-center">
+                  <div>
+                    <p className="text-white">{match.homeTeam} vs {match.awayTeam}</p>
+                    <p className="text-gray-400 text-sm">{match.league} • {match.time}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setEditingMatch(match);
+                        setMatchForm(match);
+                      }}
+                      className="text-blue-400 hover:text-blue-300"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => deleteMatch(match.id)}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      Eliminar
+                    </button>
+                    <button
+                      onClick={() => hideMatch(match.id, !match.hidden)}
+                      className={`text-${match.hidden ? 'green' : 'gray'}-400 hover:text-${match.hidden ? 'green' : 'gray'}-300`}
+                    >
+                      {match.hidden ? 'Mostrar' : 'Ocultar'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Panel de resultados */}
       <ResultsPanel 
         matchResults={matchResults}
         handleSaveResult={handleSaveResult}
-        matches={matches}
+        matches={allMatches} // ← Mostrar todos los partidos al admin
       />
-      
     </div>
-  ), [currentUser, tickets, sellerUsers, handleLogout, formatCOP, matchResults, matches]);
-
+  ), [currentUser, tickets, sellerUsers, handleLogout, formatCOP, matchResults, matches, matchForm, editingMatch, saveMatch]);
   const SellerDashboard = useCallback(() => {
     const todaySales = tickets.filter(t => t.sellerId === currentUser?.id && t.date === getCurrentDate());
     const todayTotal = todaySales.reduce((sum, t) => sum + t.totalStake, 0);
     const commissionAmount = (todayTotal * (currentUser?.commission || 0)) / 100;
     const amountToPay = todayTotal - commissionAmount;
-    
     return (
       <div className="pb-24 px-4">
         <div className="mb-6">
@@ -1839,7 +2050,6 @@ useEffect(() => {
           </div>
           <p className="text-gray-400">Bienvenido, {currentUser?.name}</p>
         </div>
-        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-4 shadow-lg">
             <div className="flex items-center justify-between">
@@ -1860,7 +2070,6 @@ useEffect(() => {
             </div>
           </div>
         </div>
-        
         <div className="bg-gradient-to-r from-purple-600 to-purple-800 rounded-xl p-4 mb-6 shadow-lg">
           <div className="flex justify-between items-center">
             <div>
@@ -1870,7 +2079,6 @@ useEffect(() => {
             <AlertCircle className="text-purple-200 w-8 h-8" />
           </div>
         </div>
-        
         <div className="bg-gray-800 rounded-xl p-6 mb-6 shadow-lg border border-gray-700">
           <h2 className="text-white text-lg font-bold mb-4">Acciones Rápidas</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1890,7 +2098,6 @@ useEffect(() => {
             </button>
           </div>
         </div>
-        
         <div className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-white text-lg font-bold">Tickets de Hoy</h2>
@@ -1956,11 +2163,9 @@ useEffect(() => {
         </div>
       </div>
     );
-  }, [currentUser, tickets, handleLogout, formatCOP]);
-
+  }, [currentUser, tickets, handleLogout]);
   const NavigationBar = () => {
     if (currentView === 'login' || currentView === 'bet-selection') return null;
-    
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800">
         <div className="flex justify-around items-center py-3">
@@ -2047,10 +2252,12 @@ useEffect(() => {
       </div>
     );
   };
-
   const BetSelectionScreen = useCallback(() => {
-    const todayMatches = matches.filter(match => match.status === 'upcoming');
-    
+    const todayMatches = matches.filter(match => {
+      // Si el partido ya inició (5 min antes), no se muestra al vendedor
+      const isClosed = shouldCloseMatch(match.date, match.time);
+      return match.status === 'upcoming' && !isClosed;
+    });
     return (
       <div className="min-h-screen bg-gray-900 pb-8">
         <div className="bg-gradient-to-r from-green-600 to-green-800 p-4 shadow-lg">
@@ -2071,7 +2278,6 @@ useEffect(() => {
             onPhoneChange={setCustomerPhone}
           />
         </div>
-        
         <div className="px-4 py-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-white text-xl font-bold">Partidos de Hoy</h2>
@@ -2080,7 +2286,6 @@ useEffect(() => {
               {selectedBets.size}/7 seleccionados
             </span>
           </div>
-          
           <div className="space-y-4">
             {todayMatches.map(match => (
               <MatchBetCard
@@ -2092,13 +2297,12 @@ useEffect(() => {
               />
             ))}
           </div>
-          
           {/* Panel de generación de ticket */}
           <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-4 mt-6 shadow-lg border border-green-700">
             <div className="text-center mb-3">
               <p className="text-white font-bold text-lg">Monto del Ticket: {formatCOP(5000)}</p>
               <p className="text-green-200 text-sm">
-                🎯 Premios: 5 aciertos = Recupera apuesta | 6 aciertos = $500K | 7 aciertos = $5M
+                🎯 Premios: 5 aciertos = Recupera apuesta | 6 aciertos = Ticket Dorado (10 juegos) | 7 aciertos = $5M
               </p>
             </div>
             <button
@@ -2119,7 +2323,6 @@ useEffect(() => {
       </div>
     );
   }, [matches, customerName, customerPhone, selectedBets, toggleBetSelection, generateTicket]);
-
   const renderCurrentView = () => {
     switch (currentView) {
       case 'login':
@@ -2158,7 +2361,6 @@ useEffect(() => {
         return LoginScreen();
     }
   };
-
   // Login Screen Component
   const LoginScreen = useCallback(() => (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-gray-900 to-green-800 flex items-center justify-center p-4">
@@ -2170,9 +2372,6 @@ useEffect(() => {
           <h1 className="text-3xl font-bold text-white mb-2">FootBet Pro</h1>
           <p className="text-gray-400">Sistema de Apuestas Profesional</p>
         </div>
-        
-    
-        
         <div className="space-y-6">
           <div>
             <label className="block text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
@@ -2187,7 +2386,6 @@ useEffect(() => {
               placeholder="usuario@footbet.com"
             />
           </div>
-          
           <div>
             <label className="block text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
               <LockIcon className="w-4 h-4" />
@@ -2201,7 +2399,6 @@ useEffect(() => {
               placeholder="••••••••"
             />
           </div>
-          
           <button
             onClick={handleLogin}
             className="w-full bg-gradient-to-r from-green-600 to-green-800 hover:from-green-700 hover:to-green-900 text-white font-bold py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
@@ -2212,7 +2409,6 @@ useEffect(() => {
       </div>
     </div>
   ), [loginEmail, loginPassword, handleLogin]);
-
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {renderCurrentView()}
@@ -2272,7 +2468,6 @@ useEffect(() => {
     </div>
   );
 };
-
 // Componente de ícono de candado para la contraseña
 const LockIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2280,5 +2475,4 @@ const LockIcon = () => (
     <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
   </svg>
 );
-
 export default App;
