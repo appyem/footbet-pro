@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Phone, LogOut, Home, Ticket, FileText, BarChart3, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, AlertTriangle, RefreshCw, Info } from 'lucide-react';
+
+import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 // Firebase - Configuración correcta para Create React App
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc } from 'firebase/firestore';
@@ -1450,24 +1451,129 @@ const App = () => {
     date: getCurrentDate()
   });
 
-// Cargar datos de Firebase al montar el componente y configurar actualización automática
+
 useEffect(() => {
-  const loadFirebaseData = async () => {
+  let isMounted = true; // Para evitar actualizaciones en componentes desmontados
+
+  // Función para obtener partidos de un día específico
+  const getMatchesForDate = async (date) => {
+    try {
+      const matchesQuery = query(collection(db, 'matches'), where('date', '==', date));
+      const matchesSnapshot = await getDocs(matchesQuery);
+      return matchesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Error en getMatchesForDate:', error);
+      return [];
+    }
+  };
+
+  // Cargar partidos para el ADMIN (todos los del día)
+  const loadAllMatchesForAdmin = async () => {
+    try {
+      const today = getCurrentDate();
+      const todayMatches = await getMatchesForDate(today);
+      if (isMounted) setAllMatches(todayMatches);
+    } catch (error) {
+      console.error('Error en loadAllMatchesForAdmin:', error);
+    }
+  };
+
+  // Seleccionar 7 partidos para el VENDEDOR
+  const selectVisibleMatchesForSeller = async () => {
+    try {
+      const today = getCurrentDate();
+      let allAvailableMatches = [];
+      let currentDate = today;
+      let daysChecked = 0;
+      const maxDays = 7;
+
+      // Límite de seguridad: máximo 7 días
+      while (allAvailableMatches.length < 7 && daysChecked < maxDays) {
+        const dayMatches = await getMatchesForDate(currentDate);
+        const activeMatches = dayMatches.filter(match =>
+          match && 
+          match.hidden !== true &&
+          !shouldCloseMatch(match.date, match.time)
+        );
+        allAvailableMatches = [...allAvailableMatches, ...activeMatches];
+        
+        // Avanzar al siguiente día
+        const nextDate = new Date(currentDate);
+        nextDate.setDate(nextDate.getDate() + 1);
+        currentDate = nextDate.toISOString().split('T')[0];
+        daysChecked++;
+      }
+
+      // Ordenar por hora
+      allAvailableMatches.sort((a, b) => {
+        const [aH, aM] = a.time.split(':').map(Number);
+        const [bH, bM] = b.time.split(':').map(Number);
+        return (aH * 60 + aM) - (bH * 60 + bM);
+      });
+
+      // Tomar máximo 7 partidos
+      const finalMatches = allAvailableMatches.slice(0, 7);
+      
+      // Si no hay partidos, mostrar array vacío
+      if (isMounted) {
+        if (finalMatches.length === 0) {
+          setMatches([]);
+        } else if (finalMatches.length < 7) {
+          // Repetir si es necesario (pero con límite)
+          const repeated = [];
+          while (repeated.length < 7 && repeated.length < 100) {
+            repeated.push(...finalMatches);
+          }
+          setMatches(repeated.slice(0, 7));
+        } else {
+          setMatches(finalMatches);
+        }
+      }
+    } catch (error) {
+      console.error('Error en selectVisibleMatchesForSeller:', error);
+      if (isMounted) setMatches([]);
+    }
+  };
+
+  // Verificar y ocultar partidos automáticamente
+  const checkMatchesVisibility = async () => {
+    if (!isMounted) return;
+    try {
+      const today = getCurrentDate();
+      const matchesQuery = query(collection(db, 'matches'), where('date', '==', today));
+      const matchesSnapshot = await getDocs(matchesQuery);
+      for (const doc of matchesSnapshot.docs) {
+        const match = doc.data();
+        if (match.hidden) continue;
+        const shouldClose = shouldCloseMatch(match.date, match.time);
+        if (shouldClose) {
+          await updateDoc(doc.ref, { hidden: true });
+        }
+      }
+      await loadAllMatchesForAdmin();
+      await selectVisibleMatchesForSeller();
+    } catch (error) {
+      console.error('Error en checkMatchesVisibility:', error);
+    }
+  };
+
+  // Cargar datos iniciales con protección
+  const loadData = async () => {
+    if (!isMounted) return;
     try {
       // Cargar vendedores
       const sellersSnapshot = await getDocs(collection(db, 'sellers'));
-      const sellersData = sellersSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return { ...data, id: doc.id };
-      });
-      setSellerUsers(sellersData);
+      const sellersData = sellersSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      if (isMounted) setSellerUsers(sellersData);
+
       // Cargar tickets
       const ticketsSnapshot = await getDocs(collection(db, 'tickets'));
-      const ticketsData = ticketsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return { ...data, id: doc.id };
-      });
-      setTickets(ticketsData);
+      const ticketsData = ticketsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      if (isMounted) setTickets(ticketsData);
+
       // Cargar resultados
       const resultsSnapshot = await getDocs(collection(db, 'match_results'));
       const resultsData = {};
@@ -1475,104 +1581,35 @@ useEffect(() => {
         const data = doc.data();
         resultsData[data.matchId] = data.result;
       });
-      setMatchResults(resultsData);
+
+      if (isMounted) setMatchResults(resultsData);
+
+      // Cargar partidos
+      await loadAllMatchesForAdmin();
+      await selectVisibleMatchesForSeller();
     } catch (error) {
-      console.error('Error al cargar datos de Firebase:', error);
-    }
-  };
-  loadFirebaseData();
-
-  // Función para obtener partidos de un día específico
-  const getMatchesForDate = async (date) => {
-    const matchesQuery = query(collection(db, 'matches'), where('date', '==', date));
-    const matchesSnapshot = await getDocs(matchesQuery);
-    return matchesSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-  };
-
-  // Función para cargar partidos para el ADMIN (todos los del día)
-  const loadAllMatchesForAdmin = async () => {
-    const today = getCurrentDate();
-    const todayMatches = await getMatchesForDate(today);
-    setAllMatches(todayMatches);
-  };
-
-  // Función para seleccionar 7 partidos para el VENDEDOR (ordenados por hora)
-const selectVisibleMatchesForSeller = async () => {
-  const today = getCurrentDate();
-  let allAvailableMatches = [];
-  let currentDate = today;
-  let daysChecked = 0;
-  const maxDays = 7;
-  
-  // Recopilar partidos de hoy y días futuros hasta tener suficientes
-  while (allAvailableMatches.length < 7 && daysChecked < maxDays) {
-    const dayMatches = await getMatchesForDate(currentDate);
-    const activeMatches = dayMatches.filter(match => 
-      match.hidden !== true && 
-      !shouldCloseMatch(match.date, match.time)
-    );
-    allAvailableMatches = [...allAvailableMatches, ...activeMatches];
-    const nextDate = new Date(currentDate);
-    nextDate.setDate(nextDate.getDate() + 1);
-    currentDate = nextDate.toISOString().split('T')[0];
-    daysChecked++;
-  }
-
-  // Ordenar todos los partidos disponibles por hora (HH:mm)
-  allAvailableMatches.sort((a, b) => {
-    const timeA = a.time.split(':').map(Number);
-    const timeB = b.time.split(':').map(Number);
-    const dateA = new Date(0, 0, 0, timeA[0], timeA[1]);
-    const dateB = new Date(0, 0, 0, timeB[0], timeB[1]);
-    return dateA - dateB;
-  });
-
-  // Tomar los primeros 7 partidos (en orden cronológico)
-  const finalMatches = allAvailableMatches.slice(0, 7);
-  
-  // Si hay menos de 7, repetir hasta completar (manteniendo orden)
-  if (finalMatches.length < 7) {
-    const repeated = [];
-    while (repeated.length < 7) {
-      repeated.push(...finalMatches);
-    }
-    setMatches(repeated.slice(0, 7));
-  } else {
-    setMatches(finalMatches);
-  }
-};
-
-  // Función para verificar y ocultar partidos automáticamente
-  const checkMatchesVisibility = async () => {
-    const today = getCurrentDate();
-    const matchesQuery = query(collection(db, 'matches'), where('date', '==', today));
-    const matchesSnapshot = await getDocs(matchesQuery);
-    
-    for (const doc of matchesSnapshot.docs) {
-      const match = doc.data();
-      if (match.hidden) continue;
-      
-      const shouldClose = shouldCloseMatch(match.date, match.time);
-      if (shouldClose) {
-        await updateDoc(doc.ref, { hidden: true });
+      console.error('Error al cargar datos iniciales:', error);
+      if (isMounted) {
+        setMatches([]);
+        setAllMatches([]);
       }
     }
-    
-    // Recargar ambos conjuntos
-    await loadAllMatchesForAdmin();
-    await selectVisibleMatchesForSeller();
   };
 
-  // Cargar inicialmente
-  loadAllMatchesForAdmin();
-  selectVisibleMatchesForSeller();
+  // Ejecutar carga inicial
+  loadData();
 
-  // Verificación automática cada 30 segundos
-  const interval = setInterval(checkMatchesVisibility, 30000);
-  return () => clearInterval(interval);
+  // Intervalo para actualización automática
+  const interval = setInterval(() => {
+    if (isMounted) checkMatchesVisibility();
+  }, 30000);
+
+  // Cleanup
+  return () => {
+    isMounted = false;
+    clearInterval(interval);
+  };
+
 }, []);
 
 // Authentication data
@@ -1697,55 +1734,56 @@ const selectVisibleMatchesForSeller = async () => {
     }
   };
 
-  // Funciones para gestión de partidos
-  const saveMatch = async () => {
-    if (!matchForm.homeTeam || !matchForm.awayTeam || !matchForm.date) {
-      alert('Por favor complete todos los campos obligatorios');
-      return;
+
+  const saveMatch = useCallback(async () => {
+  if (!matchForm.homeTeam || !matchForm.awayTeam || !matchForm.date) {
+    alert('Por favor complete todos los campos obligatorios');
+    return;
+  }
+  try {
+    if (editingMatch) {
+      await deleteDoc(doc(db, 'matches', editingMatch.id));
     }
-    try {
-      if (editingMatch) {
-        await deleteDoc(doc(db, 'matches', editingMatch.id));
-      }
-      const completeMatch = {
-        ...matchForm,
-        hidden: false,
-        status: 'upcoming', // ← ¡Importante!
-        odds: { home: 2.0, draw: 3.0, away: 3.0 },
-        isTrap: false
+    const completeMatch = {
+      ...matchForm,
+      hidden: false,
+      status: 'upcoming',
+      odds: { home: 2.0, draw: 3.0, away: 3.0 },
+      isTrap: false
+    };
+    const docRef = await addDoc(collection(db, 'matches'), completeMatch);
+    await updateDoc(docRef, { id: docRef.id });
+    alert('Partido guardado exitosamente');
+
+    // Recargar partidos
+    const today = getCurrentDate();
+    const matchesQuery = query(collection(db, 'matches'), where('date', '==', today));
+    const matchesSnapshot = await getDocs(matchesQuery);
+    const matchesData = matchesSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        homeTeam: data.homeTeam || 'Equipo Local',
+        awayTeam: data.awayTeam || 'Equipo Visitante',
+        league: data.league || 'Liga',
+        time: data.time || '20:00',
+        country: data.country || 'Colombia',
+        popularity: data.popularity || 50,
+        date: data.date || getCurrentDate(),
+        odds: data.odds || { home: 2.0, draw: 3.0, away: 3.0 },
+        status: data.status || 'upcoming',
+        isTrap: data.isTrap || false,
+        hidden: data.hidden || false
       };
-      const docRef = await addDoc(collection(db, 'matches'), completeMatch);
-// Guardar el ID del documento como campo 'id'
-      await updateDoc(docRef, { id: docRef.id });
-      alert('Partido guardado exitosamente');
-      
-      // Recargar partidos
-      const today = getCurrentDate();
-      const matchesQuery = query(collection(db, 'matches'), where('date', '==', today));
-      const matchesSnapshot = await getDocs(matchesQuery);
-      const matchesData = matchesSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          homeTeam: data.homeTeam || 'Equipo Local',
-          awayTeam: data.awayTeam || 'Equipo Visitante',
-          league: data.league || 'Liga',
-          time: data.time || '20:00',
-          country: data.country || 'Colombia',
-          popularity: data.popularity || 50,
-          date: data.date || getCurrentDate(),
-          odds: data.odds || { home: 2.0, draw: 3.0, away: 3.0 },
-          status: data.status || 'upcoming', // ← ¡Importante!
-          isTrap: data.isTrap || false,
-          hidden: data.hidden || false
-        };
-      });
-      setEditingMatch(null);
-    } catch (error) {
-      console.error('Error al guardar partido:', error);
-      alert('Error al guardar el partido');
-    }
-  };
+    });
+    setMatches(matchesData);
+    setEditingMatch(null);
+  } catch (error) {
+    console.error('Error al guardar partido:', error);
+    alert('Error al guardar el partido');
+  }
+}, [matchForm, editingMatch]); // ← Dependencias correctas
+
 
   const deleteMatch = async (matchId) => {
     if (window.confirm('¿Seguro que desea eliminar este partido?')) {
@@ -2030,7 +2068,9 @@ const selectVisibleMatchesForSeller = async () => {
         matches={allMatches} // ← Mostrar todos los partidos al admin
       />
     </div>
-  ), [currentUser, tickets, sellerUsers, handleLogout, formatCOP, matchResults, matches, matchForm, editingMatch, saveMatch]);
+
+  ), [currentUser, tickets, sellerUsers, handleLogout, matchResults, matches, matchForm, editingMatch, saveMatch, allMatches]);
+
   const SellerDashboard = useCallback(() => {
     const todaySales = tickets.filter(t => t.sellerId === currentUser?.id && t.date === getCurrentDate());
     const todayTotal = todaySales.reduce((sum, t) => sum + t.totalStake, 0);
@@ -2468,11 +2508,7 @@ const selectVisibleMatchesForSeller = async () => {
     </div>
   );
 };
-// Componente de ícono de candado para la contraseña
-const LockIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-  </svg>
-);
+
+
+
 export default App;
