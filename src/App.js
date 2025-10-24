@@ -629,6 +629,14 @@ const copyToWhatsApp = (ticket) => {
     window.open(`https://wa.me/${phoneNumber.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
   }, 1000);
 };
+
+// Función para enviar partidos por WhatsApp
+const sendMatchesToWhatsApp = (message) => {
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+  window.open(whatsappUrl, '_blank');
+};
+
 // Componente de ventas - versión para vendedor (solo sus ventas)
 const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -1413,6 +1421,57 @@ const todayMatches = matches;
     </div>
   );
 };
+
+// Función para generar mensaje de partidos disponibles
+const generateMatchesMessage = (matches, sellerName) => {
+  if (matches.length < 7) {
+    return `*🔥 ¡Hola!*\n\nLamentablemente, en este momento no hay suficientes partidos disponibles para jugar.\n\nTe avisaremos en cuanto estén listos.\n\n— *${sellerName} – FootBet Pro* 🟢`;
+  }
+
+  const today = new Date().toLocaleDateString('es-CO', {
+    timeZone: 'America/Bogota',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }).replace(/^./, str => str.toUpperCase());
+
+  let message = `*🔥 ¡PARTIDOS DISPONIBLES HOY!* 🔥*\n`;
+  message += `📅 *${today}*\n`;
+  message += `⚽ *FootBet Pro – Tu casa de apuestas confiable* 💰\n\n`;
+  message += `──────────────────────\n\n`;
+
+  matches.forEach((match, index) => {
+    const timeEmoji = index < 3 ? '🕗' : index < 6 ? '🕘' : '🕙';
+    const flagEmoji = match.country === 'Colombia' ? '🇨🇴' :
+                      match.country === 'España' ? '🇪🇸' :
+                      match.country === 'Inglaterra' ? '🏴󠁧󠁢󠁥󠁮󠁧󠁿' :
+                      match.country === 'Italia' ? '🇮🇹' :
+                      match.country === 'Alemania' ? '🇩🇪' :
+                      match.country === 'Francia' ? '🇫🇷' : '🌍';
+
+    message += `${timeEmoji} *${match.time}* | ${flagEmoji} *${match.league}*\n`;
+    message += `🟢 *${match.homeTeam}* vs *${match.awayTeam}*\n`;
+    message += `📊 Resultado: 🟢 Local | ⚪ Empate | 🔴 Visitante\n\n`;
+  });
+
+  message += `──────────────────────\n\n`;
+  message += `🎯 *¿Cómo apostar?*\n`;
+  message += `1️⃣ Responde a este mensaje con tus 7 selecciones (ej: 1, X, 2, 1, X, 2, 1)\n`;
+  message += `2️⃣ Te genero tu ticket al instante\n`;
+  message += `3️⃣ ¡Juegas y ganas! 💸\n\n`;
+
+  message += `🏆 *Premios:*\n`;
+  message += `✅ 5 aciertos → Recupera tu apuesta ($5,000)\n`;
+  message += `✅ 6 aciertos → ¡TICKET DORADO! (10 juegos gratis)\n`;
+  message += `✅ 7 aciertos → ¡$5,000,000!\n\n`;
+
+  message += `📲 *¿Listo para jugar?* ¡Escríbeme ahora!\n`;
+  message += `— *${sellerName} – FootBet Pro* 🟢`;
+
+  return message;
+};
+
 const App = () => {
   const [currentView, setCurrentView] = useState('login');
   const [userRole, setUserRole] = useState(null);
@@ -2130,6 +2189,15 @@ useEffect(() => {
             >
               <Plus className="w-4 h-4" />
               Generar Ticket
+            </button>
+            <button
+              onClick={() => {
+                const message = generateMatchesMessage(matches, currentUser.name);
+                sendMatchesToWhatsApp(message);
+              }}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+            >
+              📲 Enviar Partidos por WhatsApp
             </button>
             <button
               onClick={() => setCurrentView('reports')}
