@@ -633,8 +633,12 @@ const copyToWhatsApp = (ticket) => {
 // Función para enviar partidos por WhatsApp
 const sendMatchesToWhatsApp = (message) => {
   const encodedMessage = encodeURIComponent(message);
-  const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-  window.open(whatsappUrl, '_blank');
+  const whatsappUrl = `whatsapp://send?text=${encodedMessage}`;
+  window.location.href = whatsappUrl;
+  // Fallback a WhatsApp Web si la app no responde (opcional, pero raro en móviles)
+  setTimeout(() => {
+    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+  }, 1500);
 };
 
 // Componente de ventas - versión para vendedor (solo sus ventas)
