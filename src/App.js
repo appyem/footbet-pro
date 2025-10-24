@@ -1453,7 +1453,7 @@ const App = () => {
 
 
 useEffect(() => {
-  let isMounted = true; // Para evitar actualizaciones en componentes desmontados
+  let isMounted = true;
 
   // Función para obtener partidos de un día específico
   const getMatchesForDate = async (date) => {
@@ -1470,7 +1470,7 @@ useEffect(() => {
     }
   };
 
-  // Cargar partidos para el ADMIN (todos los del día)
+  // Cargar partidos para el ADMIN (todos los del día, sin filtrar por hora)
   const loadAllMatchesForAdmin = async () => {
     try {
       const today = getCurrentDate();
@@ -1481,7 +1481,7 @@ useEffect(() => {
     }
   };
 
-  // Seleccionar 7 partidos para el VENDEDOR
+  // Seleccionar 7 partidos para el VENDEDOR (solo partidos activos)
   const selectVisibleMatchesForSeller = async () => {
     try {
       const today = getCurrentDate();
@@ -1490,7 +1490,6 @@ useEffect(() => {
       let daysChecked = 0;
       const maxDays = 7;
 
-      // Límite de seguridad: máximo 7 días
       while (allAvailableMatches.length < 7 && daysChecked < maxDays) {
         const dayMatches = await getMatchesForDate(currentDate);
         const activeMatches = dayMatches.filter(match =>
@@ -1499,32 +1498,25 @@ useEffect(() => {
           !shouldCloseMatch(match.date, match.time)
         );
         allAvailableMatches = [...allAvailableMatches, ...activeMatches];
-        
-        // Avanzar al siguiente día
         const nextDate = new Date(currentDate);
         nextDate.setDate(nextDate.getDate() + 1);
         currentDate = nextDate.toISOString().split('T')[0];
         daysChecked++;
       }
 
-      // Ordenar por hora
       allAvailableMatches.sort((a, b) => {
         const [aH, aM] = a.time.split(':').map(Number);
         const [bH, bM] = b.time.split(':').map(Number);
         return (aH * 60 + aM) - (bH * 60 + bM);
       });
 
-      // Tomar máximo 7 partidos
       const finalMatches = allAvailableMatches.slice(0, 7);
-      
-      // Si no hay partidos, mostrar array vacío
       if (isMounted) {
         if (finalMatches.length === 0) {
           setMatches([]);
         } else if (finalMatches.length < 7) {
-          // Repetir si es necesario (pero con límite)
           const repeated = [];
-          while (repeated.length < 7 && repeated.length < 100) {
+          while (repeated.length < 7) {
             repeated.push(...finalMatches);
           }
           setMatches(repeated.slice(0, 7));
@@ -1538,29 +1530,7 @@ useEffect(() => {
     }
   };
 
-  // Verificar y ocultar partidos automáticamente
-  const checkMatchesVisibility = async () => {
-    if (!isMounted) return;
-    try {
-      const today = getCurrentDate();
-      const matchesQuery = query(collection(db, 'matches'), where('date', '==', today));
-      const matchesSnapshot = await getDocs(matchesQuery);
-      for (const doc of matchesSnapshot.docs) {
-        const match = doc.data();
-        if (match.hidden) continue;
-        const shouldClose = shouldCloseMatch(match.date, match.time);
-        if (shouldClose) {
-          await updateDoc(doc.ref, { hidden: true });
-        }
-      }
-      await loadAllMatchesForAdmin();
-      await selectVisibleMatchesForSeller();
-    } catch (error) {
-      console.error('Error en checkMatchesVisibility:', error);
-    }
-  };
-
-  // Cargar datos iniciales con protección
+  // Cargar datos iniciales (SIN verificación automática de visibilidad)
   const loadData = async () => {
     if (!isMounted) return;
     try {
@@ -1581,7 +1551,6 @@ useEffect(() => {
         const data = doc.data();
         resultsData[data.matchId] = data.result;
       });
-
       if (isMounted) setMatchResults(resultsData);
 
       // Cargar partidos
@@ -1599,17 +1568,10 @@ useEffect(() => {
   // Ejecutar carga inicial
   loadData();
 
-  // Intervalo para actualización automática
-  const interval = setInterval(() => {
-    if (isMounted) checkMatchesVisibility();
-  }, 30000);
-
   // Cleanup
   return () => {
     isMounted = false;
-    clearInterval(interval);
   };
-
 }, []);
 
 // Authentication data
@@ -1670,52 +1632,53 @@ useEffect(() => {
     });
   }, [matches]);
   const generateTicket = useCallback(async () => {
-  if (!customerName || !customerPhone) {
-    alert('Por favor complete toda la información del cliente');
-    return;
-  }
-  if (selectedBets.size !== 7) {
-    alert('Debe seleccionar los 7 partidos para generar el ticket. Monto fijo: $5,000 COP');
-    return;
-  }
-  let formattedPhone = customerPhone.trim();
-  if (!formattedPhone.startsWith('+57')) {
-    formattedPhone = `+57 ${formattedPhone}`;
-  }
-  const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-  const betsArray = Array.from(selectedBets.values()).map(bet => ({
-    ...bet,
-    stake: 5000
-  }));
-  const newTicket = {
-    id: `TKT${String(tickets.length + 1).padStart(3, '0')}`,
-    customerId: `CUST${String(tickets.length + 1).padStart(3, '0')}`,
-    customerName: customerName,
-    customerPhone: formattedPhone,
-    bets: betsArray,
-    totalStake: 5000,
-    verificationCode,
-    sellerId: currentUser.id,
-    sellerName: currentUser.name,
-    date: getCurrentDate(),
-    time: getCurrentTime()
-  };
-  try {
-    await addDoc(collection(db, 'tickets'), newTicket);
-    setTickets(prev => [...prev, newTicket]);
-    setCurrentTicket(newTicket);
-    setShowTicketPreview(true);
-    setSelectedBets(new Map());
-    setCustomerName('');
-    setCustomerPhone('');
-  } catch (error) {
-    console.error('Error al guardar ticket:', error);
-    alert('Error al guardar el ticket. Intente nuevamente.');
-  }
-}, [customerName, customerPhone, selectedBets, tickets.length, currentUser]);
+    if (!customerName || !customerPhone) {
+      alert('Por favor complete toda la información del cliente');
+      return;
+    }
+    if (selectedBets.size !== 7) {
+      alert('Debe seleccionar los 7 partidos para generar el ticket. Monto fijo: $5,000 COP');
+      return;
+    }
+    let formattedPhone = customerPhone.trim();
+    if (!formattedPhone.startsWith('+57')) {
+      formattedPhone = `+57 ${formattedPhone}`;
+    }
+    const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+   const betsArray = Array.from(selectedBets.values()).map(bet => ({
+      ...bet,
+      stake: 5000
+    }));
+    const newTicket = {
+      id: `TKT${String(tickets.length + 1).padStart(3, '0')}`,
+      customerId: `CUST${String(tickets.length + 1).padStart(3, '0')}`,
+      customerName: customerName,
+      customerPhone: formattedPhone,
+      bets: betsArray,
+      totalStake: 5000,
+      verificationCode,
+      sellerId: currentUser.id,
+     sellerName: currentUser.name,
+      date: getCurrentDate(),
+      time: getCurrentTime()
+    };
+    try {
+      await addDoc(collection(db, 'tickets'), newTicket);
+      setTickets(prev => [...prev, newTicket]);
+      setCurrentTicket(newTicket);
+      setShowTicketPreview(true);
+      setSelectedBets(new Map());
+      setCustomerName('');
+      setCustomerPhone('');
+    } catch (error) {
+      console.error('Error al guardar ticket:', error);
+      alert('Error al guardar el ticket. Intente nuevamente.');
+    }
+  }, [customerName, customerPhone, selectedBets, tickets.length, currentUser]);
   const handleSaveResult = async (matchId, result) => {
     try {
-      const resultData = {
+    // 1. Guardar el resultado en Firebase
+    const resultData = { // ← ¡Declarar con 'const'!
         matchId,
         result,
         date: getCurrentDate(),
@@ -1723,11 +1686,22 @@ useEffect(() => {
       };
       await addDoc(collection(db, 'match_results'), resultData);
       setMatchResults(prev => ({ ...prev, [matchId]: result }));
-    
-    // Eliminar el partido de la lista del admin
+
+    // 2. Marcar el partido como oculto en Firebase
+      const matchesQuery = query(collection(db, 'matches'), where('id', '==', matchId));
+      const matchesSnapshot = await getDocs(matchesQuery);
+      if (!matchesSnapshot.empty) {
+        const docRef = doc(db, 'matches', matchesSnapshot.docs[0].id);
+        await updateDoc(docRef, { hidden: true });
+      }
+
+    // 3. Eliminar el partido de ambas listas locales
+      setAllMatches(prev => prev.filter(match => match.id !== matchId));
       setMatches(prev => prev.filter(match => match.id !== matchId));
-    
-      alert('Resultado guardado exitosamente');
+
+    // ✅ Corrección: usar console.log o alert
+      console.log('Resultado guardado exitosamente');
+    // Opcional: alert('Resultado guardado exitosamente');
     } catch (error) {
       console.error('Error al guardar resultado:', error);
       alert('Error al guardar el resultado');
@@ -2015,7 +1989,7 @@ useEffect(() => {
         {/* Lista de partidos actuales */}
         <div className="mt-6">
           <h3 className="text-white font-medium mb-2">Partidos de Hoy ({allMatches.length})</h3>
-          {matches.length === 0 ? (
+          {allMatches.length === 0 ? (
             <p className="text-gray-400">No hay partidos para hoy</p>
           ) : (
             <div className="space-y-2">
@@ -2069,7 +2043,7 @@ useEffect(() => {
       />
     </div>
 
-  ), [currentUser, tickets, sellerUsers, handleLogout, matchResults, matches, matchForm, editingMatch, saveMatch, allMatches]);
+  ), [currentUser, tickets, sellerUsers, handleLogout, formatCOP, matchResults, matches, matchForm, editingMatch, saveMatch, allMatches]);
 
   const SellerDashboard = useCallback(() => {
     const todaySales = tickets.filter(t => t.sellerId === currentUser?.id && t.date === getCurrentDate());
@@ -2293,7 +2267,7 @@ useEffect(() => {
     );
   };
   const BetSelectionScreen = useCallback(() => {
-    const todayMatches = matches.filter(match => {
+    const todayMatches = allMatches.filter(match => { // Mostrar TODOS los partidos del día
       // Si el partido ya inició (5 min antes), no se muestra al vendedor
       const isClosed = shouldCloseMatch(match.date, match.time);
       return match.status === 'upcoming' && !isClosed;
@@ -2363,6 +2337,7 @@ useEffect(() => {
       </div>
     );
   }, [matches, customerName, customerPhone, selectedBets, toggleBetSelection, generateTicket]);
+
   const renderCurrentView = () => {
     switch (currentView) {
       case 'login':

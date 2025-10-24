@@ -1,39 +1,42 @@
-
 // src/services/matchService.js
 
-// Fecha actual en formato YYYY-MM-DD (Colombia)
+// Obtiene la fecha actual en formato YYYY-MM-DD (hora de Colombia)
 export const getCurrentDate = () => {
   return new Date().toLocaleString('en-CA', { timeZone: 'America/Bogota' }).split(',')[0];
 };
 
-// Hora actual en formato HH:mm (Colombia)
+// Obtiene la hora actual en formato HH:mm (hora de Colombia)
 export const getCurrentTime = () => {
-  return new Date().toLocaleTimeString('es-CO', { 
-    timeZone: 'America/Bogota', 
-    hour: '2-digit', 
+  return new Date().toLocaleTimeString('es-CO', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
     minute: '2-digit',
-    hour12: false 
+    hour12: false
   });
 };
 
-// Función corregida: determina si un partido debe ocultarse (5 min antes)
+// Determina si un partido debe ocultarse (5 minutos antes de su inicio)
 export const shouldCloseMatch = (matchDateStr, matchTime) => {
-  // Hora actual en Colombia
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const colombiaNow = new Date(utc + (-5 * 3600000));
-
-  // Parsear fecha y hora del partido
+  // Crear fecha del partido en la zona horaria de Colombia
   const [year, month, day] = matchDateStr.split('-').map(Number);
   const [hours, minutes] = matchTime.split(':').map(Number);
+  
+  // Construir la fecha del partido como si estuviera en la hora local de Colombia
+  const matchDate = new Date(year, month - 1, day, hours, minutes, 0);
+  
+  // Obtener la misma fecha pero en la zona horaria de Colombia (evita desfases)
+  const matchInColombia = new Date(
+    matchDate.toLocaleString('en-US', { timeZone: 'America/Bogota' })
+  );
 
-  // Crear fecha del partido en UTC que represente la hora local de Colombia
-  const matchInColombia = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
-  const matchColombiaTime = new Date(matchInColombia.getTime() + (-5 * 3600000));
+  // Calcular 5 minutos antes del partido
+  const fiveMinutesBefore = new Date(matchInColombia.getTime() - 5 * 60000);
 
-  // 5 minutos antes
+  // Obtener la hora actual en Colombia
+  const nowInColombia = new Date(
+    new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' })
+  );
 
-  const fiveMinutesBefore = new Date(matchColombiaTime.getTime() - 5 * 60000);
-
-  return colombiaNow >= fiveMinutesBefore;
+  // Comparar: si ya pasaron los 5 minutos antes, el partido debe cerrarse
+  return nowInColombia >= fiveMinutesBefore;
 };
