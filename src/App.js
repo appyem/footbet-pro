@@ -1708,7 +1708,7 @@ const App = () => {
   const matchResultsRef = useRef(matchResults);
   useEffect(() => {
     matchResultsRef.current = matchResults;
-  }, [matchResults]);
+  }, []);
   const [sellerUsers, setSellerUsers] = useState([
     { id: 'seller1', email: 'juan@footbet.com', password: 'juan123', name: 'Juan Perez', commission: 15 },
     { id: 'seller2', email: 'maria@footbet.com', password: 'maria123', name: 'Maria Garcia', commission: 12 }
@@ -1748,18 +1748,15 @@ useEffect(() => {
       ...doc.data()
     }));
     if (isMounted) {
-      setAllMatchesIncludingResults(allMatchesData); // ← incluye partidos con resultado
+      setAllMatchesIncludingResults(allMatchesData);
     }
-
-    // ✅ Usar setMatchResults directamente (no matchResultsRef)
-    const matchesWithoutResults = allMatchesData.filter(match => 
+    const matchesWithoutResults = allMatchesData.filter(match =>
       matchResultsRef.current[match.id] === undefined
     );
     if (isMounted) {
       setAllMatches(matchesWithoutResults);
     }
-
-    // Para el VENDEDOR
+    // Para el VENDEDOR: solo partidos de hoy disponibles
     const today = getCurrentDate();
     const activeMatches = allMatchesData.filter(match =>
       match &&
@@ -1768,54 +1765,11 @@ useEffect(() => {
       !shouldCloseMatch(match.date, match.time) &&
       match.date >= today
     );
-
-    // Buscar en días futuros si no hay suficientes
-    const loadFutureMatches = async () => {
-      let allAvailableMatches = [...activeMatches];
-      let currentDate = today;
-      let daysChecked = 0;
-      const maxDays = 7;
-
-      const getMatchesForDate = async (date) => {
-        const q = query(collection(db, 'matches'), where('date', '==', date));
-        const snap = await getDocs(q);
-        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      };
-
-      while (allAvailableMatches.length < 7 && daysChecked < maxDays) {
-        const nextDate = new Date(currentDate);
-        nextDate.setDate(nextDate.getDate() + 1);
-        currentDate = nextDate.toISOString().split('T')[0];
-        const futureMatches = await getMatchesForDate(currentDate);
-        const futureActive = futureMatches.filter(match =>
-          match &&
-          match.hidden !== true &&
-          matchResultsRef.current[match.id] === undefined &&
-          !shouldCloseMatch(match.date, match.time)
-        );
-        allAvailableMatches = [...allAvailableMatches, ...futureActive];
-        daysChecked++;
-      }
-
-            // Ordenar TODOS los partidos disponibles cronológicamente
-      allAvailableMatches.sort((a, b) => {
-        if (a.date !== b.date) return a.date.localeCompare(b.date);
-        const [aH, aM] = a.time.split(':').map(Number);
-        const [bH, bM] = b.time.split(':').map(Number);
-        return (aH * 60 + aM) - (bH * 60 + bM);
-      });
-
-      // Tomar los primeros 7 partidos YA ORDENADOS
-      const finalMatches = allAvailableMatches.length >= 7 
-        ? allAvailableMatches.slice(0, 7) 
-        : allAvailableMatches; // incluso si son menos de 7, deben estar ordenados
-
-      if (isMounted) {
-        setMatches(finalMatches);
-      }
-    };
-
-    loadFutureMatches();
+    // Tomar máximo 7 partidos disponibles HOY
+    const finalMatches = activeMatches.slice(0, 7);
+    if (isMounted) {
+      setMatches(finalMatches);
+    }
   });
 
   // 🔁 LISTENER PARA TICKETS Y VENDEDORES
@@ -1841,7 +1795,7 @@ useEffect(() => {
     unsubscribeSellers();
     unsubscribePendingTickets();
   };
-}, [matchResults]); // 👈 Dependencia crítica: matchResults
+}, [matchResults]);
 
 // Authentication data
   const adminUsers = useMemo(() => [
