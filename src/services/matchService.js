@@ -16,22 +16,13 @@ export const getCurrentTime = () => {
 };
 
 // Determina si un partido debe ocultarse (5 minutos antes de su inicio, en hora Colombia)
+// Determina si un partido debe ocultarse (5 minutos antes de su inicio, en hora Colombia)
 export const shouldCloseMatch = (matchDateStr, matchTime) => {
-  // Combinar fecha y hora en un string ISO en la zona horaria de Colombia
-  const matchDateTimeStr = `${matchDateStr}T${matchTime}:00`;
-  const matchInColombia = new Date(matchDateTimeStr);
-  // Ajustar a hora de Colombia explícitamente
-  const tzOffset = matchInColombia.getTimezoneOffset(); // en minutos
-  const colombiaOffset = -300; // UTC-5 = -300 minutos
-  const diffMinutes = colombiaOffset - tzOffset;
-  matchInColombia.setMinutes(matchInColombia.getMinutes() + diffMinutes);
-
-  // Cerrar 5 minutos antes
-  const fiveMinutesBefore = new Date(matchInColombia.getTime() - 5 * 60 * 1000);
-
-  // Hora actual en la misma referencia (hora Colombia)
-  const nowInColombia = new Date();
-  nowInColombia.setMinutes(nowInColombia.getMinutes() + (colombiaOffset - nowInColombia.getTimezoneOffset()));
-
+  // Parsear fecha y hora como si fueran en UTC-5 (Colombia)
+  const [year, month, day] = matchDateStr.split("-").map(Number);
+  const [hours, minutes] = matchTime.split(":").map(Number);
+  const matchTimestamp = Date.UTC(year, month - 1, day, hours - 5, minutes);
+  const fiveMinutesBefore = matchTimestamp - 5 * 60 * 1000;
+  const nowInColombia = new Date().getTime() + (new Date().getTimezoneOffset() + 300) * 60 * 1000;
   return nowInColombia >= fiveMinutesBefore;
 };
