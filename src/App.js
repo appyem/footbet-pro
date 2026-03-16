@@ -1562,7 +1562,7 @@ const generateMatchesMessage = (matches, sellerName, sellerId) => {
   message += `4️⃣ Envía y espera confirmación\n`;
   if (finalMatches.length === 7) {
     message += `🏆 *Premios:*\n`;
-    message += `✅ 5 aciertos → Recupera tu apuesta ($5,000)\n`;
+    message += `✅ 5 aciertos → Recupera tu Apuesta ($5,000)\n`;
     message += `✅ 6 aciertos → ¡TICKET DORADO! (10 juegos gratis)\n`;
     message += `✅ 7 aciertos → ¡$1,000,000!\n`;
   }
