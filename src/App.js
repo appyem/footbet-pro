@@ -1750,21 +1750,27 @@ useEffect(() => {
     if (isMounted) {
       setAllMatchesIncludingResults(allMatchesData);
     }
+
+    // Usar el estado actual de matchResults (no la ref)
+    const currentMatchResults = matchResults;
+
     const matchesWithoutResults = allMatchesData.filter(match =>
-      matchResultsRef.current[match.id] === undefined
+      currentMatchResults[match.id] === undefined
     );
     if (isMounted) {
       setAllMatches(matchesWithoutResults);
     }
+
     // Para el VENDEDOR: solo partidos de hoy disponibles
     const today = getCurrentDate();
     const activeMatches = allMatchesData.filter(match =>
       match &&
       match.hidden !== true &&
-      matchResultsRef.current[match.id] === undefined &&
+      currentMatchResults[match.id] === undefined &&
       !shouldCloseMatch(match.date, match.time) &&
       match.date >= today
     );
+
     // Tomar máximo 7 partidos disponibles HOY
     const finalMatches = activeMatches.slice(0, 7);
     if (isMounted) {
