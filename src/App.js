@@ -1708,7 +1708,7 @@ const App = () => {
   const matchResultsRef = useRef(matchResults);
   useEffect(() => {
     matchResultsRef.current = matchResults;
-  }, []);
+  }, [matchResults]);
   const [sellerUsers, setSellerUsers] = useState([
     { id: 'seller1', email: 'juan@footbet.com', password: 'juan123', name: 'Juan Perez', commission: 15 },
     { id: 'seller2', email: 'maria@footbet.com', password: 'maria123', name: 'Maria Garcia', commission: 12 }
