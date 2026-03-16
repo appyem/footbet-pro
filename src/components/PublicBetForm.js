@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, AlertCircle, CheckCircle, X, Clock } from 'lucide-react';
+import { Phone, AlertCircle, CheckCircle, X } from 'lucide-react';
 import { db } from '../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { getCurrentTime, shouldCloseMatch } from '../services/matchService';
