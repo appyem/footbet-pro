@@ -20,23 +20,22 @@ const PublicBetForm = () => {
 
   useEffect(() => {
     // ✅ PARSEO CORRECTO DE LA URL (solución definitiva)
-    const hash = window.location.hash; // Ej: "#/public-bet?seller=abc&s=123,456"
+    const hash = window.location.hash;
+    const qIndex = hash.indexOf('?');
     
-    // Extraer solo la parte de query params (después del ?)
-    const queryString = hash.split('?')[1] || '';
+    if (qIndex === -1) {
+      setError('Link inválido. Por favor solicita un nuevo enlace al vendedor.');
+      setLoading(false);
+      return;
+    }
     
-    // Parsear manualmente los parámetros (más robusto que URLSearchParams para hashes)
-    const params = {};
-    queryString.split('&').forEach(pair => {
-      const [key, value] = pair.split('=');
-      if (key && value) {
-        params[key] = decodeURIComponent(value);
-      }
-    });
-
-    const currentSellerId = params.seller;
-    const matchIdsParam = params.s;
-
+    // Extraer SOLO los parámetros (después del primer '?')
+    const queryString = hash.substring(qIndex + 1);
+    const params = new URLSearchParams(queryString);
+    
+    const currentSellerId = params.get('seller');
+    const matchIdsParam = params.get('s');
+    
     // ✅ Validación estricta
     if (!currentSellerId || !matchIdsParam || !matchIdsParam.trim()) {
       setError('Link inválido o incompleto. Por favor solicita un nuevo enlace al vendedor.');
@@ -159,7 +158,6 @@ const PublicBetForm = () => {
         submittedAt: getCurrentTime()
       };
 
-      // ✅ Guardar en pending_tickets (colección correcta)
       const { addDoc, collection } = await import('firebase/firestore');
       await addDoc(collection(db, 'pending_tickets'), pendingTicket);
       setSubmitted(true);
