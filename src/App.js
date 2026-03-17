@@ -3,9 +3,6 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
-
-
-
 import PublicBetForm from './components/PublicBetForm';
 
 // Configuración de Firebase
@@ -53,6 +50,8 @@ const CustomerInfoForm = React.memo(({ customerName, customerPhone, onNameChange
     </>
   );
 });
+
+
 
 // Componente aislado para cada partido
 const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrapMatch }) => {
@@ -651,7 +650,7 @@ const sendMatchesToWhatsApp = (message) => {
 };
 
 // Componente de ventas - versión para vendedor (solo sus ventas)
-const SalesView = ({ tickets, sellerUsers, currentUser, userRole, onDeleteTicket }) => {
+const SalesView = ({ tickets, currentUser, userRole, onDeleteTicket }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [timeFilter, setTimeFilter] = useState('today');
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -1192,7 +1191,7 @@ Gracias por jugar con *FootBet Pro* 💚
   );
 };
 // Componente de configuración
-const SettingsView = ({ sellerUsers, setSellerUsers, currentUser, handleLogout, userRole }) => {
+const SettingsView = ({ sellerUsers, setSellerUsers, userRole }) => {
   const [activeTab, setActiveTab] = useState('business');
   const [businessSettings, setBusinessSettings] = useState({
     minBet: 5000,
@@ -1516,59 +1515,6 @@ const todayMatches = matches;
 };
 
 // Función sincrona: genera mensaje con los partidos YA disponibles
-const generateMatchesMessage = (matches, sellerName, sellerId) => {
-  // Filtrar partidos realmente disponibles (no cerrados)
-  const availableMatches = matches.filter(match =>
-    match &&
-    match.hidden !== true &&
-    !shouldCloseMatch(match.date, match.time)
-  );
-  const finalMatches = availableMatches.slice(0, 7); // máximo 7
-  if (finalMatches.length === 0) {
-    return `*📢 FootBet Pro*\nHola! No hay partidos disponibles en este momento.\n— *${sellerName}* 🟢`;
-  }
-  const matchIds = finalMatches.map(m => m.id).join(',');
-  const encodedMatchIds = encodeURIComponent(matchIds);
-  const link = `https://footbet-pro.web.app/#/public-bet?seller=${sellerId}&s=${encodedMatchIds}`;
-  const todayFormatted = new Date().toLocaleDateString('es-CO', {
-    timeZone: 'America/Bogota',
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }).replace(/^./, str => str.toUpperCase());
-  let message = `*🔥 ¡PARTIDOS DISPONIBLES HOY!* 🔥*\n`;
-  message += `📅 *${todayFormatted}*\n`;
-  message += `⚽ *FootBet Pro – Tu casa de apuestas confiable* 💰\n`;
-  message += `──────────────────────\n`;
-  finalMatches.forEach((match, index) => {
-    const timeEmoji = index < 3 ? '🕗' : index < 6 ? '🕘' : '🕙';
-    const flagEmoji = match.country === 'Colombia' ? '🇨🇴' :
-      match.country === 'España' ? '🇪🇸' :
-      match.country === 'Inglaterra' ? '🏴󠁧󠁢󠁥󠁮󠁧󠁿' :
-      match.country === 'Italia' ? '🇮🇹' :
-      match.country === 'Alemania' ? '🇩🇪' :
-      match.country === 'Francia' ? '🇫🇷' : '🌍';
-    message += `${timeEmoji} *${match.time}* | ${flagEmoji} *${match.league}*\n`;
-    message += `🟢 *${match.homeTeam}* vs *${match.awayTeam}*\n`;
-    message += `📊 Resultado: 🟢 Local | ⚪ Empate | 🔴 Visitante\n`;
-  });
-  message += `──────────────────────\n`;
-  message += `🎯 *¿Cómo apostar?*\n`;
-  message += `1️⃣ Haz clic en este enlace para marcar tus apuestas:\n`;
-  message += `👉 ${link}\n`;
-  message += `2️⃣ Elige tus ${finalMatches.length === 7 ? '7 resultados' : 'resultados'}\n`;
-  message += `3️⃣ Ingresa tu nombre y teléfono\n`;
-  message += `4️⃣ Envía y espera confirmación\n`;
-  if (finalMatches.length === 7) {
-    message += `🏆 *Premios:*\n`;
-    message += `✅ 5 aciertos → Recupera tu Apuesta ($5,000)\n`;
-    message += `✅ 6 aciertos → ¡TICKET DORADO! (10 juegos gratis)\n`;
-    message += `✅ 7 aciertos → ¡$1,000,000!\n`;
-  }
-  message += `— *${sellerName} – FootBet Pro* 🟢`;
-  return message;
-};
 // Función para generar mensaje de los últimos 7 resultados
 const generateResultsMessage = (matchResults, allMatches, sellerName) => {
   // Crear un mapa de partidos por ID para búsqueda rápida
@@ -1706,6 +1652,7 @@ const App = () => {
   const [ticketToResend, setTicketToResend] = useState(null);
   const [matchResults, setMatchResults] = useState({});
   const matchResultsRef = useRef(matchResults);
+  const [, setShowShareLinkGenerator] = useState(false);
   useEffect(() => {
     matchResultsRef.current = matchResults;
   }, [matchResults]);
@@ -2273,6 +2220,7 @@ useEffect(() => {
     const todayTotal = todaySales.reduce((sum, t) => sum + t.totalStake, 0);
     const commissionAmount = (todayTotal * (currentUser?.commission || 0)) / 100;
     const amountToPay = todayTotal - commissionAmount;
+  
     return (
       <div className="pb-24 px-4">
         <div className="mb-6">
@@ -2327,13 +2275,10 @@ useEffect(() => {
               Generar Ticket
             </button>
            <button
-              onClick={() => {
-                const message = generateMatchesMessage(matches, currentUser.name, currentUser.id);
-                sendMatchesToWhatsApp(message);
-              }}
+              onClick={() => setShowShareLinkGenerator(true)}
               className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
             >
-              📲 Enviar Partidos por WhatsApp
+              📲 Generar Enlace para Clientes
             </button>
             <button
               onClick={() => {
@@ -2466,7 +2411,7 @@ useEffect(() => {
         </div>
       </div>
     );
-  }, [currentUser, tickets, handleLogout, allMatchesIncludingResults, matchResults, matches, pendingTickets]);
+  }, [currentUser, tickets, handleLogout, allMatchesIncludingResults, matchResults, pendingTickets]);
   
     const BetSelectionScreen = useCallback(() => {
       const todayMatches = [...matches]

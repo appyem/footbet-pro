@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, AlertCircle, CheckCircle, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, X, Phone } from 'lucide-react';
 import { db } from '../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { getCurrentTime, shouldCloseMatch } from '../services/matchService';
@@ -19,254 +19,213 @@ const PublicBetForm = () => {
   const [sellerInfo, setSellerInfo] = useState(null);
 
   useEffect(() => {
-    const hash = window.location.hash;
-    // Buscar ? O & (WhatsApp suele reemplazar ? por &)
-    const qIndex = hash.indexOf('?') !== -1 ? hash.indexOf('?') : hash.indexOf('&');
+    // 🔥 SOLUCIÓN NUCLEAR: Extraer parámetros de CUALQUIER formato de URL
+    const extractParam = (key) => {
+      // Método 1: Desde search params normales (?seller=xxx)
+      const searchParams = new URLSearchParams(window.location.search);
+      let value = searchParams.get(key);
+      
+      // Método 2: Desde hash (#/public-bet?seller=xxx)
+      if (!value) {
+        const hash = window.location.hash;
+        const qIndex = hash.indexOf('?');
+        if (qIndex !== -1) {
+          const hashParams = new URLSearchParams(hash.substring(qIndex + 1));
+          value = hashParams.get(key);
+        }
+      }
+      
+      // Método 3: Regex directo (último recurso)
+      if (!value) {
+        const regex = new RegExp(`[?&]${key}=([^&#]*)`);
+        const match = window.location.href.match(regex);
+        if (match) value = decodeURIComponent(match[1]);
+      }
+      
+      return value ? decodeURIComponent(value) : null;
+    };
 
-    if (qIndex === -1) {
-      setError('Link inválido. Por favor solicita un nuevo enlace al vendedor.');
+    const sellerParam = extractParam('seller');
+    const sParam = extractParam('s');
+
+    if (!sellerParam || !sParam) {
+      setError('Link inválido. Solicita un nuevo enlace al vendedor.');
       setLoading(false);
+      console.error('Parámetros faltantes:', { sellerParam, sParam });
       return;
     }
-    
-    // Extraer SOLO los parámetros (después del primer '?')
-    const queryString = hash.substring(qIndex + 1);
-    const params = new URLSearchParams(queryString);
-    
-    const currentSellerId = params.get('seller');
-    const matchIdsParam = params.get('s');
-    
-    // ✅ Validación estricta
-    if (!currentSellerId || !matchIdsParam || !matchIdsParam.trim()) {
-      setError('Link inválido o incompleto. Por favor solicita un nuevo enlace al vendedor.');
-      setLoading(false);
-      console.error('Parámetros faltantes:', { currentSellerId, matchIdsParam });
-      return;
-    }
 
-    setSellerId(currentSellerId);
-    const matchIds = decodeURIComponent(matchIdsParam).split(',').filter(id => id.trim());
+    setSellerId(sellerParam);
+    const matchIds = sParam.split(',').map(id => id.trim()).filter(id => id);
 
     if (matchIds.length === 0) {
-      setError('No hay partidos seleccionados en el enlace. Por favor solicita un nuevo enlace al vendedor.');
+      setError('No hay partidos en el enlace. Solicita uno nuevo.');
       setLoading(false);
       return;
     }
 
-    // Cargar información del vendedor
-    const loadSellerInfo = async () => {
+    // Cargar vendedor
+    const loadSeller = async () => {
       try {
-        const sellerDoc = await getDoc(doc(db, 'users', currentSellerId));
-        if (sellerDoc.exists()) {
-          setSellerInfo({ id: sellerDoc.id, ...sellerDoc.data() });
-        } else {
-          console.warn('Vendedor no encontrado:', currentSellerId);
-        }
-      } catch (err) {
-        console.error('Error al cargar información del vendedor:', err);
-      }
+        const docSnap = await getDoc(doc(db, 'users', sellerParam));
+        if (docSnap.exists()) setSellerInfo({ id: docSnap.id, ...docSnap.data() });
+      } catch (e) { console.error('Error cargando vendedor:', e); }
     };
 
     // Cargar partidos
     const loadMatches = async () => {
       try {
         const docs = await Promise.all(matchIds.map(id => getDoc(doc(db, 'matches', id))));
-        const loadedMatches = docs
+        const validMatches = docs
           .map(docSnap => {
             if (!docSnap.exists()) return null;
-            const data = docSnap.data();
-            // Validar campos obligatorios
-            if (!data.date || !data.time || !data.homeTeam || !data.awayTeam) return null;
-            // Verificar si ya está cerrado
-            if (shouldCloseMatch(data.date, data.time)) return null;
-            if (data.status === 'closed' || data.hidden === true) return null;
-            return { id: docSnap.id, ...data };
+            const d = docSnap.data();
+            if (!d.date || !d.time || !d.homeTeam || !d.awayTeam) return null;
+            if (shouldCloseMatch(d.date, d.time)) return null;
+            if (d.hidden || d.status === 'closed') return null;
+            return { id: docSnap.id, ...d };
           })
-          .filter(Boolean);
-
-        if (loadedMatches.length === 0) {
-          setError('Los partidos ya no están disponibles para apostar.');
-        } else {
-          // Ordenar cronológicamente
-          loadedMatches.sort((a, b) => {
+          .filter(Boolean)
+          .sort((a, b) => {
             if (a.date !== b.date) return a.date.localeCompare(b.date);
             const [aH, aM] = a.time.split(':').map(Number);
             const [bH, bM] = b.time.split(':').map(Number);
             return (aH * 60 + aM) - (bH * 60 + bM);
           });
-          setMatches(loadedMatches);
+
+        if (validMatches.length === 0) {
+          setError('Partidos no disponibles.');
+        } else {
+          setMatches(validMatches);
         }
-      } catch (err) {
-        console.error('Error al cargar partidos:', err);
-        setError('Error al cargar los partidos. Por favor recarga la página.');
+      } catch (e) {
+        console.error('Error cargando partidos:', e);
+        setError('Error al cargar partidos.');
       } finally {
         setLoading(false);
       }
     };
 
-    loadSellerInfo();
+    loadSeller();
     loadMatches();
   }, []);
 
   const toggleSelection = (matchId, selection, odds) => {
     setSelectedBets(prev => {
-      const newMap = new Map(prev);
-      const existing = newMap.get(matchId);
-      if (existing && existing.selection === selection) {
-        newMap.delete(matchId);
-      } else {
-        newMap.set(matchId, { matchId, selection, odds });
-      }
-      return newMap;
+      const m = new Map(prev);
+      const existing = m.get(matchId);
+      if (existing && existing.selection === selection) m.delete(matchId);
+      else m.set(matchId, { matchId, selection, odds });
+      return m;
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!customerName.trim() || !customerPhone.trim()) {
-      alert('Por favor completa tu nombre y teléfono.');
+      alert('Completa nombre y teléfono.');
       return;
     }
     if (selectedBets.size !== matches.length) {
-      alert(`Debes seleccionar todos los partidos (${matches.length}).`);
+      alert(`Selecciona los ${matches.length} partidos.`);
       return;
     }
     setSubmitting(true);
     try {
-      const betsArray = Array.from(selectedBets.values()).map(bet => {
-        const match = matches.find(m => m.id === bet.matchId);
-        return {
-          matchId: bet.matchId,
-          homeTeam: match?.homeTeam || '',
-          awayTeam: match?.awayTeam || '',
-          league: match?.league || '',
-          time: match?.time || '',
-          selection: bet.selection,
-          odds: bet.odds,
-          stake: 5000
-        };
+      const bets = Array.from(selectedBets.values()).map(bet => {
+        const m = matches.find(x => x.id === bet.matchId);
+        return { ...bet, homeTeam: m?.homeTeam, awayTeam: m?.awayTeam, league: m?.league, time: m?.time };
       });
 
-      const pendingTicket = {
-        sellerId,
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        bets: betsArray,
-        totalStake: 5000 * betsArray.length,
-        status: 'pending_approval',
-        createdAt: new Date().toISOString(),
-        submittedAt: getCurrentTime()
-      };
-
-      const { addDoc, collection } = await import('firebase/firestore');
-      await addDoc(collection(db, 'pending_tickets'), pendingTicket);
+      await import('firebase/firestore').then(({ addDoc, collection }) => 
+        addDoc(collection(db, 'pending_tickets'), {
+          sellerId,
+          customerName: customerName.trim(),
+          customerPhone: customerPhone.trim(),
+          bets,
+          totalStake: 5000 * bets.length,
+          status: 'pending_approval',
+          createdAt: new Date().toISOString(),
+          submittedAt: getCurrentTime()
+        })
+      );
       setSubmitted(true);
-    } catch (err) {
-      console.error('Error al enviar apuesta:', err);
-      alert('Error al enviar tu apuesta. Intente nuevamente.');
+    } catch (e) {
+      console.error('Error:', e);
+      alert('Error al enviar apuesta.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4">Cargando partidos...</p>
-        </div>
+  if (loading) return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="text-center text-white">
+        <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+        <p>Cargando partidos...</p>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
-        <div className="text-center p-6 bg-gray-800 rounded-xl max-w-md">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-lg font-bold mb-2">Error</p>
-          <p className="text-gray-300">{error}</p>
-          <button
-            onClick={() => window.location.href = 'https://footbet-pro.web.app'}
-            className="mt-6 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 mx-auto"
-          >
-            <X className="w-4 h-4" />
-            Volver al inicio
+  if (error) return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="text-center p-6 bg-gray-800 rounded-xl max-w-md text-white">
+        <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        <p className="text-lg font-bold mb-2">Error</p>
+        <p className="text-gray-300 mb-4">{error}</p>
+        <button onClick={() => window.location.href = '/'} 
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 mx-auto">
+          <X className="w-4 h-4" /> Volver al inicio
+        </button>
+      </div>
+    </div>
+  );
+
+  if (submitted) return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="text-center p-6 bg-gray-800 rounded-xl max-w-md text-white">
+        <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+        <p className="text-lg font-bold mb-2">¡Apuesta enviada!</p>
+        <p className="text-gray-300 mb-4">El vendedor revisará tu apuesta pronto.</p>
+        {sellerInfo && (
+          <button onClick={() => {
+            const msg = `Hola ${sellerInfo.name}, envié mi apuesta en FootBet Pro. ¡Gracias!`;
+            window.open(`https://wa.me/57${sellerInfo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+          }} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+            <Phone className="w-4 h-4" /> Avisar al vendedor
           </button>
-        </div>
+        )}
       </div>
-    );
-  }
-
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
-        <div className="text-center p-6 bg-gray-800 rounded-xl max-w-md">
-          <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-          <p className="text-lg font-bold">¡Apuesta enviada!</p>
-          <p className="mt-2 text-gray-300">El vendedor revisará tu apuesta pronto.</p>
-          {sellerInfo && (
-            <button
-              onClick={() => {
-                const msg = `Hola ${sellerInfo.name}, acabo de enviar mi apuesta en FootBet Pro. Por favor revísala. ¡Gracias!`;
-                window.open(`https://wa.me/57${sellerInfo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
-              }}
-              className="mt-4 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 mx-auto"
-            >
-              <Phone className="w-4 h-4" />
-              Avisar al vendedor por WhatsApp
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-900 pb-8">
       <div className="bg-gradient-to-r from-green-600 to-green-800 p-4 shadow-lg">
         <h1 className="text-white text-xl font-bold text-center">FootBet Pro</h1>
-        {sellerInfo && (
-          <p className="text-green-100 text-center text-sm mt-1">
-            Vendedor: {sellerInfo.name}
-          </p>
-        )}
-        <CustomerInfoForm
-          customerName={customerName}
-          customerPhone={customerPhone}
-          onNameChange={setCustomerName}
-          onPhoneChange={setCustomerPhone}
-        />
+        {sellerInfo && <p className="text-green-100 text-center text-sm mt-1">Vendedor: {sellerInfo.name}</p>}
+        <CustomerInfoForm customerName={customerName} customerPhone={customerPhone} 
+                         onNameChange={setCustomerName} onPhoneChange={setCustomerPhone} />
       </div>
       <div className="px-4 py-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-white text-xl font-bold">Selecciona tus apuestas</h2>
+          <h2 className="text-white text-xl font-bold">Tus apuestas</h2>
           <span className="bg-green-600 text-white text-sm px-3 py-1 rounded-full">
             {selectedBets.size}/{matches.length}
           </span>
         </div>
         <div className="space-y-4">
-          {matches.map(match => (
-            <MatchBetCard
-              key={match.id}
-              match={match}
-              selectedBet={selectedBets.get(match.id)}
-              onSelectionChange={toggleSelection}
-              isTrapMatch={match.isTrap}
-            />
+          {matches.map(m => (
+            <MatchBetCard key={m.id} match={m} selectedBet={selectedBets.get(m.id)} 
+                         onSelectionChange={toggleSelection} isTrapMatch={m.isTrap} />
           ))}
         </div>
-        <button
-          onClick={handleSubmit}
-          disabled={submitting || selectedBets.size !== matches.length}
-          className={`w-full font-bold py-3 rounded-lg mt-6 transition-colors shadow-lg ${
-            selectedBets.size === matches.length
-              ? 'bg-green-600 hover:bg-green-700 text-white'
-              : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          {submitting ? 'Enviando...' : 'Enviar Apuesta al Vendedor'}
+        <button onClick={handleSubmit} disabled={submitting || selectedBets.size !== matches.length}
+                className={`w-full font-bold py-3 rounded-lg mt-6 transition-colors ${
+                  selectedBets.size === matches.length ? 'bg-green-600 hover:bg-green-700 text-white' 
+                                                       : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                }`}>
+          {submitting ? 'Enviando...' : 'Enviar Apuesta'}
         </button>
       </div>
     </div>

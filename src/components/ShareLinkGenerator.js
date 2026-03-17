@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
 import { Share2, X, Copy, CheckCircle, Phone } from 'lucide-react';
+import { db } from '../services/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
-
+// Generar código corto único (6 caracteres alfanuméricos)
+const generateShortCode = () => {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+};
 
 const ShareLinkGenerator = ({ matches, currentUser }) => {
   const [selectedMatches, setSelectedMatches] = useState([]);
   const [generatedLink, setGeneratedLink] = useState('');
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const toggleMatchSelection = (matchId) => {
     setSelectedMatches(prev => {
@@ -19,18 +25,38 @@ const ShareLinkGenerator = ({ matches, currentUser }) => {
     });
   };
 
-  const generateShareLink = () => {
+  const generateShareLink = async () => {
     if (selectedMatches.length === 0) {
       alert('Por favor selecciona al menos un partido');
       return;
     }
 
-    const baseUrl = window.location.origin;
-    const matchIds = selectedMatches.join(',');
-    const link = `${baseUrl}/#/public-bet?s=${matchIds}&seller=${currentUser.id}`;
-    
-    setGeneratedLink(link);
-    setShowLinkModal(true);
+    setGenerating(true);
+    try {
+      // 1. Generar código corto único
+      const code = generateShortCode();
+      
+      // 2. Guardar configuración en Firestore
+      await addDoc(collection(db, 'public_bets'), {
+        code,
+        sellerId: currentUser.id,
+        matchIds: selectedMatches,
+        createdAt: serverTimestamp(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 horas
+      });
+      
+      // 3. Generar enlace corto
+      const baseUrl = window.location.origin;
+      const link = `${baseUrl}/#/public-bet?code=${code}`;
+      
+      setGeneratedLink(link);
+      setShowLinkModal(true);
+    } catch (err) {
+      console.error('Error generando enlace:', err);
+      alert('Error al generar el enlace. Inténtalo nuevamente.');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const copyToClipboard = () => {
@@ -40,7 +66,7 @@ const ShareLinkGenerator = ({ matches, currentUser }) => {
   };
 
   const sendToWhatsApp = () => {
-    const message = `¡Hola! Te invito a jugar en FootBet Pro. Haz clic en el siguiente enlace para seleccionar tus apuestas: ${generatedLink}`;
+    const message = `¡Hola! Te invito a jugar en FootBet Pro. Haz clic en este enlace para seleccionar tus apuestas:\n${generatedLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -85,10 +111,20 @@ const ShareLinkGenerator = ({ matches, currentUser }) => {
         </span>
         <button
           onClick={generateShareLink}
+          disabled={generating || selectedMatches.length === 0}
           className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2"
         >
-          <Share2 className="w-4 h-4" />
-          Generar Enlace
+          {generating ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Generando...
+            </>
+          ) : (
+            <>
+              <Share2 className="w-4 h-4" />
+              Generar Enlace
+            </>
+          )}
         </button>
       </div>
 
