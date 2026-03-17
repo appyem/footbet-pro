@@ -45,7 +45,7 @@ const PublicBetForm = () => {
     }
 
     setSellerId(currentSellerId);
-    const matchIds = matchIdsParam.split(',').filter(id => id.trim());
+    const matchIds = decodeURIComponent(matchIdsParam).split(',').filter(id => id.trim());
 
     if (matchIds.length === 0) {
       setError('No hay partidos seleccionados en el enlace. Por favor solicita un nuevo enlace al vendedor.');
