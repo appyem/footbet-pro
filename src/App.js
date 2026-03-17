@@ -1652,7 +1652,8 @@ const App = () => {
   const [ticketToResend, setTicketToResend] = useState(null);
   const [matchResults, setMatchResults] = useState({});
   const matchResultsRef = useRef(matchResults);
-  const [, setShowShareLinkGenerator] = useState(false);
+  // eslint-disable-next-line no-empty-pattern
+  const [] = useState(false);
   useEffect(() => {
     matchResultsRef.current = matchResults;
   }, [matchResults]);
@@ -2275,10 +2276,15 @@ useEffect(() => {
               Generar Ticket
             </button>
            <button
-              onClick={() => setShowShareLinkGenerator(true)}
+              onClick={() => {
+                const matchIds = matches.slice(0, 7).map(m => m.id).join(',');
+                const link = `https://footbet-pro.web.app/?seller=${currentUser.id}&s=${encodeURIComponent(matchIds)}`;
+                const message = `¡Hola! Apuesta en FootBet Pro:\n${link}`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+              }}
               className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
             >
-              📲 Generar Enlace para Clientes
+              📲 Enviar Enlace a Clientes
             </button>
             <button
               onClick={() => {
@@ -2411,7 +2417,7 @@ useEffect(() => {
         </div>
       </div>
     );
-  }, [currentUser, tickets, handleLogout, allMatchesIncludingResults, matchResults, pendingTickets]);
+  }, [tickets, currentUser?.commission, currentUser.name, currentUser.id, handleLogout, pendingTickets, matches, matchResults, allMatchesIncludingResults]);
   
     const BetSelectionScreen = useCallback(() => {
       const todayMatches = [...matches]
