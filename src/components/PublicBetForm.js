@@ -19,10 +19,10 @@ const PublicBetForm = () => {
   const [sellerInfo, setSellerInfo] = useState(null);
 
   useEffect(() => {
-    // ✅ PARSEO CORRECTO DE LA URL (solución definitiva)
     const hash = window.location.hash;
-    const qIndex = hash.indexOf('?');
-    
+    // Buscar ? O & (WhatsApp suele reemplazar ? por &)
+    const qIndex = hash.indexOf('?') !== -1 ? hash.indexOf('?') : hash.indexOf('&');
+
     if (qIndex === -1) {
       setError('Link inválido. Por favor solicita un nuevo enlace al vendedor.');
       setLoading(false);
