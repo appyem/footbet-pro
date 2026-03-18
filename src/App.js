@@ -4,6 +4,9 @@ import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc
 import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
 import PublicBetForm from './components/PublicBetForm';
+import PublicDashboard from './components/PublicDashboard';
+
+
 
 // Configuración de Firebase
 const firebaseConfig = {
@@ -1620,13 +1623,15 @@ const NavigationBar = ({ currentView, setCurrentView, userRole }) => {
 
 const App = () => {
   // Determinar vista inicial basada en la URL (corregida)
-  const getInitialView = () => {
-    const hash = window.location.hash;
-    if (hash.startsWith('#/public-bet')) {
-      return 'public-bet';
-    }
-    return 'login';
-  };
+const getInitialView = () => {
+  const hash = window.location.hash;
+  // ✅ Dashboard público SOLO si se accede explícitamente
+  if (hash.startsWith('#/public-bet') || hash.startsWith('#/public-dashboard')) {
+    return hash.startsWith('#/public-bet') ? 'public-bet' : 'public-dashboard';
+  }
+  // ✅ Login por defecto para todos los demás casos
+  return 'login';
+};
 
   const [currentView, setCurrentView] = useState(getInitialView);
   const [userRole, setUserRole] = useState(null);
@@ -1835,7 +1840,7 @@ useEffect(() => {
     totalStake: 5000,
     verificationCode,
     sellerId: currentUser.id,
-    sellerName: currentUser.name,
+    sellerName: currentUser?.name || 'Invitado',
     date: getCurrentDate(),
     time: getCurrentTime()
   };
@@ -2023,7 +2028,7 @@ useEffect(() => {
             <LogOut className="w-6 h-6" />
           </button>
         </div>
-        <p className="text-gray-400">Bienvenido, {currentUser?.name}</p>
+        <p className="text-gray-400">Bienvenido, {currentUser?.name || 'Vendedor'}</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl p-4 shadow-lg">
@@ -2234,7 +2239,7 @@ useEffect(() => {
               <LogOut className="w-6 h-6" />
             </button>
           </div>
-          <p className="text-gray-400">Bienvenido, {currentUser?.name}</p>
+          <p className="text-gray-400">Bienvenido, {currentUser?.name || 'Invitado'}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-4 shadow-lg">
@@ -2275,20 +2280,33 @@ useEffect(() => {
               <Plus className="w-4 h-4" />
               Generar Ticket
             </button>
-           <button
-              onClick={() => {
-                const matchIds = matches.slice(0, 7).map(m => m.id).join(',');
-                const link = `https://footbet-pro.web.app/?seller=${currentUser.id}&s=${encodeURIComponent(matchIds)}`;
-                const message = `¡Hola! Apuesta en FootBet Pro:\n${link}`;
-                window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
-              }}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+           
+            <button
+            onClick={() => {
+            const link = `https://footbet-pro.web.app/#/public-dashboard?seller=${currentUser.id}`;
+            const message = `🍀 *¡Tu suerte empieza aquí!* 🍀
+
+            ⚽ *FootBet Pro* - Apuesta inteligente
+
+            🎯 *Premios:*
+            ✅ 5 aciertos → Recupera tu apuesta
+            ✅ 6 aciertos → 10 juegos GRATIS
+            ✅ 7 aciertos → ¡$1.000.000! 💰
+
+            📲 Selecciona tus 7 partidos y envía tu apuesta en segundos.
+
+            👉 *Juega ahora:* ${link}
+
+            ¡Mucha suerte! 🍀`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+            }}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
             >
-              📲 Enviar Enlace a Clientes
+            📲 Enviar Enlace de Apuestas
             </button>
             <button
               onClick={() => {
-                const message = generateResultsMessage(matchResults, allMatchesIncludingResults, currentUser.name)
+                const message = generateResultsMessage(matchResults, allMatchesIncludingResults, currentUser?.name || 'Invitado')
                 sendMatchesToWhatsApp(message);
               }}
               className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
@@ -2331,7 +2349,7 @@ useEffect(() => {
                           verificationCode: Math.random().toString(36).substring(2, 10).toUpperCase(),
                           date: getCurrentDate(),
                           time: getCurrentTime(),
-                          sellerName: currentUser.name,
+                          sellerName: currentUser?.name || 'Invitado',
                           status: 'paid'
                         };
                         await addDoc(collection(db, 'tickets'), newTicket);
@@ -2417,7 +2435,7 @@ useEffect(() => {
         </div>
       </div>
     );
-  }, [tickets, currentUser?.commission, currentUser.name, currentUser.id, handleLogout, pendingTickets, matches, matchResults, allMatchesIncludingResults]);
+  }, [currentUser, handleLogout, pendingTickets, matches, matchResults, allMatchesIncludingResults]);
   
     const BetSelectionScreen = useCallback(() => {
       const todayMatches = [...matches]
@@ -2498,17 +2516,19 @@ useEffect(() => {
     );
   }, [matches, customerName, customerPhone, selectedBets, toggleBetSelection, generateTicket]);
   const renderCurrentView = () => {
-    // 🔒 Proteger vistas que requieren autenticación
-    const requiresAuth = ['admin-dashboard', 'seller-dashboard', 'bet-selection', 'sales', 'reports', 'settings'];
-    
-    if (requiresAuth.includes(currentView) && !currentUser) {
-      // Si intenta acceder sin login, redirigir a login
+  // 🔒 Protección crítica: no renderizar dashboards si no hay usuario autenticado
+  if (['seller-dashboard', 'admin-dashboard', 'bet-selection', 'sales', 'reports', 'settings'].includes(currentView)) {
+    if (!currentUser || !currentUser.id) {
+      setCurrentView('login');
       return LoginScreen();
     }
+  }
 
     switch (currentView) {
       case 'login':
         return LoginScreen();
+      case 'public-dashboard':
+        return <PublicDashboard />;
       case 'public-bet':
         return <PublicBetForm />;
       case 'admin-dashboard':
@@ -2598,7 +2618,7 @@ useEffect(() => {
     <div className="min-h-screen bg-gray-900 text-white">
       {renderCurrentView()}
 
-    {currentView !== 'public-bet' && ( 
+    {currentView !== 'public-bet' && currentView !== 'public-dashboard' && ( 
       <NavigationBar 
        currentView={currentView}
        setCurrentView={setCurrentView}
