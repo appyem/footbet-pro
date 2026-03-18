@@ -2435,7 +2435,7 @@ useEffect(() => {
         </div>
       </div>
     );
-  }, [currentUser, handleLogout, pendingTickets, matches, matchResults, allMatchesIncludingResults]);
+  }, [currentUser, handleLogout, pendingTickets, matches, matchResults, allMatchesIncludingResults, tickets]);
   
     const BetSelectionScreen = useCallback(() => {
       const todayMatches = [...matches]

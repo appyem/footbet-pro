@@ -1,7 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { db } from './services/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { getCurrentDate, shouldCloseMatch } from './services/matchService';
 import PublicDashboard from './components/PublicDashboard';
 import PublicBetForm from './components/PublicBetForm';
 

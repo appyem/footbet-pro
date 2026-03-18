@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { AlertCircle, CheckCircle, X, Phone, RefreshCw, Info } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, CheckCircle, Phone, RefreshCw } from 'lucide-react';
 import { db } from '../services/firebase';
 import { 
   doc, 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, User, AlertCircle, CheckCircle, RefreshCw, Info, Search, Calendar, Clock, AlertTriangle } from 'lucide-react';
+import { Phone, User, AlertCircle, CheckCircle, Calendar, Clock, AlertTriangle } from 'lucide-react';
 import { db } from '../services/firebase';
-import { doc, getDoc, query, collection, where, getDocs, onSnapshot, addDoc } from 'firebase/firestore';
+import { doc, getDoc, query, collection, where, onSnapshot, addDoc } from 'firebase/firestore';
 import { getCurrentDate, shouldCloseMatch } from '../services/matchService';
 
 // Componente aislado para los inputs del cliente
