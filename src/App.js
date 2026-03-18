@@ -3,8 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
-import PublicBetForm from './components/PublicBetForm';
-import PublicDashboard from './components/PublicDashboard';
+
 
 
 
@@ -1624,12 +1623,7 @@ const NavigationBar = ({ currentView, setCurrentView, userRole }) => {
 const App = () => {
   // Determinar vista inicial basada en la URL (corregida)
 const getInitialView = () => {
-  const hash = window.location.hash;
-  // ✅ Dashboard público SOLO si se accede explícitamente
-  if (hash.startsWith('#/public-bet') || hash.startsWith('#/public-dashboard')) {
-    return hash.startsWith('#/public-bet') ? 'public-bet' : 'public-dashboard';
-  }
-  // ✅ Login por defecto para todos los demás casos
+  // ✅ SIEMPRE Login por defecto (App.jsx es solo para admin/vendedor)
   return 'login';
 };
 
@@ -2527,10 +2521,8 @@ useEffect(() => {
     switch (currentView) {
       case 'login':
         return LoginScreen();
-      case 'public-dashboard':
-        return <PublicDashboard />;
-      case 'public-bet':
-        return <PublicBetForm />;
+     
+      
       case 'admin-dashboard':
         return AdminDashboard();
       case 'seller-dashboard':
@@ -2618,7 +2610,7 @@ useEffect(() => {
     <div className="min-h-screen bg-gray-900 text-white">
       {renderCurrentView()}
 
-    {currentView !== 'public-bet' && currentView !== 'public-dashboard' && ( 
+    {currentView !== 'login' && (
       <NavigationBar 
        currentView={currentView}
        setCurrentView={setCurrentView}
