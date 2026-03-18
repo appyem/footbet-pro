@@ -3,6 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
+import PublicDashboard from './components/PublicDashboard';
 
 
 
@@ -2521,7 +2522,9 @@ useEffect(() => {
     switch (currentView) {
       case 'login':
         return LoginScreen();
-     
+      case 'public-dashboard':
+        return <PublicDashboard />;
+      
       
       case 'admin-dashboard':
         return AdminDashboard();
@@ -2596,21 +2599,34 @@ useEffect(() => {
               placeholder="••••••••"
             />
           </div>
-          <button
-            onClick={handleLogin}
-            className="w-full bg-gradient-to-r from-green-600 to-green-800 hover:from-green-700 hover:to-green-900 text-white font-bold py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
-          >
-            Iniciar Sesión
-          </button>
-        </div>
-      </div>
-    </div>
+         <button
+onClick={handleLogin}
+className="w-full bg-gradient-to-r from-green-600 to-green-800..."
+>
+Iniciar Sesión
+</button>
+
+{/* NUEVO: Botón para Dashboard Público */}
+<div className="mt-6 pt-6 border-t border-gray-700">
+  <p className="text-gray-400 text-sm text-center mb-3">
+    ¿Quieres apostar sin cuenta?
+  </p>
+  <button
+    onClick={() => setCurrentView('public-dashboard')}
+    className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+  >
+    ⚽ Ir a Apostar
+  </button>
+</div>
+</div>
+</div>
+</div>
   ), [loginEmail, loginPassword, handleLogin]);
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {renderCurrentView()}
 
-    {currentView !== 'login' && (
+    {currentView !== 'login' && currentView !== 'public-dashboard' && (
       <NavigationBar 
        currentView={currentView}
        setCurrentView={setCurrentView}
