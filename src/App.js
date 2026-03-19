@@ -2598,21 +2598,67 @@ useEffect(() => {
         backgroundRepeat: 'no-repeat'
       }}
     ></div>
-    
-    <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl p-8 w-full max-w-md shadow-2xl border border-gray-600">
-      <div className="text-center mb-6">
-        {/* 🔹 LOGO */}
-        <img 
-          src="https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Logo%20dina%CC%81mico%20de%20FootBet%20Pro.png" 
-          alt="FootBet Pro Logo"
-          className="w-32 h-32 mx-auto mb-4 object-contain"
-        />
-        <h1 className="text-3xl font-bold text-white mb-2">FootBet Pro</h1>
-        <p className="text-gray-400">Sistema de Apuestas Profesional</p>
+
+    <div className="bg-gray-800/60 backdrop-blur-md rounded-2xl p-8 w-full max-w-md shadow-2xl border border-gray-600/50 relative z-10">
+      
+      {/* 🔹 LOGO PRINCIPAL */}
+      <div className="text-center mb-8">
+        <div className="w-32 h-32 bg-gradient-to-br from-green-500 to-green-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl border-4 border-green-400/30">
+          <img 
+            src="https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Logo%20dina%CC%81mico%20de%20FootBet%20Pro.png" 
+            alt="FootBet Pro Logo"
+            className="w-24 h-24 object-contain drop-shadow-lg"
+          />
+        </div>
+        <h1 className="text-3xl font-bold text-white mb-2">⚽ FootBet Pro</h1>
+        <p className="text-green-300 text-sm">¡Tu suerte comienza aquí!</p>
       </div>
-      <div className="space-y-6">
+
+      {/* 🔹 BOTÓN PRINCIPAL - IR A APOSTAR (GRANDE Y ATRACTIVO) */}
+      <button
+        onClick={() => setCurrentView('public-dashboard')}
+        className="w-full bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-green-500/50 flex items-center justify-center gap-3 mb-6"
+      >
+        <span className="text-2xl">⚽</span>
+        <div className="text-left">
+          <div className="text-lg">¡IR A APOSTAR!</div>
+          <div className="text-xs text-green-200 font-normal">Sin cuenta • Rápido • Fácil</div>
+        </div>
+      </button>
+
+      {/* 🔹 PREMIOS DESTACADOS */}
+      <div className="bg-gradient-to-r from-purple-900/50 to-purple-800/50 rounded-xl p-4 mb-6 border border-purple-600/30">
+        <h3 className="text-white font-bold text-sm mb-2 text-center">🏆 PREMIOS</h3>
+        <div className="space-y-1 text-xs text-purple-200">
+          <div className="flex justify-between">
+            <span>✅ 5 aciertos:</span>
+            <span className="text-white">Recupera tu apuesta</span>
+          </div>
+          <div className="flex justify-between">
+            <span>✅ 6 aciertos:</span>
+            <span className="text-yellow-300">10 juegos GRATIS</span>
+          </div>
+          <div className="flex justify-between">
+            <span>✅ 7 aciertos:</span>
+            <span className="text-green-300 font-bold">¡$1.000.000!</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 🔹 SEPARADOR */}
+      <div className="relative mb-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-600"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="px-4 bg-gray-800 text-gray-400">¿Eres administrador o vendedor?</span>
+        </div>
+      </div>
+
+      {/* 🔹 LOGIN SECUNDARIO (DISCRETO) */}
+      <div className="space-y-4">
         <div>
-          <label className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
+          <label className="text-gray-400 text-sm font-medium mb-2 flex items-center gap-2">
             <Mail className="w-4 h-4" />
             Correo Electrónico
           </label>
@@ -2625,7 +2671,7 @@ useEffect(() => {
           />
         </div>
         <div>
-          <label className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
+          <label className="text-gray-400 text-sm font-medium mb-2 flex items-center gap-2">
             <LockIcon className="w-4 h-4" />
             Contraseña
           </label>
@@ -2639,23 +2685,18 @@ useEffect(() => {
         </div>
         <button
           onClick={handleLogin}
-          className="w-full bg-gradient-to-r from-green-600 to-green-800 hover:from-green-700 hover:to-green-900 text-white font-bold py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+          className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
         >
+          <LogOut className="w-4 h-4" />
           Iniciar Sesión
         </button>
-        
-        {/* Botón Ir a Apostar */}
-        <div className="mt-6 pt-6 border-t border-gray-700">
-          <p className="text-gray-400 text-sm text-center mb-3">
-            ¿Quieres apostar sin cuenta?
-          </p>
-          <button
-            onClick={() => setCurrentView('public-dashboard')}
-            className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            ⚽ Ir a Apostar
-          </button>
-        </div>
+      </div>
+
+      {/* 🔹 FOOTER */}
+      <div className="mt-6 pt-4 border-t border-gray-700 text-center">
+        <p className="text-gray-500 text-xs">
+          🍀 ¡Mucha suerte en tus apuestas!
+        </p>
       </div>
     </div>
   </div>
