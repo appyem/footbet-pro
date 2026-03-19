@@ -2599,7 +2599,7 @@ useEffect(() => {
       }}
     ></div>
 
-    <div className="bg-gray-800/60 backdrop-blur-md rounded-2xl p-8 w-full max-w-md shadow-2xl border border-gray-600/50 relative z-10">
+    <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-8 w-full max-w-md shadow-2xl border border-gray-500/30 relative z-10">
       
       {/* 🔹 LOGO PRINCIPAL */}
       <div className="text-center mb-8">
@@ -2651,7 +2651,7 @@ useEffect(() => {
           <div className="w-full border-t border-gray-600"></div>
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="px-4 bg-gray-800 text-gray-400">¿Eres administrador o vendedor?</span>
+          <span className="px-4 bg-gray-800/50 text-gray-400 rounded-lg">¿Eres administrador o vendedor?</span>
         </div>
       </div>
 
