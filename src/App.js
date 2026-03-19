@@ -63,7 +63,7 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
     return null;
   }
   return (
-    <div className={`bg-gray-800 rounded-xl p-4 border ${isTrapMatch ? 'border-purple-600' : 'border-gray-700'} hover:border-gray-600 transition-colors`}>
+    <div className={`bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border ${isTrapMatch ? 'border-purple-600' : 'border-gray-700'} hover:border-gray-600 transition-colors`}>
             <div className="flex justify-between items-start mb-3">
         <div className="flex flex-col">
           <span className="text-green-400 text-sm font-medium flex items-center gap-1">
@@ -717,7 +717,7 @@ const SalesView = ({ tickets, currentUser, userRole, onDeleteTicket }) => {
         </div>
       </div>
       {/* Filtros */}
-      <div className="bg-gray-800 rounded-xl p-4 mb-6">
+      <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-gray-300 text-sm font-medium mb-2">Buscar</label>
@@ -1147,7 +1147,7 @@ Gracias por jugar con *FootBet Pro* 💚
         </div>
       </div>
       {/* Navegación de reportes */}
-      <div className="bg-gray-800 rounded-xl p-4 mb-6">
+      <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 mb-6">
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setActiveReport('daily')}
@@ -1220,7 +1220,7 @@ const SettingsView = ({ sellerUsers, setSellerUsers, userRole }) => {
         <p className="text-gray-400">Gestiona la configuración de tu sistema de apuestas</p>
       </div>
       {/* Tabs de configuración */}
-      <div className="bg-gray-800 rounded-xl p-4 mb-6">
+      <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 mb-6">
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setActiveTab('business')}
@@ -1462,7 +1462,7 @@ const ResultsPanel = ({ matchResults, handleSaveResult, matches }) => {
   // Mostrar TODOS los partidos del día para el administrador (incluyendo cerrados)
 const todayMatches = matches;
   return (
-    <div className="bg-gray-800 rounded-xl p-6 mb-6">
+    <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6">
       <h2 className="text-white text-lg font-bold mb-4">Marcar Resultados</h2>
       <div className="space-y-3">
         {todayMatches.map(match => (
@@ -1622,13 +1622,34 @@ const NavigationBar = ({ currentView, setCurrentView, userRole }) => {
 };
 
 const App = () => {
-  // Determinar vista inicial basada en la URL (corregida)
-const getInitialView = () => {
-  // ✅ SIEMPRE Login por defecto (App.jsx es solo para admin/vendedor)
-  return 'login';
-};
+  
+// 🟢 DESPUÉS (solución definitiva)
+const [currentView, setCurrentView] = useState('login'); // Siempre login inicial
 
-  const [currentView, setCurrentView] = useState(getInitialView);
+// ✅ Verificar hash DESPUÉS de montar el componente
+useEffect(() => {
+  const checkHashOnLoad = () => {
+    const hash = window.location.hash;
+    console.log('🔍 Hash al cargar:', hash);
+    
+    if (hash.includes('public-dashboard') || hash.includes('public-bet')) {
+      setCurrentView('public-dashboard');
+      console.log('✅ Vista cambiada a public-dashboard');
+    } else {
+      setCurrentView('login');
+      console.log('✅ Vista cambiada a login');
+    }
+  };
+
+  // Ejecutar inmediatamente después de montar
+  checkHashOnLoad();
+
+  // También escuchar cambios de hash
+  window.addEventListener('hashchange', checkHashOnLoad);
+  return () => window.removeEventListener('hashchange', checkHashOnLoad);
+}, []);
+
+  
   const [userRole, setUserRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [tickets, setTickets] = useState([]);
@@ -1672,6 +1693,8 @@ const getInitialView = () => {
     popularity: 50,
     date: getCurrentDate()
   });
+
+  
 
 
 useEffect(() => {
@@ -2054,7 +2077,7 @@ useEffect(() => {
           </div>
         </div>
       </div>
-      <div className="bg-gray-800 rounded-xl p-6 mb-6 shadow-lg border border-gray-700">
+      <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6 shadow-lg border border-gray-700">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-white text-lg font-bold">Vendedores</h2>
           <button 
@@ -2095,7 +2118,7 @@ useEffect(() => {
       </div>
 
       {/* Panel de gestión de partidos */}
-      <div className="bg-gray-800 rounded-xl p-6 mb-6">
+      <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6">
         <h2 className="text-white text-lg font-bold mb-4">Gestionar Partidos de Hoy</h2>
         
         {/* Formulario */}
@@ -2265,7 +2288,7 @@ useEffect(() => {
             <AlertCircle className="text-purple-200 w-8 h-8" />
           </div>
         </div>
-        <div className="bg-gray-800 rounded-xl p-6 mb-6 shadow-lg border border-gray-700">
+        <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6 shadow-lg border border-gray-700">
           <h2 className="text-white text-lg font-bold mb-4">Acciones Rápidas</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <button
@@ -2447,7 +2470,7 @@ useEffect(() => {
    
     return (
       <div className="min-h-screen bg-gray-900 pb-8">
-        <div className="bg-gradient-to-r from-green-600 to-green-800 p-4 shadow-lg">
+        <div className="bg-gradient-to-r from-green-600/80 to-green-800/80 backdrop-blur-sm p-4 shadow-lg">
           <div className="flex items-center justify-between mb-4">
             <button 
               onClick={() => setCurrentView('seller-dashboard')}
@@ -2563,65 +2586,80 @@ useEffect(() => {
   };
   // Login Screen Component
   const LoginScreen = useCallback(() => (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-gray-900 to-green-800 flex items-center justify-center p-4">
-      <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md shadow-2xl border border-gray-700">
-        <div className="text-center mb-6">
-          <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-green-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-white text-3xl font-bold">⚽</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">FootBet Pro</h1>
-          <p className="text-gray-400">Sistema de Apuestas Profesional</p>
+  <div className="min-h-screen bg-gradient-to-br from-green-900 via-gray-900 to-green-800 flex items-center justify-center p-4 relative overflow-hidden">
+    
+    {/* 🔹 FONDO MARCA DE AGUA */}
+    <div 
+      className="absolute inset-0 opacity-10 pointer-events-none"
+      style={{
+        backgroundImage: `url(https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Trofe%CC%81os%20dorados%20en%20un%20estadio%20vibrante.png)`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    ></div>
+    
+    <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl p-8 w-full max-w-md shadow-2xl border border-gray-600">
+      <div className="text-center mb-6">
+        {/* 🔹 LOGO */}
+        <img 
+          src="https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Logo%20dina%CC%81mico%20de%20FootBet%20Pro.png" 
+          alt="FootBet Pro Logo"
+          className="w-32 h-32 mx-auto mb-4 object-contain"
+        />
+        <h1 className="text-3xl font-bold text-white mb-2">FootBet Pro</h1>
+        <p className="text-gray-400">Sistema de Apuestas Profesional</p>
+      </div>
+      <div className="space-y-6">
+        <div>
+          <label className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
+            <Mail className="w-4 h-4" />
+            Correo Electrónico
+          </label>
+          <input
+            type="email"
+            value={loginEmail}
+            onChange={(e) => setLoginEmail(e.target.value)}
+            className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
+            placeholder="usuario@footbet.com"
+          />
         </div>
-        <div className="space-y-6">
-          <div>
-            <label className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
-              <Mail className="w-4 h-4" />
-              Correo Electrónico
-            </label>
-            <input
-              type="email"
-              value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
-              className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
-              placeholder="usuario@footbet.com"
-            />
-          </div>
-          <div>
-            <label className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
-              <LockIcon className="w-4 h-4" />
-              Contraseña
-            </label>
-            <input
-              type="password"
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-              className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
-              placeholder="••••••••"
-            />
-          </div>
-         <button
-onClick={handleLogin}
-className="w-full bg-gradient-to-r from-green-600 to-green-800..."
->
-Iniciar Sesión
-</button>
-
-{/* NUEVO: Botón para Dashboard Público */}
-<div className="mt-6 pt-6 border-t border-gray-700">
-  <p className="text-gray-400 text-sm text-center mb-3">
-    ¿Quieres apostar sin cuenta?
-  </p>
-  <button
-    onClick={() => setCurrentView('public-dashboard')}
-    className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-  >
-    ⚽ Ir a Apostar
-  </button>
-</div>
-</div>
-</div>
-</div>
-  ), [loginEmail, loginPassword, handleLogin]);
+        <div>
+          <label className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
+            <LockIcon className="w-4 h-4" />
+            Contraseña
+          </label>
+          <input
+            type="password"
+            value={loginPassword}
+            onChange={(e) => setLoginPassword(e.target.value)}
+            className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
+            placeholder="••••••••"
+          />
+        </div>
+        <button
+          onClick={handleLogin}
+          className="w-full bg-gradient-to-r from-green-600 to-green-800 hover:from-green-700 hover:to-green-900 text-white font-bold py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+        >
+          Iniciar Sesión
+        </button>
+        
+        {/* Botón Ir a Apostar */}
+        <div className="mt-6 pt-6 border-t border-gray-700">
+          <p className="text-gray-400 text-sm text-center mb-3">
+            ¿Quieres apostar sin cuenta?
+          </p>
+          <button
+            onClick={() => setCurrentView('public-dashboard')}
+            className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            ⚽ Ir a Apostar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+), [loginEmail, loginPassword, handleLogin, setCurrentView]);
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {renderCurrentView()}

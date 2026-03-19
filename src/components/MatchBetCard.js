@@ -6,7 +6,7 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
     return null;
   }
   return (
-    <div className={`bg-gray-800 rounded-xl p-4 border ${isTrapMatch ? 'border-purple-600' : 'border-gray-700'} hover:border-gray-600 transition-colors`}>
+    <div className={`bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border ${isTrapMatch ? 'border-purple-600' : 'border-gray-700'} hover:border-gray-600 transition-colors`}>
       <div className="flex justify-between items-start mb-3">
         <div className="flex flex-col">
           <span className="text-green-400 text-sm font-medium flex items-center gap-1">

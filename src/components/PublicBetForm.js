@@ -267,7 +267,7 @@ const PublicBetForm = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 pb-8">
-      <div className="bg-gradient-to-r from-green-600 to-green-800 p-4 shadow-lg">
+      <div className="bg-gradient-to-r from-green-600/80 to-green-800/80 backdrop-blur-sm p-4 shadow-lg">
         <h1 className="text-white text-xl font-bold text-center">FootBet Pro</h1>
         {sellerInfo && (
           <p className="text-green-100 text-center text-sm mt-1">

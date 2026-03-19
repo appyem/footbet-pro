@@ -45,7 +45,7 @@ const MatchBetCard = ({ match, selectedBet, onSelectionChange, isTrapMatch }) =>
   if (!match || !match.homeTeam || !match.awayTeam) return null;
   
   return (
-    <div className={`bg-gray-800 rounded-xl p-4 border ${isTrapMatch ? 'border-purple-600' : 'border-gray-700'} hover:border-green-500 transition-colors`}>
+    <div className={`bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border ${isTrapMatch ? 'border-purple-600' : 'border-gray-700'} hover:border-green-500 transition-colors`}>
       <div className="flex justify-between items-start mb-3">
         <div className="flex flex-col">
           <span className="text-green-400 text-sm font-medium flex items-center gap-1">
@@ -302,16 +302,34 @@ const PublicDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 pb-24">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-green-600 to-green-800 p-4 shadow-lg">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-2xl font-bold text-white">⚽ FootBet Pro</h1>
-          <p className="text-green-100 mt-1">Tu casa de apuestas confiable</p>
+  <div className="min-h-screen bg-gray-900 pb-24 relative overflow-hidden">
+    
+    {/* 🔹 FONDO MARCA DE AGUA */}
+    <div 
+      className="absolute inset-0 opacity-10 pointer-events-none"
+      style={{
+        backgroundImage: `url(https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Trofe%CC%81os%20dorados%20en%20un%20estadio%20vibrante.png)`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    ></div>
+      {/* Header - Logo en Contenedor Redondo */}
+      <div className="py-6 relative z-10">
+        <div className="max-w-4xl mx-auto flex flex-col items-center">
+          <div className="w-32 h-32 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center p-4 shadow-2xl border-4 border-green-400/30">
+            <img 
+              src="https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Logo%20dina%CC%81mico%20de%20FootBet%20Pro.png" 
+              alt="FootBet Pro Logo"
+              className="w-full h-full object-contain drop-shadow-lg"
+            />
+          </div>
+          <h1 className="text-2xl font-bold text-white mt-4">⚽ FootBet Pro</h1>
+          <p className="text-green-100 text-sm mt-1">Tu casa de apuestas confiable</p>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-4xl mx-auto px-4 py-6 relative z-10">
         {/* Mensaje de éxito */}
         {success && (
           <div className="bg-green-900 border-l-4 border-green-500 p-4 mb-6 rounded-r-lg">
@@ -338,7 +356,7 @@ const PublicDashboard = () => {
         )}
 
         {/* Formulario de cliente y vendedor */}
-        <div className="bg-gray-800 rounded-xl p-6 mb-6">
+        <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6">
           <h2 className="text-white text-xl font-bold mb-4 flex items-center gap-2">
             <User className="w-5 h-5" />
             Tus Datos
@@ -375,7 +393,7 @@ const PublicDashboard = () => {
         </div>
 
         {/* Partidos del día */}
-        <div className="bg-gray-800 rounded-xl p-6 mb-6">
+        <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-white text-xl font-bold">Partidos de Hoy</h2>
             <span className="bg-green-600 text-white text-sm px-3 py-1 rounded-full">
@@ -431,7 +449,7 @@ const PublicDashboard = () => {
 
         {/* Premios */}
         {matches.length > 0 && (
-          <div className="bg-gradient-to-r from-purple-600 to-purple-800 rounded-xl p-4 mt-6">
+          <div className="bg-gradient-to-r from-purple-600/80 to-purple-800/80 backdrop-blur-sm rounded-xl p-4 mt-6">
             <h3 className="text-white font-bold text-lg mb-2">🏆 Premios</h3>
             <ul className="text-white text-sm space-y-1">
               <li>✅ 5 aciertos: Recupera tu apuesta ($5,000)</li>

@@ -134,7 +134,7 @@ const PendingBetsView = ({ currentUser }) => {
       ) : (
         <div className="space-y-4">
           {pendingTickets.map(ticket => (
-            <div key={ticket.id} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            <div key={ticket.id} className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border border-gray-700">
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="text-white font-medium">{ticket.customerName}</h3>

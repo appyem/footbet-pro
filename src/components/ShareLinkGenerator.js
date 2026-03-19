@@ -71,7 +71,7 @@ const ShareLinkGenerator = ({ matches, currentUser }) => {
   };
 
   return (
-    <div className="bg-gray-800 rounded-xl p-6 mb-6">
+    <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6">
       <h2 className="text-white text-xl font-bold mb-4">Generar Enlace para Clientes</h2>
       <p className="text-gray-400 mb-4">Selecciona los partidos que quieres incluir en el enlace para que tus clientes puedan apostar.</p>
       
