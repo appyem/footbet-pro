@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, User, AlertCircle, CheckCircle, Calendar, Clock, AlertTriangle } from 'lucide-react';
 import { db } from '../services/firebase';
-import { doc, getDoc, query, collection, where, onSnapshot, addDoc } from 'firebase/firestore';
+// eslint-disable-next-line no-unused-vars
+import { doc, getDoc, getDocs, query, collection, where, onSnapshot, addDoc } from 'firebase/firestore';
 import { getCurrentDate, shouldCloseMatch } from '../services/matchService';
 
 // Componente aislado para los inputs del cliente
@@ -105,60 +106,97 @@ const PublicDashboard = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    const today = getCurrentDate();
+  // 🟢 DESPUÉS (busca hoy + futuros hasta 7 días)
+useEffect(() => {
+  let isMounted = true;
+  const today = getCurrentDate();
 
-    // 🔁 Escuchar partidos disponibles HOY
-    const unsubscribeMatches = onSnapshot(
-      query(collection(db, 'matches'), where('date', '==', today)),
-      (snapshot) => {
-        if (!isMounted) return;
+  // 🔁 LISTENER EN TIEMPO REAL PARA PARTIDOS (igual que App.jsx)
+  const unsubscribeMatches = onSnapshot(
+    collection(db, 'matches'),
+    (snapshot) => {
+      if (!isMounted) return;
+      
+      const allMatchesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // Filtrar partidos válidos (hoy + futuros, 7 días máx)
+      let allAvailableMatches = [];
+      let currentDate = today;
+      let daysChecked = 0;
+      const maxDays = 7;
+      const maxMatches = 7;
+
+      while (allAvailableMatches.length < maxMatches && daysChecked < maxDays) {
+        // eslint-disable-next-line no-loop-func
+        const dayMatches = allMatchesData.filter(match => 
+          match.date === currentDate &&
+          match &&
+          match.homeTeam && 
+          match.awayTeam &&
+          !match.hidden &&
+          !shouldCloseMatch(match.date, match.time)
+        );
+
+        allAvailableMatches = [...allAvailableMatches, ...dayMatches];
         
-        const matchesData = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(match => 
-            match &&
-            !match.hidden &&
-            !shouldCloseMatch(match.date, match.time)
-          )
-          .slice(0, 7); // Máximo 7 partidos
+        const nextDate = new Date(currentDate);
+        nextDate.setDate(nextDate.getDate() + 1);
+        currentDate = nextDate.toLocaleString('en-CA', { 
+          timeZone: 'America/Bogota' 
+        }).split(',')[0];
+        
+        daysChecked++;
+      }
 
-        setMatches(matchesData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Error cargando partidos:', error);
+      // Ordenar cronológicamente
+      allAvailableMatches.sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        const [aH, aM] = a.time.split(':').map(Number);
+        const [bH, bM] = b.time.split(':').map(Number);
+        return (aH * 60 + aM) - (bH * 60 + bM);
+      });
+
+      const finalMatches = allAvailableMatches.slice(0, maxMatches);
+
+      setMatches(finalMatches);
+      setLoading(false);
+    },
+    (error) => {
+      console.error('Error cargando partidos:', error);
+      if (isMounted) {
         setError('Error al cargar los partidos. Intenta recargar.');
         setLoading(false);
       }
-    );
+    }
+  );
 
-    // 🔁 Escuchar vendedores activos
-    const unsubscribeSellers = onSnapshot(
-      collection(db, 'sellers'),
-      (snapshot) => {
-        if (!isMounted) return;
-        
-        const sellersData = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(seller => seller.active !== false);
-        
-        setSellers(sellersData);
-        
-        // Seleccionar primer vendedor por defecto
-        if (sellersData.length > 0 && !selectedSeller) {
-          setSelectedSeller(sellersData[0].id);
-        }
+  // 🔁 Escuchar vendedores activos
+  const unsubscribeSellers = onSnapshot(
+    collection(db, 'sellers'),
+    (snapshot) => {
+      if (!isMounted) return;
+      
+      const sellersData = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(seller => seller.active !== false);
+      
+      setSellers(sellersData);
+      
+      if (sellersData.length > 0 && !selectedSeller) {
+        setSelectedSeller(sellersData[0].id);
       }
-    );
+    }
+  );
 
-    return () => {
-      isMounted = false;
-      unsubscribeMatches();
-      unsubscribeSellers();
-    };
-  }, [selectedSeller]);
+  return () => {
+    isMounted = false;
+    unsubscribeMatches();
+    unsubscribeSellers();
+  };
+}, [selectedSeller]); 
 
   const toggleSelection = (matchId, selection, odds) => {
     setSelectedBets(prev => {
@@ -231,7 +269,7 @@ const PublicDashboard = () => {
       }
       
       // Generar mensaje para WhatsApp
-      let message = `*🎫 NUEVA APUESTA - FootBet Pro* 🎫\n\n`;
+      let message = `*🎫 NUEVA APUESTA - La Jugada 7* 🎫\n\n`;
       message += `*Cliente:* ${customerName}\n`;
       message += `*Teléfono:* ${formattedPhone}\n`;
       message += `*Vendedor:* ${sellerData.name}\n\n`;
@@ -319,12 +357,12 @@ const PublicDashboard = () => {
         <div className="max-w-4xl mx-auto flex flex-col items-center">
           <div className="w-32 h-32 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center p-4 shadow-2xl border-4 border-green-400/30">
             <img 
-              src="https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Logo%20dina%CC%81mico%20de%20FootBet%20Pro.png" 
-              alt="FootBet Pro Logo"
-              className="w-full h-full object-contain drop-shadow-lg"
+              src="https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Logo%20dina%CC%81mico%20de%20La%20Jugada%207.png" 
+              alt="La Jugada 7 Logo"
+              className="w-62 h-62 object-contain drop-shadow-lg"
             />
           </div>
-          <h1 className="text-2xl font-bold text-white mt-4">⚽ FootBet Pro</h1>
+          <h1 className="text-2xl font-bold text-white mt-4">⚽ La Jugada 7</h1>
           <p className="text-green-100 text-sm mt-1">Tu casa de apuestas confiable</p>
         </div>
       </div>
@@ -395,7 +433,7 @@ const PublicDashboard = () => {
         {/* Partidos del día */}
         <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-white text-xl font-bold">Partidos de Hoy</h2>
+            <h2 className="text-white text-xl font-bold">Partidos Disponibles</h2>
             <span className="bg-green-600 text-white text-sm px-3 py-1 rounded-full">
               {selectedBets.size}/{matches.length} seleccionados
             </span>

@@ -374,12 +374,15 @@ const CreateSellerModal = ({ onClose, onSellerCreated }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');  // ← NUEVO
   const [commission, setCommission] = useState('');
   const [error, setError] = useState('');
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    
     // Validaciones
-    if (!name.trim() || !email.trim() || !password.trim() || !commission) {
+    if (!name.trim() || !email.trim() || !password.trim() || !phone.trim() || !commission) {
       setError('Todos los campos son obligatorios');
       return;
     }
@@ -396,26 +399,27 @@ const CreateSellerModal = ({ onClose, onSellerCreated }) => {
       setError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
+
     const newSeller = {
       id: `seller${Date.now()}`,
       name: name.trim(),
       email: email.trim().toLowerCase(),
       password: password,
+      phone: phone.trim(),  // ← NUEVO
       commission: commissionValue
     };
+
     onSellerCreated(newSeller);
     onClose();
   };
+
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
       <div className="bg-gray-800 rounded-2xl max-w-md w-full">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-green-400">Crear Nuevo Vendedor</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white"
-            >
+            <button onClick={onClose} className="text-gray-400 hover:text-white">
               <X className="w-6 h-6" />
             </button>
           </div>
@@ -426,6 +430,7 @@ const CreateSellerModal = ({ onClose, onSellerCreated }) => {
             </div>
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Nombre */}
             <div>
               <label className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
                 <User className="w-4 h-4" />
@@ -440,6 +445,7 @@ const CreateSellerModal = ({ onClose, onSellerCreated }) => {
                 required
               />
             </div>
+            {/* Email */}
             <div>
               <label className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
                 <Mail className="w-4 h-4" />
@@ -454,6 +460,23 @@ const CreateSellerModal = ({ onClose, onSellerCreated }) => {
                 required
               />
             </div>
+            {/* Teléfono - NUEVO */}
+            <div>
+              <label className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
+                <Phone className="w-4 h-4" />
+                Número de WhatsApp
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
+                placeholder="300 123 4567"
+                required
+              />
+              <p className="text-gray-400 text-xs mt-1">Número donde los clientes enviarán sus apuestas</p>
+            </div>
+            {/* Contraseña */}
             <div>
               <label className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
                 <LockIcon className="w-4 h-4" />
@@ -468,6 +491,26 @@ const CreateSellerModal = ({ onClose, onSellerCreated }) => {
                 required
               />
             </div>
+
+            {/* 🔹 WhatsApp */}
+            <div>
+              <label className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
+                <Phone className="w-4 h-4" />
+                Número de WhatsApp
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
+                placeholder="300 123 4567"
+                required
+              />
+              <p className="text-gray-400 text-xs mt-1">Número donde los clientes enviarán sus apuestas</p>
+            </div>
+
+
+            {/* Comisión */}
             <div>
               <label className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
                 <Percent className="w-4 h-4" />
@@ -486,6 +529,7 @@ const CreateSellerModal = ({ onClose, onSellerCreated }) => {
               />
               <p className="text-gray-400 text-xs mt-1">Ejemplo: 15 para 15% de comisión</p>
             </div>
+            {/* Botones */}
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
@@ -630,7 +674,7 @@ const copyToWhatsApp = (ticket) => {
 ` +
     `✅ 7 aciertos: Gana $1,000,000
 ` +
-    `¡Gracias por confiar en FootBet Pro! 🏆`;
+    `¡Gracias por confiar en La Jugada 7! 🏆`;
   // Usar el esquema whatsapp:// para abrir la app nativa
   const whatsappUrl = `whatsapp://send?phone=${phoneNumber.replace(/\s+/g, '')}&text=${encodeURIComponent(message)}`;
   // Intentar abrir WhatsApp nativo
@@ -894,7 +938,7 @@ const ReportsView = ({ tickets, sellerUsers, matches, userRole, currentUser, mat
         `• ${bet.homeTeam} vs ${bet.awayTeam} → ${bet.selection === '1' ? 'Local' : bet.selection === 'X' ? 'Empate' : 'Visitante'}`
       ).join('\n') +
       `
-Gracias por jugar con *FootBet Pro* 💚
+Gracias por jugar con *La Jugada 7* 💚
 `;
     const whatsappUrl = `whatsapp://send?phone=${phoneNumber.replace(/\s+/g, '')}&text=${encodeURIComponent(message)}`;
     window.location.href = whatsappUrl;
@@ -1331,6 +1375,7 @@ const SettingsView = ({ sellerUsers, setSellerUsers, userRole }) => {
                   name: 'Nuevo Vendedor',
                   email: 'nuevo@footbet.com',
                   password: 'password123',
+                  phone: '3001234567',
                   commission: 15
                 };
                 setSellerUsers(prev => [...prev, newSeller]);
@@ -1547,10 +1592,10 @@ const generateResultsMessage = (matchResults, allMatches, sellerName) => {
     .slice(0, 7);
 
   if (finishedMatches.length === 0) {
-    return `*📢 FootBet Pro*\nHola! Por ahora no hay resultados disponibles.\n— *${sellerName}* 🟢`;
+    return `*📢 La Jugada 7*\nHola! Por ahora no hay resultados disponibles.\n— *${sellerName}* 🟢`;
   }
 
-  let message = `*🏆 ÚLTIMOS RESULTADOS - FootBet Pro* 🏆\n`;
+  let message = `*🏆 ÚLTIMOS RESULTADOS - La Jugada 7* 🏆\n`;
   message += `⚽ *¡Revisa los últimos partidos jugados!* 💰\n`;
   message += `──────────────────────\n`;
   finishedMatches.forEach((match, index) => {
@@ -1568,7 +1613,7 @@ const generateResultsMessage = (matchResults, allMatches, sellerName) => {
     message += `✅ Resultado: ${resultText}\n\n`;
   });
   message += `📲 *¿Listo para jugar la próxima ronda?* ¡Escríbeme!\n`;
-  message += `— *${sellerName} – FootBet Pro* 🟢`;
+  message += `— *${sellerName} – La Jugada 7* 🟢`;
   return message;
 };
 
@@ -2304,7 +2349,7 @@ useEffect(() => {
             const link = `https://footbet-pro.web.app/#/public-dashboard?seller=${currentUser.id}`;
             const message = `🍀 *¡Tu suerte empieza aquí!* 🍀
 
-            ⚽ *FootBet Pro* - Apuesta inteligente
+            ⚽ *La Jugada 7* - Apuesta inteligente
 
             🎯 *Premios:*
             ✅ 5 aciertos → Recupera tu apuesta
@@ -2605,12 +2650,12 @@ useEffect(() => {
       <div className="text-center mb-8">
         <div className="w-32 h-32 bg-gradient-to-br from-green-500 to-green-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl border-4 border-green-400/30">
           <img 
-            src="https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Logo%20dina%CC%81mico%20de%20FootBet%20Pro.png" 
-            alt="FootBet Pro Logo"
-            className="w-24 h-24 object-contain drop-shadow-lg"
+            src="https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Logo%20dina%CC%81mico%20de%20La%20Jugada%207.png" 
+            alt="La Jugada 7 Logo"
+            className="w-62 h-62 object-contain drop-shadow-lg"
           />
         </div>
-        <h1 className="text-3xl font-bold text-white mb-2">⚽ FootBet Pro</h1>
+        <h1 className="text-3xl font-bold text-white mb-2">⚽ La Jugada 7</h1>
         <p className="text-green-300 text-sm">¡Tu suerte comienza aquí!</p>
       </div>
 

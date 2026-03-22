@@ -250,7 +250,7 @@ const PublicBetForm = () => {
             <button
               onClick={() => {
                 const cleanPhone = sellerInfo.phone.replace(/\D/g, '');
-                const msg = `Hola ${sellerInfo.name}, acabo de enviar mi apuesta en FootBet Pro. Por favor revísala. ¡Gracias!`;
+                const msg = `Hola ${sellerInfo.name}, acabo de enviar mi apuesta en La Jugada 7. Por favor revísala. ¡Gracias!`;
                 // ✅ Enlace WhatsApp nativo SIN espacio después de 57
                 window.open(`https://wa.me/57${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
               }}
@@ -268,7 +268,7 @@ const PublicBetForm = () => {
   return (
     <div className="min-h-screen bg-gray-900 pb-8">
       <div className="bg-gradient-to-r from-green-600/80 to-green-800/80 backdrop-blur-sm p-4 shadow-lg">
-        <h1 className="text-white text-xl font-bold text-center">FootBet Pro</h1>
+        <h1 className="text-white text-xl font-bold text-center">La Jugada 7</h1>
         {sellerInfo && (
           <p className="text-green-100 text-center text-sm mt-1">
             Vendedor: {sellerInfo.name}
