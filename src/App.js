@@ -2057,15 +2057,28 @@ useEffect(() => {
     alert('Error al crear el vendedor. Intente nuevamente.');
   }
 };
-  const handleDeleteSeller = (sellerId) => {
+  const handleDeleteSeller = async (sellerId) => {
+  try {
+    // ✅ 1. Eliminar de Firebase
+    await deleteDoc(doc(db, 'sellers', sellerId));
+    
+    // ✅ 2. Eliminar del estado local
     setSellerUsers(prev => prev.filter(seller => seller.id !== sellerId));
-    // Si el vendedor eliminado estaba logueado, cerrar sesión
+    
+    // ✅ 3. Si el vendedor eliminado estaba logueado, cerrar sesión
     if (currentUser && currentUser.id === sellerId) {
       handleLogout();
     }
-    // Eliminar tickets asociados al vendedor eliminado
-    setTickets(prev => prev.filter(ticket => ticket.sellerId !== sellerId));
-  };
+    
+    // ✅ 4. Eliminar tickets asociados al vendedor eliminado (opcional)
+    // setTickets(prev => prev.filter(ticket => ticket.sellerId !== sellerId));
+    
+    alert('Vendedor eliminado exitosamente');
+  } catch (error) {
+    console.error('Error al eliminar vendedor:', error);
+    alert('Error al eliminar el vendedor. Intente nuevamente.');
+  }
+};
   const handleDeleteTicket = (ticketId) => {
     setTickets(prev => prev.filter(ticket => ticket.id !== ticketId));
   };

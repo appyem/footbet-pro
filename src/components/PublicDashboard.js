@@ -419,7 +419,7 @@ useEffect(() => {
               >
                 {sellers.map(seller => (
                   <option key={seller.id} value={seller.id}>
-                    {seller.name} {seller.commission ? `(${seller.commission}% comisión)` : ''}
+                    {seller.name}
                   </option>
                 ))}
               </select>
