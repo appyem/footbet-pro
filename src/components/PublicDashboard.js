@@ -107,69 +107,38 @@ const PublicDashboard = () => {
   const [success, setSuccess] = useState(false);
 
   // 🟢 DESPUÉS (busca hoy + futuros hasta 7 días)
+// 🟢 DESPUÉS
 useEffect(() => {
   let isMounted = true;
   const today = getCurrentDate();
 
-  // 🔁 LISTENER EN TIEMPO REAL PARA PARTIDOS (igual que App.jsx)
+  // 🔹 EXTRAER SELLER DE LA URL (si existe)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlSellerId = urlParams.get('seller');
+  console.log('🔍 Seller desde URL:', urlSellerId);
+
+  // 🔁 Escuchar partidos disponibles HOY
   const unsubscribeMatches = onSnapshot(
-    collection(db, 'matches'),
+    query(collection(db, 'matches'), where('date', '==', today)),
     (snapshot) => {
       if (!isMounted) return;
       
-      const allMatchesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      // Filtrar partidos válidos (hoy + futuros, 7 días máx)
-      let allAvailableMatches = [];
-      let currentDate = today;
-      let daysChecked = 0;
-      const maxDays = 7;
-      const maxMatches = 7;
-
-      while (allAvailableMatches.length < maxMatches && daysChecked < maxDays) {
-        // eslint-disable-next-line no-loop-func
-        const dayMatches = allMatchesData.filter(match => 
-          match.date === currentDate &&
+      const matchesData = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(match => 
           match &&
-          match.homeTeam && 
-          match.awayTeam &&
           !match.hidden &&
           !shouldCloseMatch(match.date, match.time)
-        );
+        )
+        .slice(0, 7);
 
-        allAvailableMatches = [...allAvailableMatches, ...dayMatches];
-        
-        const nextDate = new Date(currentDate);
-        nextDate.setDate(nextDate.getDate() + 1);
-        currentDate = nextDate.toLocaleString('en-CA', { 
-          timeZone: 'America/Bogota' 
-        }).split(',')[0];
-        
-        daysChecked++;
-      }
-
-      // Ordenar cronológicamente
-      allAvailableMatches.sort((a, b) => {
-        if (a.date !== b.date) return a.date.localeCompare(b.date);
-        const [aH, aM] = a.time.split(':').map(Number);
-        const [bH, bM] = b.time.split(':').map(Number);
-        return (aH * 60 + aM) - (bH * 60 + bM);
-      });
-
-      const finalMatches = allAvailableMatches.slice(0, maxMatches);
-
-      setMatches(finalMatches);
+      setMatches(matchesData);
       setLoading(false);
     },
     (error) => {
       console.error('Error cargando partidos:', error);
-      if (isMounted) {
-        setError('Error al cargar los partidos. Intenta recargar.');
-        setLoading(false);
-      }
+      setError('Error al cargar los partidos. Intenta recargar.');
+      setLoading(false);
     }
   );
 
@@ -185,8 +154,15 @@ useEffect(() => {
       
       setSellers(sellersData);
       
-      if (sellersData.length > 0 && !selectedSeller) {
+      // ✅ PRIORIDAD 1: Usar seller de la URL
+      if (urlSellerId && sellersData.find(s => s.id === urlSellerId)) {
+        setSelectedSeller(urlSellerId);
+        console.log('✅ Seller seleccionado desde URL:', urlSellerId);
+      }
+      // ✅ PRIORIDAD 2: Usar primer vendedor si no hay URL
+      else if (sellersData.length > 0 && !selectedSeller) {
         setSelectedSeller(sellersData[0].id);
+        console.log('✅ Seller seleccionado por defecto:', sellersData[0].id);
       }
     }
   );
@@ -196,7 +172,8 @@ useEffect(() => {
     unsubscribeMatches();
     unsubscribeSellers();
   };
-}, [selectedSeller]); 
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, []); // ← Sin dependencias para evitar re-ejecuciones
 
   const toggleSelection = (matchId, selection, odds) => {
     setSelectedBets(prev => {
@@ -213,119 +190,118 @@ useEffect(() => {
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // 🟢 DESPUÉS
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  if (!customerName.trim() || !customerPhone.trim()) {
+    setError('Completa tu nombre y teléfono');
+    return;
+  }
+  
+  if (sellers.length === 0) {
+    setError('Cargando vendedores... espera un momento');
+    return;
+  }
+  
+  if (!selectedSeller) {
+    setError('Selecciona un vendedor');
+    return;
+  }
+  
+  const sellerExists = sellers.find(s => s.id === selectedSeller);
+  if (!sellerExists) {
+    setError('El vendedor seleccionado no existe. Recarga la página.');
+    return;
+  }
+  
+  if (selectedBets.size !== matches.length) {
+    setError(`Selecciona los ${matches.length} partidos`);
+    return;
+  }
+  
+  setSubmitting(true);
+  setError('');
+  
+  try {
+    // ✅ UNA SOLA DECLARACIÓN (usar datos ya cargados)
+    const sellerData = sellerExists;
+    const sellerPhone = sellerData.phone || sellerData.phoneNumber;
     
-    if (!customerName.trim() || !customerPhone.trim()) {
-      setError('Completa tu nombre y teléfono');
-      return;
+    if (!sellerPhone) {
+      throw new Error('El vendedor no tiene número de WhatsApp registrado');
     }
     
-    if (!selectedSeller) {
-      setError('Selecciona un vendedor');
-      return;
+    const betsArray = Array.from(selectedBets.values()).map(bet => {
+      const match = matches.find(m => m.id === bet.matchId);
+      return {
+        matchId: bet.matchId,
+        homeTeam: match?.homeTeam || '',
+        awayTeam: match?.awayTeam || '',
+        league: match?.league || '',
+        time: match?.time || '',
+        selection: bet.selection,
+        odds: bet.odds
+      };
+    });
+    
+    let formattedPhone = customerPhone.trim();
+    if (!formattedPhone.startsWith('+57')) {
+      formattedPhone = `+57 ${formattedPhone}`;
     }
     
-    if (selectedBets.size !== matches.length) {
-      setError(`Selecciona los ${matches.length} partidos`);
-      return;
-    }
+    let message = `*🎫 NUEVA APUESTA - La Jugada 7* 🎫\n\n`;
+    message += `*Cliente:* ${customerName}\n`;
+    message += `*Teléfono:* ${formattedPhone}\n`;
+    message += `*Vendedor:* ${sellerData.name}\n\n`;
+    message += `*APUESTAS:*\n`;
     
-    setSubmitting(true);
-    setError('');
+    betsArray.forEach((bet, index) => {
+      const selectionText = bet.selection === '1' ? 'Local' : bet.selection === 'X' ? 'Empate' : 'Visitante';
+      message += `${index + 1}. ${bet.homeTeam} vs ${bet.awayTeam}\n`;
+      message += `   → ${selectionText} (x${bet.odds})\n`;
+    });
     
-    try {
-      // Obtener datos del vendedor seleccionado
-      const sellerDoc = await getDoc(doc(db, 'sellers', selectedSeller));
-      if (!sellerDoc.exists()) {
-        throw new Error('Vendedor no encontrado');
-      }
-      
-      const sellerData = sellerDoc.data();
-      const sellerPhone = sellerData.phone || sellerData.phoneNumber;
-      
-      if (!sellerPhone) {
-        throw new Error('El vendedor no tiene número de WhatsApp registrado');
-      }
-      
-      // Preparar datos de la apuesta
-      const betsArray = Array.from(selectedBets.values()).map(bet => {
-        const match = matches.find(m => m.id === bet.matchId);
-        return {
-          matchId: bet.matchId,
-          homeTeam: match?.homeTeam || '',
-          awayTeam: match?.awayTeam || '',
-          league: match?.league || '',
-          time: match?.time || '',
-          selection: bet.selection,
-          odds: bet.odds
-        };
-      });
-      
-      // Formatear número del cliente
-      let formattedPhone = customerPhone.trim();
-      if (!formattedPhone.startsWith('+57')) {
-        formattedPhone = `+57 ${formattedPhone}`;
-      }
-      
-      // Generar mensaje para WhatsApp
-      let message = `*🎫 NUEVA APUESTA - La Jugada 7* 🎫\n\n`;
-      message += `*Cliente:* ${customerName}\n`;
-      message += `*Teléfono:* ${formattedPhone}\n`;
-      message += `*Vendedor:* ${sellerData.name}\n\n`;
-      message += `*APUESTAS:*\n`;
-      
-      betsArray.forEach((bet, index) => {
-        const selectionText = bet.selection === '1' ? 'Local' : bet.selection === 'X' ? 'Empate' : 'Visitante';
-        message += `${index + 1}. ${bet.homeTeam} vs ${bet.awayTeam}\n`;
-        message += `   → ${selectionText} (x${bet.odds})\n`;
-      });
-      
-      message += `\n*Total:* $${betsArray.length * 5000} COP\n`;
-      message += `\n*¿Aprobar esta apuesta?* ✅`;
-      
-      // Guardar apuesta pendiente en Firestore
-      await addDoc(collection(db, 'pending_tickets'), {
-        customerName: customerName.trim(),
-        customerPhone: formattedPhone,
-        sellerId: selectedSeller,
-        sellerName: sellerData.name,
-        bets: betsArray,
-        totalStake: betsArray.length * 5000,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        submittedAt: new Date().toLocaleTimeString('es-CO', {
-          timeZone: 'America/Bogota',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      });
-      
-      // Abrir WhatsApp con el mensaje
-      const cleanPhone = sellerPhone.replace(/\D/g, '');
-      const whatsappUrl = `https://wa.me/57${cleanPhone}?text=${encodeURIComponent(message)}`;
-      
-      // Abrir en nueva pestaña
-      window.open(whatsappUrl, '_blank');
-      
-      // Mostrar éxito
-      setSuccess(true);
-      setSelectedBets(new Map());
-      setCustomerName('');
-      setCustomerPhone('');
-      
-      // Resetear después de 5 segundos
-      setTimeout(() => {
-        setSuccess(false);
-      }, 5000);
-      
-    } catch (err) {
-      console.error('Error al enviar apuesta:', err);
-      setError(err.message || 'Error al enviar la apuesta. Intenta nuevamente.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    message += `\n*Total:* $${betsArray.length * 5000} COP\n`;
+    message += `\n*¿Aprobar esta apuesta?* ✅`;
+    
+    await addDoc(collection(db, 'pending_tickets'), {
+      customerName: customerName.trim(),
+      customerPhone: formattedPhone,
+      sellerId: selectedSeller,
+      sellerName: sellerData.name,
+      bets: betsArray,
+      totalStake: betsArray.length * 5000,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      submittedAt: new Date().toLocaleTimeString('es-CO', {
+        timeZone: 'America/Bogota',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    });
+    
+    const cleanPhone = sellerPhone.replace(/\D/g, '');
+    const whatsappUrl = `https://wa.me/57${cleanPhone}?text=${encodeURIComponent(message)}`;
+    
+    window.open(whatsappUrl, '_blank');
+    
+    setSuccess(true);
+    setSelectedBets(new Map());
+    setCustomerName('');
+    setCustomerPhone('');
+    
+    setTimeout(() => {
+      setSuccess(false);
+    }, 5000);
+    
+  } catch (err) {
+    console.error('Error al enviar apuesta:', err);
+    setError(err.message || 'Error al enviar la apuesta. Intenta nuevamente.');
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   if (loading) {
     return (
@@ -408,21 +384,34 @@ useEffect(() => {
               onPhoneChange={setCustomerPhone}
             />
             
+            
             <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">
+              <label className="block text-gray-300 text-sm font-medium mb-2 items-center gap-2">
+                <User className="w-4 h-4" />
                 Selecciona tu Vendedor
               </label>
               <select
                 value={selectedSeller}
                 onChange={(e) => setSelectedSeller(e.target.value)}
                 className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
+                disabled={loading || sellers.length === 0}
               >
-                {sellers.map(seller => (
-                  <option key={seller.id} value={seller.id}>
-                    {seller.name}
-                  </option>
-                ))}
+                {loading || sellers.length === 0 ? (
+                  <option value="">Cargando vendedores...</option>
+                ) : (
+                  sellers.map(seller => (
+                    <option key={seller.id} value={seller.id}>
+                      {seller.name}
+                    </option>
+                  ))
+                )}
               </select>
+              {selectedSeller && (
+                <p className="text-green-400 text-xs mt-1 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  Vendedor seleccionado: {sellers.find(s => s.id === selectedSeller)?.name}
+                </p>
+              )}
               <p className="text-gray-400 text-xs mt-1">
                 El vendedor recibirá tu apuesta y te contactará para confirmar
               </p>
