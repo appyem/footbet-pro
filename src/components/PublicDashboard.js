@@ -287,7 +287,7 @@ const handleSubmit = async (e) => {
     await addDoc(collection(db, 'pending_tickets'), {
       customerName: customerName.trim(),
       customerPhone: formattedPhone,
-      sellerId: selectedSeller,  // ← ESTE ES EL CAMPO CRÍTICO
+      sellerId: sellerData.id,  // ← ESTE ES EL CAMPO CRÍTICO
       sellerName: sellerData.name,
       bets: betsArray,
       totalStake: 5000,
