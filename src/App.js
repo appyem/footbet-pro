@@ -1819,10 +1819,18 @@ useEffect(() => {
     if (isMounted) setSellerUsers(sellersData);
   });
     // 🔁 LISTENER PARA TICKETS PENDIENTES (nuevos)
-  const unsubscribePendingTickets = onSnapshot(collection(db, 'pending_tickets'), (snapshot) => {
-    const pendingData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    if (isMounted) setPendingTickets(pendingData);
-  });
+    const unsubscribePendingTickets = onSnapshot(
+    collection(db, 'pending_tickets'),
+    (snapshot) => {
+      const pendingData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      console.log('🔍 Pending Tickets cargados:', pendingData.length);
+      console.log('🔍 Pending Tickets:', pendingData);
+      if (isMounted) setPendingTickets(pendingData);
+    }
+  );
   return () => {
     isMounted = false;
     unsubscribeResults();
@@ -2323,6 +2331,10 @@ useEffect(() => {
   ), [currentUser, tickets, sellerUsers, handleLogout, matchResults, matchForm, editingMatch, saveMatch, allMatches]);
 
   const SellerDashboard = useCallback(() => {
+    console.log('🔍 Current User ID:', currentUser?.id);
+    console.log('🔍 Pending Tickets:', pendingTickets);
+    console.log('🔍 Pending Tickets para este vendedor:', 
+    pendingTickets.filter(pt => pt.sellerId === currentUser?.id));
     const todaySales = tickets.filter(t => t.sellerId === currentUser?.id && t.date === getCurrentDate());
     const todayTotal = todaySales.reduce((sum, t) => sum + t.totalStake, 0);
     const commissionAmount = (todayTotal * (currentUser?.commission || 0)) / 100;
@@ -2424,52 +2436,49 @@ useEffect(() => {
           </div>
         </div>
         
-                {/*Jugadas Pendientes */}
-        {pendingTickets.filter(pt => pt.sellerId === currentUser?.id).length > 0 && (
-          <div className="bg-yellow-900/30 border border-yellow-700 rounded-xl p-6 mb-6">
-            <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-yellow-400" />
-             Jugadas Pendientes ({pendingTickets.filter(pt => pt.sellerId === currentUser?.id).length})
-            </h2>
-            <div className="space-y-3">
-              {pendingTickets
-                .filter(pt => pt.sellerId === currentUser?.id)
-                .map(ticket => (
-                  <div key={ticket.id} className="bg-gray-800 p-4 rounded-lg">
-                    <p className="text-white font-medium">{ticket.customerName}</p>
-                    <p className="text-gray-400 text-sm">{ticket.customerPhone}</p>
-                    <p className="text-gray-500 text-xs mt-1">
-                      {ticket.bets.length}Jugadas • Enviado: {ticket.submittedAt}
-                    </p>
-                    <button
-                      onClick={async () => {
-                        // 1. Crear ticket en 'tickets'
-                        const newTicket = {
-                          ...ticket,
-                          id: `TKT${Date.now()}`,
-                          verificationCode: Math.random().toString(36).substring(2, 10).toUpperCase(),
-                          date: getCurrentDate(),
-                          time: getCurrentTime(),
-                          sellerName: currentUser?.name || 'Invitado',
-                          status: 'paid'
-                        };
-                        await addDoc(collection(db, 'tickets'), newTicket);
-                        // 2. Eliminar de 'pending_tickets'
-                        await deleteDoc(doc(db, 'pending_tickets', ticket.id));
-                        // 3. Enviar por WhatsApp
-                        copyToWhatsApp(newTicket);
-                        alert('Ticket aprobado y enviado al cliente.');
-                      }}
-                      className="mt-2 bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 rounded flex items-center gap-1"
-                    >
-                      ✅ Aprobar y Enviar Ticket
-                    </button>
-                  </div>
-                ))
-              }
-            </div>
+        {/* Jugadas Pendientes */}
+{pendingTickets.filter(pt => pt.sellerId === currentUser?.id).length > 0 && (
+  <div className="bg-yellow-900/30 border border-yellow-700 rounded-xl p-6 mb-6">
+    <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+      <AlertTriangle className="w-5 h-5 text-yellow-400" />
+      Jugadas Pendientes ({pendingTickets.filter(pt => pt.sellerId === currentUser?.id).length})
+    </h2>
+    <div className="space-y-3">
+      {pendingTickets
+        .filter(pt => pt.sellerId === currentUser?.id)
+        .map(ticket => (
+          <div key={ticket.id} className="bg-gray-800 p-4 rounded-lg">
+            <p className="text-white font-medium">{ticket.customerName}</p>
+            <p className="text-gray-400 text-sm">{ticket.customerPhone}</p>
+            <p className="text-gray-500 text-xs mt-1">
+              {ticket.bets.length} Jugadas • Enviado: {ticket.submittedAt}
+            </p>
+            <button
+              onClick={async () => {
+                const newTicket = {
+                  ...ticket,
+                  id: `TKT${Date.now()}`,
+                  verificationCode: Math.random().toString(36).substring(2, 10).toUpperCase(),
+                  date: getCurrentDate(),
+                  time: getCurrentTime(),
+                  sellerName: currentUser?.name || 'Invitado',
+                  status: 'paid'
+                };
+                await addDoc(collection(db, 'tickets'), newTicket);
+                await deleteDoc(doc(db, 'pending_tickets', ticket.id));
+                copyToWhatsApp(newTicket);
+                alert('Ticket aprobado y enviado al cliente.');
+              }}
+              className="mt-2 bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 rounded flex items-center gap-1"
+            >
+              ✅ Aprobar y Enviar Ticket
+            </button>
           </div>
-        )}
+        ))
+      }
+    </div>
+  </div>
+)}
 
         <div className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
           <div className="flex justify-between items-center mb-4">

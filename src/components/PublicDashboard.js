@@ -159,6 +159,11 @@ useEffect(() => {
       
       setSellers(sellersData);
       
+      // ✅ DEBUG: Verificar qué seller se está seleccionando
+      console.log('🔍 Vendedores cargados:', sellersData.length);
+      console.log('🔍 selectedSeller actual:', selectedSeller);
+      console.log('🔍 URL seller:', urlSellerId);
+      
       // ✅ PRIORIDAD 1: Usar seller de la URL
       if (urlSellerId && sellersData.find(s => s.id === urlSellerId)) {
         setSelectedSeller(urlSellerId);
@@ -195,31 +200,36 @@ useEffect(() => {
     });
   };
 
-  // 🟢 DESPUÉS
+  
 const handleSubmit = async (e) => {
   e.preventDefault();
   
+  // ✅ 1. Validar nombre y teléfono
   if (!customerName.trim() || !customerPhone.trim()) {
     setError('Completa tu nombre y teléfono');
     return;
   }
   
+  // ✅ 2. Validar que haya vendedores cargados
   if (sellers.length === 0) {
     setError('Cargando vendedores... espera un momento');
     return;
   }
   
-  if (!selectedSeller) {
-    setError('Selecciona un vendedor');
+  // ✅ 3. Validar que haya un vendedor seleccionado (CRÍTICO)
+  if (!selectedSeller || selectedSeller.trim() === '') {
+    setError('Selecciona un vendedor antes de enviar');
     return;
   }
   
+  // ✅ 4. Validar que el vendedor exista en la lista
   const sellerExists = sellers.find(s => s.id === selectedSeller);
   if (!sellerExists) {
     setError('El vendedor seleccionado no existe. Recarga la página.');
     return;
   }
   
+  // ✅ 5. Validar que haya seleccionado los 7 partidos
   if (selectedBets.size !== matches.length) {
     setError(`Selecciona los ${matches.length} partidos`);
     return;
@@ -229,7 +239,7 @@ const handleSubmit = async (e) => {
   setError('');
   
   try {
-    // ✅ UNA SOLA DECLARACIÓN (usar datos ya cargados)
+    // ✅ 6. Usar datos del vendedor ya cargados (NO hacer getDoc)
     const sellerData = sellerExists;
     const sellerPhone = sellerData.phone || sellerData.phoneNumber;
     
@@ -237,6 +247,7 @@ const handleSubmit = async (e) => {
       throw new Error('El vendedor no tiene número de WhatsApp registrado');
     }
     
+    // ✅ 7. Preparar datos de la apuesta
     const betsArray = Array.from(selectedBets.values()).map(bet => {
       const match = matches.find(m => m.id === bet.matchId);
       return {
@@ -250,11 +261,13 @@ const handleSubmit = async (e) => {
       };
     });
     
+    // ✅ 8. Formatear número del cliente
     let formattedPhone = customerPhone.trim();
     if (!formattedPhone.startsWith('+57')) {
       formattedPhone = `+57 ${formattedPhone}`;
     }
     
+    // ✅ 9. Generar mensaje para WhatsApp
     let message = `*🎫 NUEVA Tu jugada - La Jugada 7* 🎫\n\n`;
     message += `*Cliente:* ${customerName}\n`;
     message += `*Teléfono:* ${formattedPhone}\n`;
@@ -270,10 +283,11 @@ const handleSubmit = async (e) => {
     message += `\n*Total:* $5.000 COP\n`;
     message += `\n*¿Aprobar esta Tu jugada?* ✅`;
     
+    // ✅ 10. Guardar en pending_tickets (CON sellerId VALIDADO)
     await addDoc(collection(db, 'pending_tickets'), {
       customerName: customerName.trim(),
       customerPhone: formattedPhone,
-      sellerId: selectedSeller,
+      sellerId: selectedSeller,  // ← ESTE ES EL CAMPO CRÍTICO
       sellerName: sellerData.name,
       bets: betsArray,
       totalStake: 5000,
@@ -285,12 +299,17 @@ const handleSubmit = async (e) => {
         minute: '2-digit'
       })
     });
+
+    console.log('✅ Apuesta guardada en pending_tickets');
+    console.log('🔍 sellerId guardado:', selectedSeller);
+    console.log('🔍 sellerData:', sellerData);
     
+    // ✅ 11. Abrir WhatsApp
     const cleanPhone = sellerPhone.replace(/\D/g, '');
     const whatsappUrl = `https://wa.me/57${cleanPhone}?text=${encodeURIComponent(message)}`;
-    
     window.open(whatsappUrl, '_blank');
     
+    // ✅ 12. Mostrar éxito y limpiar formulario
     setSuccess(true);
     setSelectedBets(new Map());
     setCustomerName('');
