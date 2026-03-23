@@ -66,7 +66,7 @@ const ShareLinkGenerator = ({ matches, currentUser }) => {
   };
 
   const sendToWhatsApp = () => {
-    const message = `¡Hola! Te invito a jugar en La Jugada 7. Haz clic en este enlace para seleccionar tus apuestas:\n${generatedLink}`;
+    const message = `¡Hola! Te invito a jugar en La Jugada 7. Haz clic en este enlace para seleccionar tusJugadas:\n${generatedLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 

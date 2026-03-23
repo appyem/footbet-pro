@@ -116,9 +116,11 @@ useEffect(() => {
   const today = getCurrentDate();
 
   // 🔹 EXTRAER SELLER DE LA URL (si existe)
-  const urlParams = new URLSearchParams(window.location.search);
-  const urlSellerId = urlParams.get('seller');
-  console.log('🔍 Seller desde URL:', urlSellerId);
+  const hash = window.location.hash;
+  const hashParams = new URLSearchParams(hash.split('?')[1] || '');
+  const urlSellerId = hashParams.get('seller');
+  console.log('🔍 Hash completo:', hash);
+  console.log('🔍 Seller desde hash:', urlSellerId);
 
   // 🔁 Escuchar partidos disponibles HOY
   const unsubscribeMatches = onSnapshot(
@@ -253,11 +255,11 @@ const handleSubmit = async (e) => {
       formattedPhone = `+57 ${formattedPhone}`;
     }
     
-    let message = `*🎫 NUEVA APUESTA - La Jugada 7* 🎫\n\n`;
+    let message = `*🎫 NUEVA Tu jugada - La Jugada 7* 🎫\n\n`;
     message += `*Cliente:* ${customerName}\n`;
     message += `*Teléfono:* ${formattedPhone}\n`;
     message += `*Vendedor:* ${sellerData.name}\n\n`;
-    message += `*APUESTAS:*\n`;
+    message += `*Tu jugadaS:*\n`;
     
     betsArray.forEach((bet, index) => {
       const selectionText = bet.selection === '1' ? 'Local' : bet.selection === 'X' ? 'Empate' : 'Visitante';
@@ -266,7 +268,7 @@ const handleSubmit = async (e) => {
     });
     
     message += `\n*Total:* $5.000 COP\n`;
-    message += `\n*¿Aprobar esta apuesta?* ✅`;
+    message += `\n*¿Aprobar esta Tu jugada?* ✅`;
     
     await addDoc(collection(db, 'pending_tickets'), {
       customerName: customerName.trim(),
@@ -299,8 +301,8 @@ const handleSubmit = async (e) => {
     }, 5000);
     
   } catch (err) {
-    console.error('Error al enviar apuesta:', err);
-    setError(err.message || 'Error al enviar la apuesta. Intenta nuevamente.');
+    console.error('Error al enviar Tu jugada:', err);
+    setError(err.message || 'Error al enviar la Tu jugada. Intenta nuevamente.');
   } finally {
     setSubmitting(false);
   }
@@ -353,7 +355,7 @@ const handleSubmit = async (e) => {
             <div className="flex items-center gap-3">
               <CheckCircle className="w-6 h-6 text-green-400" />
               <div>
-                <p className="text-green-200 font-medium">¡Apuesta enviada!</p>
+                <p className="text-green-200 font-medium">¡Tu jugada enviada!</p>
                 <p className="text-green-300 text-sm mt-1">
                   El vendedor recibirá tus resultados y te contactará para confirmar.
                 </p>
@@ -472,7 +474,7 @@ const handleSubmit = async (e) => {
           ) : (
             <span className="flex items-center justify-center gap-2">
               <Phone className="w-5 h-5" />
-              Enviar Apuesta por WhatsApp
+              Enviar Tu jugada por WhatsApp
             </span>
           )}
         </button>
@@ -482,7 +484,7 @@ const handleSubmit = async (e) => {
           <div className="bg-gradient-to-r from-purple-600/80 to-purple-800/80 backdrop-blur-sm rounded-xl p-4 mt-6">
             <h3 className="text-white font-bold text-lg mb-2">🏆 Premios</h3>
             <ul className="text-white text-sm space-y-1">
-              <li>✅ 5 aciertos: Recupera tu apuesta ($5,000)</li>
+              <li>✅ 5 aciertos: Recupera tu Tu jugada ($5,000)</li>
               <li>✅ 6 aciertos: ¡Ticket Dorado! (10 juegos gratis)</li>
               <li>✅ 7 aciertos: ¡$1,000,000!</li>
             </ul>

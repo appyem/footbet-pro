@@ -17,7 +17,7 @@ export const getCurrentTime = () => {
   });
 };
 
-// Determina si un partido debe cerrarse para apuestas (5 minutos antes de su inicio, en hora Colombia)
+// Determina si un partido debe cerrarse paraJugadas (5 minutos antes de su inicio, en hora Colombia)
 export const shouldCloseMatch = (matchDateStr, matchTime) => {
   try {
     // Parsear fecha y hora del partido (almacenados como hora de Colombia)

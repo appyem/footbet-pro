@@ -197,8 +197,8 @@ const PublicBetForm = () => {
       });
       setSubmitted(true);
     } catch (err) {
-      console.error('Error al enviar apuesta:', err);
-      alert('Error al enviar tu apuesta. Intente nuevamente.');
+      console.error('Error al enviar Tu jugada:', err);
+      alert('Error al enviar tu Tu jugada. Intente nuevamente.');
     } finally {
       setSubmitting(false);
     }
@@ -244,13 +244,13 @@ const PublicBetForm = () => {
       <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
         <div className="text-center p-6 bg-gray-800 rounded-xl max-w-md">
           <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-          <p className="text-lg font-bold">¡Apuesta enviada!</p>
-          <p className="mt-2 text-gray-400">El vendedor revisará tu apuesta pronto.</p>
+          <p className="text-lg font-bold">¡Tu jugada enviada!</p>
+          <p className="mt-2 text-gray-400">El vendedor revisará tu Tu jugada pronto.</p>
           {sellerInfo && sellerInfo.phone && (
             <button
               onClick={() => {
                 const cleanPhone = sellerInfo.phone.replace(/\D/g, '');
-                const msg = `Hola ${sellerInfo.name}, acabo de enviar mi apuesta en La Jugada 7. Por favor revísala. ¡Gracias!`;
+                const msg = `Hola ${sellerInfo.name}, acabo de enviar mi Tu jugada en La Jugada 7. Por favor revísala. ¡Gracias!`;
                 // ✅ Enlace WhatsApp nativo SIN espacio después de 57
                 window.open(`https://wa.me/57${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
               }}
@@ -283,7 +283,7 @@ const PublicBetForm = () => {
       </div>
       <div className="px-4 py-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-white text-xl font-bold">Selecciona tus apuestas</h2>
+          <h2 className="text-white text-xl font-bold">Selecciona tusJugadas</h2>
           <span className="bg-green-600 text-white text-sm px-3 py-1 rounded-full">
             {selectedBets.size}/{matches.length}
           </span>
@@ -308,7 +308,7 @@ const PublicBetForm = () => {
               : 'bg-gray-600 text-gray-400 cursor-not-allowed'
           }`}
         >
-          {submitting ? 'Enviando...' : 'Enviar Apuesta al Vendedor'}
+          {submitting ? 'Enviando...' : 'Enviar Tu jugada al Vendedor'}
         </button>
         <p className="text-gray-400 text-xs text-center mt-4">
           📱 Al enviar, El vendedor recibirá tus resultados y te contactará para confirmar

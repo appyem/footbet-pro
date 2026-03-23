@@ -214,7 +214,7 @@ const TicketPreviewModal = ({ ticket, onClose, onCopyToWhatsApp, onResend }) => 
               Código de verificación: <span className="font-mono">{ticket.verificationCode}</span>
             </div>
             <div className="text-yellow-300 text-xs mt-2">
-              🎯 Premios: 5 aciertos = Recupera apuesta | 6 aciertos = Ticket Dorado (10 juegos) | 7 aciertos = $1M
+              🎯 Premios: 5 aciertos = Recupera Tu jugada | 6 aciertos = Ticket Dorado (10 juegos) | 7 aciertos = $1M
             </div>
           </div>
           <div className="flex gap-3">
@@ -479,7 +479,7 @@ const CreateSellerModal = ({ onClose, onSellerCreated }) => {
                 placeholder="300 123 4567"
                 required
               />
-              <p className="text-gray-400 text-xs mt-1">Número donde los clientes enviarán sus apuestas</p>
+              <p className="text-gray-400 text-xs mt-1">Número donde los clientes enviarán Sus jugadas</p>
             </div>
             {/* Contraseña */}
             <div>
@@ -511,7 +511,7 @@ const CreateSellerModal = ({ onClose, onSellerCreated }) => {
                 placeholder="300 123 4567"
                 required
               />
-              <p className="text-gray-400 text-xs mt-1">Número donde los clientes enviarán sus apuestas</p>
+              <p className="text-gray-400 text-xs mt-1">Número donde los clientes enviarán Sus jugadas</p>
             </div>
 
 
@@ -648,7 +648,7 @@ const copyToWhatsApp = (ticket) => {
   if (!phoneNumber.startsWith('+57')) {
     phoneNumber = `+57 ${phoneNumber}`;
   }
-  const message = `🎫 *TICKET DE APUESTA - ${ticket.id}* 🎫
+  const message = `🎫 *TICKET DE Tu jugada - ${ticket.id}* 🎫
 ` +
     `*Cliente:* ${ticket.customerName}
 ` +
@@ -658,7 +658,7 @@ const copyToWhatsApp = (ticket) => {
 ` +
     `*Fecha:* ${ticket.date} ${ticket.time}
 ` +
-    `*APUESTAS:*
+    `*Tu jugadaS:*
 ` +
     ticket.bets.map((bet, index) => 
       `${index + 1}. ${bet.homeTeam} vs ${bet.awayTeam}
@@ -673,7 +673,7 @@ const copyToWhatsApp = (ticket) => {
 ` +
     `🏆 *PREMIOS:*
 ` +
-    `✅ 5 aciertos: Recupera tu apuesta ($5,000)
+    `✅ 5 aciertos: Recupera tu Tu jugada ($5,000)
 ` +
     `✅ 6 aciertos: ¡Gana un TICKET DORADO! (10 juegos gratis)
 ` +
@@ -854,7 +854,7 @@ const SalesView = ({ tickets, currentUser, userRole, onDeleteTicket }) => {
                 </div>
                 <div className="text-gray-400 text-sm flex items-center gap-2 mb-3">
                   <Ticket className="w-3 h-3" />
-                  {ticket.bets.length} apuesta(s) • Código: {ticket.id}
+                  {ticket.bets.length} Tu jugada(s) • Código: {ticket.id}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -1266,7 +1266,7 @@ const SettingsView = ({ sellerUsers, setSellerUsers, userRole }) => {
     <div className="pb-24 px-4">
       <div className="mb-6">
         <h1 className="text-white text-2xl font-bold">Configuración</h1>
-        <p className="text-gray-400">Gestiona la configuración de tu sistema de apuestas</p>
+        <p className="text-gray-400">Gestiona la configuración de tu sistema deJugadas</p>
       </div>
       {/* Tabs de configuración */}
       <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 mb-6">
@@ -1316,7 +1316,7 @@ const SettingsView = ({ sellerUsers, setSellerUsers, userRole }) => {
           <h2 className="text-white text-lg font-bold mb-4">Configuración de Negocio</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Apuesta Mínima (COP)</label>
+              <label className="block text-gray-300 text-sm font-medium mb-2">Tu jugada Mínima (COP)</label>
               <input
                 type="number"
                 value={businessSettings.minBet}
@@ -1327,7 +1327,7 @@ const SettingsView = ({ sellerUsers, setSellerUsers, userRole }) => {
               <p className="text-gray-400 text-xs mt-1">Fijo en $5,000 para tickets de 7 partidos</p>
             </div>
             <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Apuesta Máxima (COP)</label>
+              <label className="block text-gray-300 text-sm font-medium mb-2">Tu jugada Máxima (COP)</label>
               <input
                 type="number"
                 value={businessSettings.maxBet}
@@ -2387,14 +2387,14 @@ useEffect(() => {
             const link = `https://footbet-pro.vercel.app/`;
             const message = `🍀 ¡Tu suerte empieza aquí! 🍀
 
-            ⚽ *La Jugada 7* - Apuesta Inteligente
+            ⚽ *La Jugada 7* - Tu jugada Inteligente
 
             🎯 PREMIOS:
-            ✅ 5 aciertos: Recupera tu apuesta
+            ✅ 5 aciertos: Recupera tu Tu jugada
             ✅ 6 aciertos: 10 Juegos GRATIS
             ✅ 7 aciertos: $1.000.000
 
-            📲 Selecciona tus 7 partidos y envía tu apuesta
+            📲 Selecciona tus 7 partidos y envía tu Tu jugada
 
             👉 Juega ahora: ${link}
 
@@ -2403,7 +2403,7 @@ useEffect(() => {
             }}
             className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
             >
-            📲 Enviar Enlace de Apuestas
+            📲 Enviar Enlace deJugadas
             </button>
             <button
               onClick={() => {
@@ -2424,12 +2424,12 @@ useEffect(() => {
           </div>
         </div>
         
-                {/* Apuestas Pendientes */}
+                {/*Jugadas Pendientes */}
         {pendingTickets.filter(pt => pt.sellerId === currentUser?.id).length > 0 && (
           <div className="bg-yellow-900/30 border border-yellow-700 rounded-xl p-6 mb-6">
             <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-yellow-400" />
-              Apuestas Pendientes ({pendingTickets.filter(pt => pt.sellerId === currentUser?.id).length})
+             Jugadas Pendientes ({pendingTickets.filter(pt => pt.sellerId === currentUser?.id).length})
             </h2>
             <div className="space-y-3">
               {pendingTickets
@@ -2439,7 +2439,7 @@ useEffect(() => {
                     <p className="text-white font-medium">{ticket.customerName}</p>
                     <p className="text-gray-400 text-sm">{ticket.customerPhone}</p>
                     <p className="text-gray-500 text-xs mt-1">
-                      {ticket.bets.length} apuestas • Enviado: {ticket.submittedAt}
+                      {ticket.bets.length}Jugadas • Enviado: {ticket.submittedAt}
                     </p>
                     <button
                       onClick={async () => {
@@ -2498,7 +2498,7 @@ useEffect(() => {
                   </div>
                   <div className="text-gray-400 text-sm flex items-center gap-2 mb-3">
                     <Ticket className="w-3 h-3" />
-                    {ticket.bets.length} apuesta(s) • {ticket.time}
+                    {ticket.bets.length} Tu jugada(s) • {ticket.time}
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -2561,7 +2561,7 @@ useEffect(() => {
             >
               ←
             </button>
-            <h1 className="text-white text-xl font-bold">Seleccionar Apuestas</h1>
+            <h1 className="text-white text-xl font-bold">SeleccionarJugadas</h1>
             <div className="w-6"></div>
           </div>
           <CustomerInfoForm
@@ -2595,7 +2595,7 @@ useEffect(() => {
             <div className="text-center mb-3">
               <p className="text-white font-bold text-lg">Monto del Ticket: {formatCOP(5000)}</p>
               <p className="text-green-200 text-sm">
-                🎯 Premios: 5 aciertos = Recupera apuesta | 6 aciertos = Ticket Dorado (10 juegos) | 7 aciertos = $1M
+                🎯 Premios: 5 aciertos = Recupera Tu jugada | 6 aciertos = Ticket Dorado (10 juegos) | 7 aciertos = $1M
               </p>
             </div>
             <button
@@ -2715,7 +2715,7 @@ useEffect(() => {
         <div className="space-y-1 text-xs text-purple-200">
           <div className="flex justify-between">
             <span>✅ 5 aciertos:</span>
-            <span className="text-white">Recupera tu apuesta</span>
+            <span className="text-white">Recupera tu Tu jugada</span>
           </div>
           <div className="flex justify-between">
             <span>✅ 6 aciertos:</span>
@@ -2778,7 +2778,7 @@ useEffect(() => {
       {/* 🔹 FOOTER */}
       <div className="mt-6 pt-4 border-t border-gray-700 text-center">
         <p className="text-gray-500 text-xs">
-          🍀 ¡Mucha suerte en tus apuestas!
+          🍀 ¡Mucha suerte en tusJugadas!
         </p>
       </div>
     </div>
