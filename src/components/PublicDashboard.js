@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, User, AlertCircle, CheckCircle, Calendar, Clock, AlertTriangle } from 'lucide-react';
+import { Phone, User, AlertCircle, CheckCircle, Calendar, Clock } from 'lucide-react';
 import { db } from '../services/firebase';
 // eslint-disable-next-line no-unused-vars
 import { doc, getDoc, getDocs, query, collection, where, onSnapshot, addDoc } from 'firebase/firestore';
 import { getCurrentDate, shouldCloseMatch } from '../services/matchService';
+import { getCountryFlag } from '../services/countryFlags';
 
 // Componente aislado para los inputs del cliente
 const CustomerInfoForm = ({ customerName, customerPhone, onNameChange, onPhoneChange }) => {
@@ -50,11 +51,9 @@ const MatchBetCard = ({ match, selectedBet, onSelectionChange, isTrapMatch }) =>
       <div className="flex justify-between items-start mb-3">
         <div className="flex flex-col">
           <span className="text-green-400 text-sm font-medium flex items-center gap-1">
+            <span className="text-lg">{getCountryFlag(match.country)}</span>
             <Calendar className="w-3 h-3" />
             {match.league}
-            {isTrapMatch && (
-              <AlertTriangle className="w-3 h-3 text-purple-400 ml-1" title="Partido especial" />
-            )}
           </span>
           <span className="text-gray-500 text-xs">{match.date}</span>
         </div>
@@ -69,22 +68,26 @@ const MatchBetCard = ({ match, selectedBet, onSelectionChange, isTrapMatch }) =>
         <span className="text-white font-medium">{match.awayTeam}</span>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        {['1', 'X', '2'].map((selection) => {
-          const isSelected = selectedBet?.selection === selection;
-          const odds = selection === '1' ? match.odds?.home : selection === 'X' ? match.odds?.draw : match.odds?.away;
+        {[
+          { key: '1', label: 'Local', color: 'bg-green-500', glow: 'shadow-green-500/50' },
+          { key: 'X', label: 'Empate', color: 'bg-yellow-500', glow: 'shadow-yellow-500/50' },
+          { key: '2', label: 'Visitante', color: 'bg-red-500', glow: 'shadow-red-500/50' }
+        ].map((option) => {
+          const isSelected = selectedBet?.selection === option.key;
+          const odds = option.key === '1' ? match.odds?.home : option.key === 'X' ? match.odds?.draw : match.odds?.away;
           
           return (
             <button
-              key={selection}
-              onClick={() => onSelectionChange(match.id, selection, odds)}
-              className={`px-3 py-2 rounded text-sm font-medium transition-all ${
+              key={option.key}
+              onClick={() => onSelectionChange(match.id, option.key, odds)}
+              className={`px-2 py-3 rounded-lg text-sm font-bold transition-all transform hover:scale-105 ${
                 isSelected
-                  ? selection === '1' ? 'bg-green-600' : selection === 'X' ? 'bg-yellow-600' : 'bg-red-600'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  ? `${option.color} text-white shadow-lg ${option.glow} border-2 border-white/30`
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-2 border-transparent'
               }`}
             >
-              <div className="font-bold">{selection}</div>
-              <div className="text-xs mt-1 opacity-90">{odds || '1.0'}</div>
+              <div className="text-xs font-bold">{option.label}</div>
+              <div className="text-lg mt-1 text-white drop-shadow-lg">{odds || '1.0'}</div>
             </button>
           );
         })}
@@ -262,7 +265,7 @@ const handleSubmit = async (e) => {
       message += `   → ${selectionText} (x${bet.odds})\n`;
     });
     
-    message += `\n*Total:* $${betsArray.length * 5000} COP\n`;
+    message += `\n*Total:* $5.000 COP\n`;
     message += `\n*¿Aprobar esta apuesta?* ✅`;
     
     await addDoc(collection(db, 'pending_tickets'), {
@@ -271,7 +274,7 @@ const handleSubmit = async (e) => {
       sellerId: selectedSeller,
       sellerName: sellerData.name,
       bets: betsArray,
-      totalStake: betsArray.length * 5000,
+      totalStake: 5000,
       status: 'pending',
       createdAt: new Date().toISOString(),
       submittedAt: new Date().toLocaleTimeString('es-CO', {
@@ -339,7 +342,7 @@ const handleSubmit = async (e) => {
             />
           </div>
           <h1 className="text-2xl font-bold text-white mt-4">⚽ La Jugada 7</h1>
-          <p className="text-green-100 text-sm mt-1">Tu casa de apuestas confiable</p>
+          <p className="text-green-100 text-sm mt-1">Tu conocimiento paga</p>
         </div>
       </div>
 
@@ -352,7 +355,7 @@ const handleSubmit = async (e) => {
               <div>
                 <p className="text-green-200 font-medium">¡Apuesta enviada!</p>
                 <p className="text-green-300 text-sm mt-1">
-                  El vendedor recibirá tu apuesta y te contactará para confirmar.
+                  El vendedor recibirá tus resultados y te contactará para confirmar.
                 </p>
               </div>
             </div>
@@ -413,7 +416,7 @@ const handleSubmit = async (e) => {
                 </p>
               )}
               <p className="text-gray-400 text-xs mt-1">
-                El vendedor recibirá tu apuesta y te contactará para confirmar
+                El vendedor recibirá tus resultados y te contactará para confirmar
               </p>
             </div>
           </div>

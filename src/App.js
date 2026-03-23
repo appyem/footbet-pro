@@ -3,7 +3,9 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
+import { getCountryFlag, getCountryOptions } from './services/countryFlags';
 import PublicDashboard from './components/PublicDashboard';
+
 
 
 
@@ -67,11 +69,9 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
             <div className="flex justify-between items-start mb-3">
         <div className="flex flex-col">
           <span className="text-green-400 text-sm font-medium flex items-center gap-1">
+            <span className="text-lg">{getCountryFlag(match.country)}</span>
             <Calendar className="w-3 h-3" />
             {match.league}
-            {isTrapMatch && (
-              <AlertTriangle className="w-3 h-3 text-purple-400 ml-1" title="Partido especial - Alta volatilidad" />
-            )}
           </span>
           <span className="text-gray-500 text-xs mt-1">
             {match.date}
@@ -88,38 +88,43 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
         <span className="text-white font-medium text-lg">{match.awayTeam}</span>
       </div>
       <div className="grid grid-cols-3 gap-2 mb-3">
+        {/* Local */}
         <button
           onClick={() => onSelectionChange(match.id, '1', match.odds.home)}
-          className={`px-3 py-2 rounded text-sm font-medium transition-all duration-200 transform hover:scale-105 ${
+          className={`px-2 py-3 rounded-lg text-sm font-bold transition-all transform hover:scale-105 ${
             selectedBet?.selection === '1'
-              ? 'bg-green-600 text-white shadow-lg'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              ? 'bg-green-500 text-white shadow-lg shadow-green-500/50 border-2 border-white/30'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-2 border-transparent'
           }`}
         >
-          <div className="font-bold">1</div>
-          <div className="text-xs mt-1 opacity-90">{match.odds.home}</div>
+          <div className="text-xs font-bold">Local</div>
+          <div className="text-lg mt-1 text-white drop-shadow-lg">{match.odds.home || '1.0'}</div>
         </button>
+        
+        {/* Empate */}
         <button
           onClick={() => onSelectionChange(match.id, 'X', match.odds.draw)}
-          className={`px-3 py-2 rounded text-sm font-medium transition-all duration-200 transform hover:scale-105 ${
+          className={`px-2 py-3 rounded-lg text-sm font-bold transition-all transform hover:scale-105 ${
             selectedBet?.selection === 'X'
-              ? 'bg-yellow-600 text-white shadow-lg'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/50 border-2 border-white/30'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-2 border-transparent'
           }`}
         >
-          <div className="font-bold">X</div>
-          <div className="text-xs mt-1 opacity-90">{match.odds.draw}</div>
+          <div className="text-xs font-bold">Empate</div>
+          <div className="text-lg mt-1 text-white drop-shadow-lg">{match.odds.draw || '1.0'}</div>
         </button>
+        
+        {/* Visitante */}
         <button
           onClick={() => onSelectionChange(match.id, '2', match.odds.away)}
-          className={`px-3 py-2 rounded text-sm font-medium transition-all duration-200 transform hover:scale-105 ${
+          className={`px-2 py-3 rounded-lg text-sm font-bold transition-all transform hover:scale-105 ${
             selectedBet?.selection === '2'
-              ? 'bg-red-600 text-white shadow-lg'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              ? 'bg-red-500 text-white shadow-lg shadow-red-500/50 border-2 border-white/30'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-2 border-transparent'
           }`}
         >
-          <div className="font-bold">2</div>
-          <div className="text-xs mt-1 opacity-90">{match.odds.away}</div>
+          <div className="text-xs font-bold">Visitante</div>
+          <div className="text-lg mt-1 text-white drop-shadow-lg">{match.odds.away || '1.0'}</div>
         </button>
       </div>
       {selectedBet && (
@@ -643,7 +648,7 @@ const copyToWhatsApp = (ticket) => {
   if (!phoneNumber.startsWith('+57')) {
     phoneNumber = `+57 ${phoneNumber}`;
   }
-  const message = `*🎫 TICKET DE APUESTA - ${ticket.id}*
+  const message = `🎫 *TICKET DE APUESTA - ${ticket.id}* 🎫
 ` +
     `*Cliente:* ${ticket.customerName}
 ` +
@@ -674,7 +679,7 @@ const copyToWhatsApp = (ticket) => {
 ` +
     `✅ 7 aciertos: Gana $1,000,000
 ` +
-    `¡Gracias por confiar en La Jugada 7! 🏆`;
+    `¡Gracias por confiar en La Jugada 7! 🍀`;
   // Usar el esquema whatsapp:// para abrir la app nativa
   const whatsappUrl = `whatsapp://send?phone=${phoneNumber.replace(/\s+/g, '')}&text=${encodeURIComponent(message)}`;
   // Intentar abrir WhatsApp nativo
@@ -1601,13 +1606,22 @@ const generateResultsMessage = (matchResults, allMatches, sellerName) => {
   finishedMatches.forEach((match, index) => {
     const timeEmoji = index < 3 ? '🕗' : index < 6 ? '🕘' : '🕙';
     const flagEmoji = match.country === 'Colombia' ? '🇨🇴' :
-                      match.country === 'España' ? '🇪🇸' :
-                      match.country === 'Inglaterra' ? '🏴󠁧󠁢󠁥󠁮󠁧󠁿' :
-                      match.country === 'Italia' ? '🇮🇹' :
-                      match.country === 'Alemania' ? '🇩🇪' :
-                      match.country === 'Francia' ? '🇫🇷' : '🌍';
-    const resultText = match.result === '1' ? '🟢 Local' :
-                       match.result === 'X' ? '⚪ Empate' : '🔴 Visitante';
+    match.country === 'España' ? '🇪🇸' :
+    match.country === 'Inglaterra' ? '🏴󠁧󠁢󠁥󠁮󠁧󠁿' :
+    match.country === 'Italia' ? '🇮🇹' :
+    match.country === 'Alemania' ? '🇩🇪' :
+    match.country === 'Francia' ? '🇫🇷' :
+    match.country === 'Brasil' ? '🇧🇷' :
+    match.country === 'Argentina' ? '🇦🇷' :
+    match.country === 'México' ? '🇲🇽' :
+    match.country === 'Estados Unidos' ? '🇺🇸' :
+    match.country === 'Champions League' ? '🏆' :
+    match.country === 'Copa Libertadores' ? '🌎' :
+    match.country === 'Copa Sudamericana' ? '🌎' :
+    match.country === 'Europa League' ? '🇪🇺' : '🌐';
+
+    const resultText = match.result === '1' ? '✅ Local' :
+    match.result === 'X' ? '⚪ Empate' : '✅ Visitante';
     message += `${timeEmoji} *${match.time}* | ${flagEmoji} *${match.league}*\n`;
     message += `📊 *${match.homeTeam}* vs *${match.awayTeam}*\n`;
     message += `✅ Resultado: ${resultText}\n\n`;
@@ -2208,13 +2222,18 @@ useEffect(() => {
             onChange={(e) => setMatchForm({...matchForm, time: e.target.value})}
             className="bg-gray-700 text-white rounded-lg px-3 py-2"
           />
-          <input
-            type="text"
-            placeholder="País"
+          <select
             value={matchForm.country}
             onChange={(e) => setMatchForm({...matchForm, country: e.target.value})}
             className="bg-gray-700 text-white rounded-lg px-3 py-2"
-          />
+          >
+            <option value="">Seleccionar País/Torneo</option>
+            {getCountryOptions().map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
           <input
             type="number"
             placeholder="Popularidad (0-100)"
@@ -2254,8 +2273,14 @@ useEffect(() => {
                 .map(match => (
                   <div key={match.id} className="bg-gray-700 p-3 rounded flex justify-between items-center">
                   <div>
-                    <p className="text-white">{match.homeTeam} vs {match.awayTeam}</p>
-                    <p className="text-gray-400 text-sm">{match.league} • {match.time}</p>
+                    <p className="text-white flex items-center gap-2">
+                      <span className="text-xl">{getCountryFlag(match.country)}</span>
+                      {match.homeTeam} vs {match.awayTeam}
+                    </p>
+                    <p className="text-gray-400 text-sm flex items-center gap-2">
+                      <span>{getCountryFlag(match.country)} {match.league}</span>
+                      <span>• {match.time}</span>
+                    </p>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -2359,19 +2384,19 @@ useEffect(() => {
            
             <button
             onClick={() => {
-            const link = `https://footbet-pro.web.app/#/public-dashboard?seller=${currentUser.id}`;
-            const message = `🍀 *¡Tu suerte empieza aquí!* 🍀
+            const link = `https://footbet-pro.vercel.app/`;
+            const message = `🍀 ¡Tu suerte empieza aquí! 🍀
 
-            ⚽ *La Jugada 7* - Apuesta inteligente
+            ⚽ *La Jugada 7* - Apuesta Inteligente
 
-            🎯 *Premios:*
-            ✅ 5 aciertos → Recupera tu apuesta
-            ✅ 6 aciertos → 10 juegos GRATIS
-            ✅ 7 aciertos → ¡$1.000.000! 💰
+            🎯 PREMIOS:
+            ✅ 5 aciertos: Recupera tu apuesta
+            ✅ 6 aciertos: 10 Juegos GRATIS
+            ✅ 7 aciertos: $1.000.000
 
-            📲 Selecciona tus 7 partidos y envía tu apuesta en segundos.
+            📲 Selecciona tus 7 partidos y envía tu apuesta
 
-            👉 *Juega ahora:* ${link}
+            👉 Juega ahora: ${link}
 
             ¡Mucha suerte! 🍀`;
             window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');

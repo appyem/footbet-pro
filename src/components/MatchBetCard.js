@@ -1,5 +1,6 @@
 import React from 'react';
-import { Calendar, Clock, AlertTriangle } from 'lucide-react';
+import { Calendar, Clock } from 'lucide-react';
+import { getCountryFlag } from '../services/countryFlags';
 
 const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrapMatch }) => {
   if (!match || !match.homeTeam || !match.awayTeam) {
@@ -10,11 +11,9 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
       <div className="flex justify-between items-start mb-3">
         <div className="flex flex-col">
           <span className="text-green-400 text-sm font-medium flex items-center gap-1">
+            <span className="text-lg">{getCountryFlag(match.country)}</span>
             <Calendar className="w-3 h-3" />
             {match.league}
-            {isTrapMatch && (
-              <AlertTriangle className="w-3 h-3 text-purple-400 ml-1" title="Partido especial - Alta volatilidad" />
-            )}
           </span>
           <span className="text-gray-500 text-xs mt-1">{match.date}</span>
         </div>
@@ -29,40 +28,45 @@ const MatchBetCard = React.memo(({ match, selectedBet, onSelectionChange, isTrap
         <span className="text-white font-medium text-lg">{match.awayTeam}</span>
       </div>
       <div className="grid grid-cols-3 gap-2 mb-3">
-        <button
-          onClick={() => onSelectionChange(match.id, '1', match.odds.home)}
-          className={`px-3 py-2 rounded text-sm font-medium transition-all duration-200 transform hover:scale-105 ${
-            selectedBet?.selection === '1'
-              ? 'bg-green-600 text-white shadow-lg'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          <div className="font-bold">1</div>
-          <div className="text-xs mt-1 opacity-90">{match.odds.home}</div>
-        </button>
-        <button
-          onClick={() => onSelectionChange(match.id, 'X', match.odds.draw)}
-          className={`px-3 py-2 rounded text-sm font-medium transition-all duration-200 transform hover:scale-105 ${
-            selectedBet?.selection === 'X'
-              ? 'bg-yellow-600 text-white shadow-lg'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          <div className="font-bold">X</div>
-          <div className="text-xs mt-1 opacity-90">{match.odds.draw}</div>
-        </button>
-        <button
-          onClick={() => onSelectionChange(match.id, '2', match.odds.away)}
-          className={`px-3 py-2 rounded text-sm font-medium transition-all duration-200 transform hover:scale-105 ${
-            selectedBet?.selection === '2'
-              ? 'bg-red-600 text-white shadow-lg'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          <div className="font-bold">2</div>
-          <div className="text-xs mt-1 opacity-90">{match.odds.away}</div>
-        </button>
-      </div>
+  {/* Local */}
+  <button
+    onClick={() => onSelectionChange(match.id, '1', match.odds.home)}
+    className={`px-2 py-3 rounded-lg text-sm font-bold transition-all transform hover:scale-105 ${
+      selectedBet?.selection === '1'
+        ? 'bg-green-500 text-white shadow-lg shadow-green-500/50 border-2 border-white/30'
+        : 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-2 border-transparent'
+    }`}
+  >
+    <div className="text-xs font-bold">Local</div>
+    <div className="text-lg mt-1 text-white drop-shadow-lg">{match.odds.home || '1.0'}</div>
+  </button>
+  
+  {/* Empate */}
+  <button
+    onClick={() => onSelectionChange(match.id, 'X', match.odds.draw)}
+    className={`px-2 py-3 rounded-lg text-sm font-bold transition-all transform hover:scale-105 ${
+      selectedBet?.selection === 'X'
+        ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/50 border-2 border-white/30'
+        : 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-2 border-transparent'
+    }`}
+  >
+    <div className="text-xs font-bold">Empate</div>
+    <div className="text-lg mt-1 text-white drop-shadow-lg">{match.odds.draw || '1.0'}</div>
+  </button>
+  
+  {/* Visitante */}
+  <button
+    onClick={() => onSelectionChange(match.id, '2', match.odds.away)}
+    className={`px-2 py-3 rounded-lg text-sm font-bold transition-all transform hover:scale-105 ${
+      selectedBet?.selection === '2'
+        ? 'bg-red-500 text-white shadow-lg shadow-red-500/50 border-2 border-white/30'
+        : 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-2 border-transparent'
+    }`}
+  >
+    <div className="text-xs font-bold">Visitante</div>
+    <div className="text-lg mt-1 text-white drop-shadow-lg">{match.odds.away || '1.0'}</div>
+  </button>
+</div>
       {selectedBet && (
         <div className="bg-gradient-to-r from-gray-700 to-gray-800 rounded-lg p-3 border border-gray-600">
           <div className="flex justify-between items-center mb-2">

@@ -311,7 +311,7 @@ const PublicBetForm = () => {
           {submitting ? 'Enviando...' : 'Enviar Apuesta al Vendedor'}
         </button>
         <p className="text-gray-400 text-xs text-center mt-4">
-          📱 Al enviar, el vendedor recibirá tu apuesta y te contactará para confirmar
+          📱 Al enviar, El vendedor recibirá tus resultados y te contactará para confirmar
         </p>
       </div>
     </div>
