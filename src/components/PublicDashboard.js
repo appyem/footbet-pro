@@ -190,31 +190,40 @@ useEffect(() => {
   );
 
   // 🔁 Escuchar vendedores activos
-  const unsubscribeSellers = onSnapshot(
-    collection(db, 'sellers'),
-    (snapshot) => {
-      if (!isMounted) return;
-      
-      const sellersData = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(seller => seller.active !== false);
-      
-      setSellers(sellersData);
-      
-      console.log('🔍 Vendedores cargados:', sellersData.length);
-      
-      // ✅ PRIORIDAD 1: Usar seller de la URL
-      if (urlSellerId && sellersData.find(s => s.id === urlSellerId)) {
-        setSelectedSeller(urlSellerId);
-        console.log('✅ Seller seleccionado desde URL:', urlSellerId);
-      }
-      // ✅ PRIORIDAD 2: Usar primer vendedor si no hay URL
-      else if (sellersData.length > 0 && !selectedSeller) {
-        setSelectedSeller(sellersData[0].id);
-        console.log('✅ Seller seleccionado por defecto:', sellersData[0].id);
-      }
+const unsubscribeSellers = onSnapshot(
+  collection(db, 'sellers'),
+  (snapshot) => {
+    if (!isMounted) return;
+    
+    // ✅ CORRECCIÓN: El id debe ser SIEMPRE doc.id (Firebase)
+    const sellersData = snapshot.docs
+      .map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          id: doc.id  // ← ESTO SOBRESCRIBE CUALQUIER CAMPO id DEL DOCUMENTO
+        };
+      })
+      .filter(seller => seller.active !== false);
+    
+    setSellers(sellersData);
+    
+    console.log('🔍 Vendedores cargados:', sellersData.length);
+    console.log('🔍 URL Seller ID:', urlSellerId);
+    console.log('🔍 Vendedores con IDs:', sellersData.map(s => ({ name: s.name, id: s.id })));
+    
+    // ✅ PRIORIDAD 1: Usar seller de la URL
+    if (urlSellerId && sellersData.find(s => s.id === urlSellerId)) {
+      setSelectedSeller(urlSellerId);
+      console.log('✅ Seller seleccionado desde URL:', urlSellerId);
     }
-  );
+    // ✅ PRIORIDAD 2: Usar primer vendedor si no hay URL
+    else if (sellersData.length > 0 && !selectedSeller) {
+      setSelectedSeller(sellersData[0].id);
+      console.log('✅ Seller seleccionado por defecto:', sellersData[0].id);
+    }
+  }
+);
 
   return () => {
     isMounted = false;
@@ -452,7 +461,7 @@ const handleSubmit = async (e) => {
             
             {/* 🔹 CAMBIO: Reemplazar dropdown por nombre del vendedor */}
             <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
+              <label className="block text-gray-300 text-sm font-medium mb-2 items-center gap-2">
                 <User className="w-4 h-4" />
                 Tu Vendedor Asignado
               </label>
