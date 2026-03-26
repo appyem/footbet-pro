@@ -177,14 +177,25 @@ useEffect(() => {
       });
 
       // ✅ TOMAR MÁXIMO 7 PARTIDOS
-      const finalMatches = allAvailableMatches.slice(0, 7);
+const finalMatches = allAvailableMatches.slice(0, 7);
 
-      console.log('🔍 Partidos cargados para público:', finalMatches.length);
-      console.log('🔍 Fechas disponibles:', [...new Set(finalMatches.map(m => m.date))]);
-      console.log('🔍 Primer partido:', finalMatches[0]);
+console.log('🔍 Partidos cargados para público:', finalMatches.length);
+console.log('🔍 Fechas disponibles:', [...new Set(finalMatches.map(m => m.date))]);
+console.log('🔍 Primer partido:', finalMatches[0]);
 
-      setMatches(finalMatches);
-      setLoading(false);
+// ✅ VALIDAR QUE HAYA SUFICIENTES PARTIDOS (MÍNIMO 7)
+if (finalMatches.length < 7) {
+  console.log('⚠️ No hay suficientes partidos disponibles:', finalMatches.length);
+  if (isMounted) {
+    setError(`Solo hay ${finalMatches.length} partidos disponibles. Se necesitan 7 partidos para jugar.`);
+    setMatches([]);  // ← NO mostrar partidos si no hay 7
+    setLoading(false);
+    return;  // ← SALIR SIN GUARDAR PARTIDOS
+  }
+}
+
+setMatches(finalMatches);
+setLoading(false);
     },
     (error) => {
       console.error('Error cargando partidos:', error);
@@ -283,11 +294,14 @@ const handleSubmit = async (e) => {
     return;
   }
   
-  // ✅ 5. Validar que haya seleccionado los 7 partidos
-  if (selectedBets.size !== matches.length) {
-    setError(`Selecciona los ${matches.length} partidos`);
+  // ✅ 5. Validar que haya seleccionado TODOS los partidos (CRÍTICO)
+if (selectedBets.size !== matches.length || matches.length !== 7) {
+  const missingMatches = 7 - selectedBets.size;
+  if (missingMatches > 0) {
+    setError(`⚠️ Faltan ${missingMatches} partidos por seleccionar. Debes seleccionar los 7 partidos.`);
     return;
   }
+}
   
   setSubmitting(true);
   setError('');
@@ -576,12 +590,13 @@ const handleSubmit = async (e) => {
           </div>
           
           {matches.length === 0 ? (
-            <div className="text-center py-12">
-              <AlertCircle className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400">No hay partidos disponibles en este momento</p>
-              <p className="text-gray-500 text-sm mt-2">Vuelve más tarde o contacta a un vendedor</p>
-            </div>
-          ) : (
+  <div className="text-center py-12">
+    <AlertCircle className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+    <p className="text-gray-400 text-lg font-medium">No hay partidos disponibles en este momento</p>
+    <p className="text-yellow-400 text-sm mt-2 font-medium">⚠️ Se necesitan 7 partidos para jugar</p>
+    <p className="text-gray-500 text-sm mt-2">Vuelve más tarde o contacta a un vendedor</p>
+  </div>
+) : (
             <div className="space-y-4">
               {matches.map(match => (
                 <MatchBetCard
@@ -607,18 +622,20 @@ const handleSubmit = async (e) => {
           }`}
         >
           {submitting ? (
-            <span className="flex items-center justify-center gap-2">
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Enviando...
-            </span>
-          ) : selectedBets.size !== matches.length ? (
-            `Selecciona los ${matches.length} partidos primero`
-          ) : (
-            <span className="flex items-center justify-center gap-2">
-              <Phone className="w-5 h-5" />
-              Enviar Tu jugada por WhatsApp
-            </span>
-          )}
+  <span className="flex items-center justify-center gap-2">
+    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+    Enviando...
+  </span>
+) : matches.length === 0 ? (
+  `⚠️ No hay partidos disponibles (Se necesitan 7)`
+) : selectedBets.size !== 7 ? (
+  `⚠️ Faltan ${7 - selectedBets.size} partidos (Debes seleccionar los 7)`
+) : (
+  <span className="flex items-center justify-center gap-2">
+    <Phone className="w-5 h-5" />
+    Enviar Tu jugada por WhatsApp
+  </span>
+)}
         </button>
 
         {/* Premios */}
