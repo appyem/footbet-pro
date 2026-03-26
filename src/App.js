@@ -2442,7 +2442,25 @@ useEffect(() => {
             ✅ 5 aciertos: Recupera tu Tu jugada
             ✅ 6 aciertos: 10 Juegos GRATIS
             ✅ 7 aciertos: $1.000.000
-            📲 Selecciona tus 7 partidos y envía tu Tu jugada
+
+            💰 *VALOR DEL TICKET:*
+            *$5.000 COP*
+
+            💳 *FORMAS DE PAGO:*
+            • *Nequi:* 3106524453
+            • *Daviplata:* 3106524453
+            • *Llave:* 3106524453
+
+            📸 *IMPORTANTE:*
+            Enviar pantallazo del pago para confirmar tu juego
+
+            📲 *¿CÓMO JUGAR?*
+
+            1. Selecciona tus 7 partidos
+            2. Envía tu Tu jugada por WhatsApp
+            3. Realiza el pago
+            4. Comparte el comprobante
+            
             👉 Juega ahora: ${link}
             ¡Mucha suerte! 🍀`;
                 window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
