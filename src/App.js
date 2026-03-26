@@ -1758,8 +1758,8 @@ useEffect(() => {
 
 useEffect(() => {
   let isMounted = true;
-
-  // 🔁 LISTENER EN TIEMPO REAL PARA RESULTADOS (primero, para tener datos actualizados)
+  
+  // 🔁 LISTENER EN TIEMPO REAL PARA RESULTADOS
   const unsubscribeResults = onSnapshot(collection(db, 'match_results'), (snapshot) => {
     const resultsData = {};
     snapshot.docs.forEach(doc => {
@@ -1780,17 +1780,15 @@ useEffect(() => {
     if (isMounted) {
       setAllMatchesIncludingResults(allMatchesData);
     }
-
-    // Usar el estado actual de matchResults (no la ref)
-    const currentMatchResults = matchResults;
-
+    
+    const currentMatchResults = matchResultsRef.current;
     const matchesWithoutResults = allMatchesData.filter(match =>
       currentMatchResults[match.id] === undefined
     );
     if (isMounted) {
       setAllMatches(matchesWithoutResults);
     }
-
+    
     // Para el VENDEDOR: solo partidos de hoy disponibles
     const today = getCurrentDate();
     const activeMatches = allMatchesData.filter(match =>
@@ -1800,26 +1798,27 @@ useEffect(() => {
       !shouldCloseMatch(match.date, match.time) &&
       match.date >= today
     );
-
-    // Tomar máximo 7 partidos disponibles HOY
+    
     const finalMatches = activeMatches.slice(0, 7);
     if (isMounted) {
       setMatches(finalMatches);
     }
   });
 
-  // 🔁 LISTENER PARA TICKETS Y VENDEDORES
+  // 🔁 LISTENER PARA TICKETS
   const unsubscribeTickets = onSnapshot(collection(db, 'tickets'), (snapshot) => {
     const ticketsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
     if (isMounted) setTickets(ticketsData);
   });
 
+  // 🔁 LISTENER PARA VENDEDORES
   const unsubscribeSellers = onSnapshot(collection(db, 'sellers'), (snapshot) => {
     const sellersData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
     if (isMounted) setSellerUsers(sellersData);
   });
-    // 🔁 LISTENER PARA TICKETS PENDIENTES (nuevos)
-    const unsubscribePendingTickets = onSnapshot(
+
+  // 🔁 LISTENER PARA TICKETS PENDIENTES (CORREGIDO - SIN DEPENDENCIAS)
+  const unsubscribePendingTickets = onSnapshot(
     collection(db, 'pending_tickets'),
     (snapshot) => {
       const pendingData = snapshot.docs.map(doc => ({
@@ -1829,8 +1828,12 @@ useEffect(() => {
       console.log('🔍 Pending Tickets cargados:', pendingData.length);
       console.log('🔍 Pending Tickets:', pendingData);
       if (isMounted) setPendingTickets(pendingData);
+    },
+    (error) => {
+      console.error('Error escuchando pending_tickets:', error);
     }
   );
+
   return () => {
     isMounted = false;
     unsubscribeResults();
@@ -1839,7 +1842,8 @@ useEffect(() => {
     unsubscribeSellers();
     unsubscribePendingTickets();
   };
-}, [matchResults]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);  // ← ✅ SIN DEPENDENCIAS (los listeners son independientes)
 
 // Authentication data
   const adminUsers = useMemo(() => [
@@ -2331,11 +2335,37 @@ useEffect(() => {
   ), [currentUser, tickets, sellerUsers, handleLogout, matchResults, matchForm, editingMatch, saveMatch, allMatches]);
 
   const SellerDashboard = useCallback(() => {
-    console.log('🔍 Current User ID:', currentUser?.id);
-    console.log('🔍 Pending Tickets:', pendingTickets);
-    console.log('🔍 Pending Tickets para este vendedor:', 
-    pendingTickets.filter(pt => pt.sellerId === currentUser?.id));
-    const todaySales = tickets.filter(t => t.sellerId === currentUser?.id && t.date === getCurrentDate());
+  // 🔍 LOGGING MEJORADO PARA DEPURAR
+  console.log('🔍 === SELLER DASHBOARD RENDER ===');
+  console.log('🔍 Current User:', currentUser);
+  console.log('🔍 Current User ID:', currentUser?.id);
+  console.log('🔍 Current User ID Type:', typeof currentUser?.id);
+  console.log('🔍 Pending Tickets Totales:', pendingTickets.length);
+  
+  // ✅ FILTRO CON LOGGING DETALLADO
+  const myPendingTickets = pendingTickets.filter(pt => {
+  const match = pt.sellerId === currentUser?.id;
+  console.log('🔍 Ticket:', {
+    ticketId: pt.id,
+    sellerId: pt.sellerId,              // ← ESTO ES CLAVE
+    sellerIdType: typeof pt.sellerId,
+    sellerIdLength: pt.sellerId?.length,
+    currentUser: currentUser?.id,
+    currentUserType: typeof currentUser?.id,
+    currentUserLength: currentUser?.id?.length,
+    match: match ? '✅ COINCIDE' : '❌ NO COINCIDE',
+    comparison: pt.sellerId === currentUser?.id ? 'IGUALES' : 'DIFERENTES'
+  });
+  // ✅ LOG ADICIONAL: Mostrar caracter por caracter
+  console.log('🔍 sellerId chars:', pt.sellerId?.split('').map((c, i) => `${i}:${c}`).join(' '));
+  console.log('🔍 currentUser chars:', currentUser?.id?.split('').map((c, i) => `${i}:${c}`).join(' '));
+  return match;
+});
+  
+  console.log('🔍 Pending Tickets para este vendedor:', myPendingTickets.length);
+  console.log('🔍 === FIN SELLER DASHBOARD ===');
+  
+  const todaySales = tickets.filter(t => t.sellerId === currentUser?.id && t.date === getCurrentDate());
     const todayTotal = todaySales.reduce((sum, t) => sum + t.totalStake, 0);
     const commissionAmount = (todayTotal * (currentUser?.commission || 0)) / 100;
     const amountToPay = todayTotal - commissionAmount;
@@ -2395,27 +2425,24 @@ useEffect(() => {
             </button>
            
             <button
-            onClick={() => {
-            const link = `https://footbet-pro.vercel.app/`;
-            const message = `🍀 ¡Tu suerte empieza aquí! 🍀
-
+              onClick={() => {
+                // ✅ USAR EL ID CORRECTO DE FIREBASE
+                const sellerId = currentUser?.id;
+                const link = `https://footbet-pro.vercel.app/#/public-dashboard?seller=${sellerId}`;
+                const message = `🍀 ¡Tu suerte empieza aquí! 🍀
             ⚽ *La Jugada 7* - Tu jugada Inteligente
-
             🎯 PREMIOS:
             ✅ 5 aciertos: Recupera tu Tu jugada
             ✅ 6 aciertos: 10 Juegos GRATIS
             ✅ 7 aciertos: $1.000.000
-
             📲 Selecciona tus 7 partidos y envía tu Tu jugada
-
             👉 Juega ahora: ${link}
-
             ¡Mucha suerte! 🍀`;
-            window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
-            }}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+                window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+              }}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
             >
-            📲 Enviar Enlace deJugadas
+              📲 Enviar Enlace de Jugadas
             </button>
             <button
               onClick={() => {

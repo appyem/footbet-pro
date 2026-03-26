@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, User, AlertCircle, CheckCircle, Calendar, Clock } from 'lucide-react';
 import { db } from '../services/firebase';
-// eslint-disable-next-line no-unused-vars
-import { doc, getDoc, getDocs, query, collection, where, onSnapshot, addDoc } from 'firebase/firestore';
-import { getCurrentDate, shouldCloseMatch } from '../services/matchService';
+
+
+import { collection, onSnapshot, addDoc } from 'firebase/firestore';
+
 import { getCountryFlag } from '../services/countryFlags';
 
 // Componente aislado para los inputs del cliente
@@ -109,11 +110,20 @@ const PublicDashboard = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  // 🟢 DESPUÉS (busca hoy + futuros hasta 7 días)
-// 🟢 DESPUÉS
+  
 useEffect(() => {
   let isMounted = true;
-  const today = getCurrentDate();
+  
+  // ✅ USAR MISMA FUNCIÓN QUE EL SELLER DASHBOARD
+  const getTodayDate = () => {
+    const now = new Date();
+    // Ajustar a timezone Colombia (UTC-5)
+    const colombiaTime = new Date(now.getTime() - (5 * 60 * 60 * 1000));
+    return colombiaTime.toISOString().split('T')[0];
+  };
+  
+  const today = getTodayDate();
+  console.log('🔍 Fecha hoy (calculada):', today);
 
   // 🔹 EXTRAER SELLER DE LA URL (si existe)
   const hash = window.location.hash;
@@ -122,28 +132,60 @@ useEffect(() => {
   console.log('🔍 Hash completo:', hash);
   console.log('🔍 Seller desde hash:', urlSellerId);
 
-  // 🔁 Escuchar partidos disponibles HOY
+  // 🔁 LISTENER EN TIEMPO REAL PARA TODOS LOS PARTIDOS
   const unsubscribeMatches = onSnapshot(
-    query(collection(db, 'matches'), where('date', '==', today)),
+    collection(db, 'matches'),
     (snapshot) => {
       if (!isMounted) return;
-      
-      const matchesData = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(match => 
-          match &&
-          !match.hidden &&
-          !shouldCloseMatch(match.date, match.time)
-        )
-        .slice(0, 7);
 
-      setMatches(matchesData);
+      const allMatchesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      console.log('🔍 Total partidos en Firebase:', allMatchesData.length);
+      console.log('🔍 Fechas en Firebase:', [...new Set(allMatchesData.map(m => m.date))]);
+
+      // ✅ FILTRAR PARTIDOS VÁLIDOS (MISMA LÓGICA QUE SELLER DASHBOARD)
+      const today = getTodayDate();
+      const allAvailableMatches = allMatchesData.filter(match => {
+        // Validaciones básicas
+        if (!match || !match.homeTeam || !match.awayTeam) return false;
+        if (match.hidden === true) return false;
+        
+        // ✅ Solo partidos de hoy o futuros (NO pasados)
+        if (match.date < today) return false;
+        
+        // ✅ Excluir partidos ya con resultado
+        if (match.result || match.status === 'finished') return false;
+        
+        return true;
+      });
+
+      // ✅ ORDENAR POR FECHA Y HORA
+      allAvailableMatches.sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        const [aH, aM] = a.time.split(':').map(Number);
+        const [bH, bM] = b.time.split(':').map(Number);
+        return (aH * 60 + aM) - (bH * 60 + bM);
+      });
+
+      // ✅ TOMAR MÁXIMO 7 PARTIDOS
+      const finalMatches = allAvailableMatches.slice(0, 7);
+
+      console.log('🔍 Partidos cargados para público:', finalMatches.length);
+      console.log('🔍 Fechas disponibles:', [...new Set(finalMatches.map(m => m.date))]);
+      console.log('🔍 Primer partido:', finalMatches[0]);
+
+      setMatches(finalMatches);
       setLoading(false);
     },
     (error) => {
       console.error('Error cargando partidos:', error);
-      setError('Error al cargar los partidos. Intenta recargar.');
-      setLoading(false);
+      if (isMounted) {
+        setError('Error al cargar los partidos. Intenta recargar.');
+        setLoading(false);
+      }
     }
   );
 
@@ -159,10 +201,7 @@ useEffect(() => {
       
       setSellers(sellersData);
       
-      // ✅ DEBUG: Verificar qué seller se está seleccionando
       console.log('🔍 Vendedores cargados:', sellersData.length);
-      console.log('🔍 selectedSeller actual:', selectedSeller);
-      console.log('🔍 URL seller:', urlSellerId);
       
       // ✅ PRIORIDAD 1: Usar seller de la URL
       if (urlSellerId && sellersData.find(s => s.id === urlSellerId)) {
@@ -183,7 +222,7 @@ useEffect(() => {
     unsubscribeSellers();
   };
 // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []); // ← Sin dependencias para evitar re-ejecuciones
+}, []);
 
   const toggleSelection = (matchId, selection, odds) => {
     setSelectedBets(prev => {
