@@ -640,65 +640,72 @@ const formatCOP = (amount) => {
     maximumFractionDigits: 0
   }).format(amount);
 };
-// Función para copiar a WhatsApp (versión corregida)
+// ✅ FUNCIÓN CORREGIDA PARA IPHONE Y ANDROID
 const copyToWhatsApp = (ticket) => {
   if (!ticket) return;
-  // Asegurar que el número tenga el formato correcto
-  let phoneNumber = ticket.customerPhone;
-  if (!phoneNumber.startsWith('+57')) {
-    phoneNumber = `+57 ${phoneNumber}`;
+  
+  // ✅ 1. Formatear número correctamente (sin espacios, con código país)
+  let phoneNumber = ticket.customerPhone.replace(/\D/g, ''); // Solo números
+  
+  if (!phoneNumber.startsWith('57')) {
+    phoneNumber = `57${phoneNumber}`;
   }
+  
+  // ✅ 2. Crear mensaje
   const message = `🎫 *TICKET DE Tu jugada - ${ticket.id}* 🎫
-` +
-    `*Cliente:* ${ticket.customerName}
-` +
-    `*Teléfono:* ${phoneNumber}
-` +
-    `*Vendedor:* ${ticket.sellerName}
-` +
-    `*Fecha:* ${ticket.date} ${ticket.time}
-` +
-    `*Tu jugadaS:*
-` +
-    ticket.bets.map((bet, index) => 
-      `${index + 1}. ${bet.homeTeam} vs ${bet.awayTeam}
-` +
-      `   - ${bet.selection === '1' ? 'Ganador Local' : bet.selection === 'X' ? 'Empate' : 'Ganador Visitante'} (x${bet.odds})
-`
-    ).join('\n') +
-    `
+*Cliente:* ${ticket.customerName}
+*Teléfono:* +${phoneNumber}
+*Vendedor:* ${ticket.sellerName}
+*Fecha:* ${ticket.date} ${ticket.time}
+*Tu jugadaS:*
+${ticket.bets.map((bet, index) =>
+  `${index + 1}. ${bet.homeTeam} vs ${bet.awayTeam}
+   - ${bet.selection === '1' ? 'Ganador Local' : bet.selection === 'X' ? 'Empate' : 'Ganador Visitante'} (x${bet.odds})
+`).join('')}
 *TOTAL APOSTADO:* ${formatCOP(ticket.totalStake)}
-` +
-    `*Código de Verificación:* ${ticket.verificationCode}
-` +
-    `🏆 *PREMIOS:*
-` +
-    `✅ 5 aciertos: Recupera tu Tu jugada ($5,000)
-` +
-    `✅ 6 aciertos: ¡Gana un TICKET DORADO! (10 juegos gratis)
-` +
-    `✅ 7 aciertos: Gana $1,000,000
-` +
-    `¡Gracias por confiar en La Jugada 7! 🍀`;
-  // Usar el esquema whatsapp:// para abrir la app nativa
-  const whatsappUrl = `whatsapp://send?phone=${phoneNumber.replace(/\s+/g, '')}&text=${encodeURIComponent(message)}`;
-  // Intentar abrir WhatsApp nativo
-  window.location.href = whatsappUrl;
-  // Fallback a web si la app nativa no está disponible
-  setTimeout(() => {
-    window.open(`https://wa.me/${phoneNumber.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
-  }, 1000);
+*Código de Verificación:* ${ticket.verificationCode}
+🏆 *PREMIOS:*
+✅ 5 aciertos: Recupera tu Tu jugada ($5,000)
+✅ 6 aciertos: ¡Gana un TICKET DORADO! (10 juegos gratis)
+✅ 7 aciertos: Gana $1,000,000
+¡Gracias por confiar en La Jugada 7! 🍀`;
+
+  // ✅ 3. URL compatible con iOS y Android
+  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+  
+  // ✅ 4. Detectar si es iOS
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  
+  // ✅ 5. Abrir WhatsApp (método compatible con iOS)
+  if (isIOS) {
+    // iOS: Usar window.open directamente
+    window.open(whatsappUrl, '_blank');
+  } else {
+    // Android: Intentar abrir app nativa primero
+    window.location.href = whatsappUrl;
+    // Fallback a nueva pestaña si no funciona
+    setTimeout(() => {
+      window.open(whatsappUrl, '_blank');
+    }, 1500);
+  }
 };
 
-// Función para enviar partidos por WhatsApp
+// ✅ FUNCIÓN CORREGIDA PARA ENVIAR PARTIDOS
 const sendMatchesToWhatsApp = (message) => {
   const encodedMessage = encodeURIComponent(message);
-  const whatsappUrl = `whatsapp://send?text=${encodedMessage}`;
-  window.location.href = whatsappUrl;
-  // Fallback a WhatsApp Web si la app no responde (opcional, pero raro en móviles)
-  setTimeout(() => {
-    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
-  }, 1500);
+  const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+  
+  // ✅ Detectar iOS
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  
+  if (isIOS) {
+    window.open(whatsappUrl, '_blank');
+  } else {
+    window.location.href = whatsappUrl;
+    setTimeout(() => {
+      window.open(whatsappUrl, '_blank');
+    }, 1500);
+  }
 };
 
 // Componente de ventas - versión para vendedor (solo sus ventas)

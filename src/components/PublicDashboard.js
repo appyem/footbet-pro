@@ -343,9 +343,11 @@ const handleSubmit = async (e) => {
     console.log('🔍 sellerId guardado:', selectedSeller);
     console.log('🔍 sellerData:', sellerData);
     
-    // ✅ 11. Abrir WhatsApp
-    const cleanPhone = sellerPhone.replace(/\D/g, '');
+    // ✅ En handleSubmit del PublicDashboard
+    const cleanPhone = sellerPhone.replace(/\D/g, ''); // Solo números
     const whatsappUrl = `https://wa.me/57${cleanPhone}?text=${encodeURIComponent(message)}`;
+
+    // ✅ Abrir compatible con iOS
     window.open(whatsappUrl, '_blank');
     
     // ✅ 12. Mostrar éxito y limpiar formulario
@@ -433,6 +435,7 @@ const handleSubmit = async (e) => {
         )}
 
         {/* Formulario de cliente y vendedor */}
+        
         <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6">
           <h2 className="text-white text-xl font-bold mb-4 flex items-center gap-2">
             <User className="w-5 h-5" />
@@ -447,37 +450,32 @@ const handleSubmit = async (e) => {
               onPhoneChange={setCustomerPhone}
             />
             
-            
+            {/* 🔹 CAMBIO: Reemplazar dropdown por nombre del vendedor */}
             <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2 items-center gap-2">
+              <label className="block text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
                 <User className="w-4 h-4" />
-                Selecciona tu Vendedor
+                Tu Vendedor Asignado
               </label>
-              <select
-                value={selectedSeller}
-                onChange={(e) => setSelectedSeller(e.target.value)}
-                className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
-                disabled={loading || sellers.length === 0}
-              >
-                {loading || sellers.length === 0 ? (
-                  <option value="">Cargando vendedores...</option>
-                ) : (
-                  sellers.map(seller => (
-                    <option key={seller.id} value={seller.id}>
-                      {seller.name}
-                    </option>
-                  ))
-                )}
-              </select>
+              <div className="w-full bg-gray-700/50 text-white rounded-lg px-4 py-3 border border-gray-600 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-400" />
+                <span className="font-medium">
+                  {selectedSeller && sellers.find(s => s.id === selectedSeller)?.name 
+                    ? sellers.find(s => s.id === selectedSeller)?.name 
+                    : 'Cargando...'}
+                </span>
+              </div>
               {selectedSeller && (
-                <p className="text-green-400 text-xs mt-1 flex items-center gap-1">
+                <p className="text-green-400 text-xs mt-2 flex items-center gap-1">
                   <CheckCircle className="w-3 h-3" />
-                  Vendedor seleccionado: {sellers.find(s => s.id === selectedSeller)?.name}
+                  Tu jugada será enviada directamente a este vendedor
                 </p>
               )}
-              <p className="text-gray-400 text-xs mt-1">
-                El vendedor recibirá tus resultados y te contactará para confirmar
-              </p>
+              {!selectedSeller && sellers.length > 0 && (
+                <p className="text-yellow-400 text-xs mt-2 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  No se especificó un vendedor en el enlace
+                </p>
+              )}
             </div>
           </div>
         </div>
