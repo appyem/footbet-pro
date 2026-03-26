@@ -109,7 +109,9 @@ const PublicDashboard = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);  
 
+  const [modalWhatsappUrl, setModalWhatsappUrl] = useState('');
   
 useEffect(() => {
   let isMounted = true;
@@ -352,12 +354,16 @@ const handleSubmit = async (e) => {
     console.log('🔍 sellerId guardado:', selectedSeller);
     console.log('🔍 sellerData:', sellerData);
     
-    // ✅ En handleSubmit del PublicDashboard
+    // ✅ 11. PREPARAR WHATSAPP PERO NO ABRIR TODAVÍA
     const cleanPhone = sellerPhone.replace(/\D/g, ''); // Solo números
     const whatsappUrl = `https://wa.me/57${cleanPhone}?text=${encodeURIComponent(message)}`;
-
-    // ✅ Abrir compatible con iOS
-    window.open(whatsappUrl, '_blank');
+    
+    // ✅ GUARDAR EL NÚMERO Y MENSAJE EN ESTADO
+   
+    setModalWhatsappUrl(whatsappUrl);
+    
+    // ✅ 12. MOSTRAR MODAL DE CONFIRMACIÓN (EN VEZ DE ABRIR WHATSAPP DIRECTO)
+    setShowConfirmationModal(true);
     
     // ✅ 12. Mostrar éxito y limpiar formulario
     setSuccess(true);
@@ -376,6 +382,73 @@ const handleSubmit = async (e) => {
     setSubmitting(false);
   }
 };
+
+  // 🔹 MODAL DE CONFIRMACIÓN - ANTES DE ABRIR WHATSAPP
+  const ConfirmationModal = () => (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl border border-green-500/30">
+        <div className="p-6 text-center">
+          {/* 🔹 LOGO DE LA APLICACIÓN */}
+          <div className="w-24 h-24 bg-gradient-to-br from-green-500 to-green-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl border-4 border-green-400/30">
+            <img 
+              src="https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Logo%20dina%CC%81mico%20de%20La%20Jugada%207.png" 
+              alt="La Jugada 7 Logo"
+              className="w-20 h-20 object-contain drop-shadow-lg"
+            />
+          </div>
+          
+          {/* 🔹 TÍTULO */}
+          <h2 className="text-2xl font-bold text-white mb-2">
+            ✅ ¡Jugada Enviada!
+          </h2>
+          
+          {/* 🔹 MENSAJE */}
+          <p className="text-gray-300 text-sm mb-6">
+            Tu jugada ha sido enviada al vendedor <strong className="text-green-400">{sellers.find(s => s.id === selectedSeller)?.name}</strong> para su aprobación.
+          </p>
+          
+          {/* 🔹 INFORMACIÓN ADICIONAL */}
+          <div className="bg-gray-700/50 rounded-xl p-4 mb-6">
+            <div className="flex items-center justify-center gap-2 text-green-400 text-sm mb-2">
+              <CheckCircle className="w-4 h-4" />
+              <span>Enviado a: <strong className="text-white">{sellers.find(s => s.id === selectedSeller)?.name}</strong></span>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-blue-400 text-sm">
+              <Phone className="w-4 h-4" />
+              <span>Se abrirá WhatsApp para confirmar</span>
+            </div>
+          </div>
+          
+          {/* 🔹 BOTONES */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setShowConfirmationModal(false);
+                window.open(modalWhatsappUrl, '_blank');
+              }}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              <Phone className="w-5 h-5" />
+              Abrir WhatsApp
+            </button>
+            <button
+              onClick={() => setShowConfirmationModal(false)}
+              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+          
+          {/* 🔹 NOTA INFORMATIVA */}
+          <p className="text-gray-500 text-xs mt-4">
+            El vendedor recibirá tu jugada y te contactará para confirmar
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  
 
   if (loading) {
     return (
@@ -563,9 +636,10 @@ const handleSubmit = async (e) => {
             className="bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white px-3 py-1 rounded-lg text-xs transition-colors"
             title="Acceso Admin"
         >
-            🔐
+            
         </button>
         </div>
+        {showConfirmationModal && <ConfirmationModal />}
     </div>
   );
 };
