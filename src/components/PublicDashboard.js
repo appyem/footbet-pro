@@ -6,6 +6,7 @@ import { db } from '../services/firebase';
 import { collection, onSnapshot, addDoc } from 'firebase/firestore';
 
 import { getCountryFlag } from '../services/countryFlags';
+import { shouldCloseMatch } from '../services/matchService';
 
 // Componente aislado para los inputs del cliente
 const CustomerInfoForm = ({ customerName, customerPhone, onNameChange, onPhoneChange }) => {
@@ -160,6 +161,9 @@ useEffect(() => {
         
         // ✅ Excluir partidos ya con resultado
         if (match.result || match.status === 'finished') return false;
+
+        // ✅ CRÍTICO: Excluir partidos que YA INICIARON por horario
+        if (shouldCloseMatch(match.date, match.time)) return false;
         
         return true;
       });
