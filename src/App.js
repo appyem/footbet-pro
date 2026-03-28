@@ -2111,9 +2111,18 @@ useEffect(() => {
     alert('Error al eliminar el vendedor. Intente nuevamente.');
   }
 };
-  const handleDeleteTicket = (ticketId) => {
-    setTickets(prev => prev.filter(ticket => ticket.id !== ticketId));
-  };
+  const handleDeleteTicket = async (ticketId) => {
+  try {
+    // ✅ 1. Eliminar de Firebase
+    await deleteDoc(doc(db, 'tickets', ticketId));
+    // ✅ 2. NO es necesario actualizar el estado local manualmente
+    //    El listener de onSnapshot lo hará automáticamente
+    alert('Ticket eliminado exitosamente');
+  } catch (error) {
+    console.error('Error al eliminar ticket:', error);
+    alert('Error al eliminar el ticket. Intente nuevamente.');
+  }
+};
   const handleResendTicket = (ticket) => {
     setTicketToResend(ticket);
     setShowResendModal(true);
@@ -2896,19 +2905,19 @@ useEffect(() => {
         />
       )}
       {showDeleteTicketModal && ticketToDelete && (
-        <DeleteTicketModal
-          ticket={ticketToDelete}
-          onConfirm={() => {
-            handleDeleteTicket(ticketToDelete.id);
-            setShowDeleteTicketModal(false);
-            setTicketToDelete(null);
-          }}
-          onCancel={() => {
-            setShowDeleteTicketModal(false);
-            setTicketToDelete(null);
-          }}
-        />
-      )}
+      <DeleteTicketModal
+        ticket={ticketToDelete}
+        onConfirm={async () => {
+          await handleDeleteTicket(ticketToDelete.id);
+          setShowDeleteTicketModal(false);
+          setTicketToDelete(null);
+        }}
+        onCancel={() => {
+          setShowDeleteTicketModal(false);
+          setTicketToDelete(null);
+        }}
+      />
+    )}
       {showResendModal && ticketToResend && (
         <ResendTicketModal
           ticket={ticketToResend}
