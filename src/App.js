@@ -2497,26 +2497,42 @@ useEffect(() => {
             <p className="text-gray-500 text-xs mt-1">
               {ticket.bets.length} Jugadas • Enviado: {ticket.submittedAt}
             </p>
-            <button
-              onClick={async () => {
-                const newTicket = {
-                  ...ticket,
-                  id: `TKT${Date.now()}`,
-                  verificationCode: Math.random().toString(36).substring(2, 10).toUpperCase(),
-                  date: getCurrentDate(),
-                  time: getCurrentTime(),
-                  sellerName: currentUser?.name || 'Invitado',
-                  status: 'paid'
-                };
-                await addDoc(collection(db, 'tickets'), newTicket);
-                await deleteDoc(doc(db, 'pending_tickets', ticket.id));
-                copyToWhatsApp(newTicket);
-                alert('Ticket aprobado y enviado al cliente.');
-              }}
-              className="mt-2 bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 rounded flex items-center gap-1"
-            >
-              ✅ Aprobar y Enviar Ticket
-            </button>
+            <div className="flex gap-2 mt-2">
+              {/* ✅ BOTÓN APROBAR */}
+              <button
+                onClick={async () => {
+                  const newTicket = {
+                    ...ticket,
+                    id: `TKT${Date.now()}`,
+                    verificationCode: Math.random().toString(36).substring(2, 10).toUpperCase(),
+                    date: getCurrentDate(),
+                    time: getCurrentTime(),
+                    sellerName: currentUser?.name || 'Invitado',
+                    status: 'paid'
+                  };
+                  await addDoc(collection(db, 'tickets'), newTicket);
+                  await deleteDoc(doc(db, 'pending_tickets', ticket.id));
+                  copyToWhatsApp(newTicket);
+                  alert('Ticket aprobado y enviado al cliente.');
+                }}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-2 rounded flex items-center justify-center gap-1"
+              >
+                ✅ Aprobar
+              </button>
+              
+              {/* ❌ BOTÓN RECHAZAR (NUEVO) */}
+              <button
+                onClick={async () => {
+                  if (window.confirm(`¿Está seguro que desea RECHAZAR el ticket de ${ticket.customerName}? Esta acción no se puede deshacer.`)) {
+                    await deleteDoc(doc(db, 'pending_tickets', ticket.id));
+                    alert('Ticket rechazado. El cliente será notificado manualmente si lo desea.');
+                  }
+                }}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded flex items-center justify-center gap-1"
+              >
+                ❌ Rechazar
+              </button>
+            </div>
           </div>
         ))
       }
