@@ -1788,9 +1788,9 @@ useEffect(() => {
       setAllMatchesIncludingResults(allMatchesData);
     }
     
-    const currentMatchResults = matchResultsRef.current;
+    // ✅ USA matchResults DIRECTO (NO REF)
     const matchesWithoutResults = allMatchesData.filter(match =>
-      currentMatchResults[match.id] === undefined
+      matchResults[match.id] === undefined
     );
     if (isMounted) {
       setAllMatches(matchesWithoutResults);
@@ -1801,7 +1801,7 @@ useEffect(() => {
     const activeMatches = allMatchesData.filter(match =>
       match &&
       match.hidden !== true &&
-      currentMatchResults[match.id] === undefined &&
+      matchResults[match.id] === undefined &&  // ✅ USA matchResults DIRECTO
       !shouldCloseMatch(match.date, match.time) &&
       match.date >= today
     );
@@ -1824,7 +1824,7 @@ useEffect(() => {
     if (isMounted) setSellerUsers(sellersData);
   });
 
-  // 🔁 LISTENER PARA TICKETS PENDIENTES (CORREGIDO - SIN DEPENDENCIAS)
+  // 🔁 LISTENER PARA TICKETS PENDIENTES
   const unsubscribePendingTickets = onSnapshot(
     collection(db, 'pending_tickets'),
     (snapshot) => {
@@ -1850,7 +1850,7 @@ useEffect(() => {
     unsubscribePendingTickets();
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);  // ← ✅ SIN DEPENDENCIAS (los listeners son independientes)
+}, [matchResults]);  // ✅ matchResults COMO DEPENDENCIA
 
 // Authentication data
   const adminUsers = useMemo(() => [
@@ -1954,23 +1954,22 @@ useEffect(() => {
   }
 }, [customerName, customerPhone, selectedBets, currentUser, tickets.length, matches.length]);
   const handleSaveResult = async (matchId, result) => {
-    try {
-      const resultData = {
-        matchId,
-        result,
-        date: getCurrentDate(),
-        timestamp: new Date().toISOString()
-      };
-      await addDoc(collection(db, 'match_results'), resultData);
-      setMatchResults(prev => ({ ...prev, [matchId]: result }));
-      // ✅ Eliminar del panel del ADMIN (allMatches)
-      setAllMatches(prev => prev.filter(match => match.id !== matchId));
-      alert('Resultado guardado exitosamente');
-    } catch (error) {
-      console.error('Error al guardar resultado:', error);
-      alert('Error al guardar el resultado');
-    }
-  };
+  try {
+    const resultData = {
+      matchId,
+      result,
+      date: getCurrentDate(),
+      timestamp: new Date().toISOString()
+    };
+    await addDoc(collection(db, 'match_results'), resultData);
+    setMatchResults(prev => ({ ...prev, [matchId]: result }));
+    // ✅ NO es necesario filtrar localmente, el useEffect lo hace automáticamente
+    alert('Resultado guardado exitosamente');
+  } catch (error) {
+    console.error('Error al guardar resultado:', error);
+    alert('Error al guardar el resultado');
+  }
+};
 
 
   const saveMatch = useCallback(async () => {
