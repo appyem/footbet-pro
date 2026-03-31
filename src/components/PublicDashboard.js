@@ -440,15 +440,40 @@ if (selectedBets.size !== matches.length || matches.length !== 7) {
           {/* 🔹 BOTONES */}
           <div className="flex gap-3">
             <button
-              onClick={() => {
-                setShowConfirmationModal(false);
-                window.open(modalWhatsappUrl, '_blank');
-              }}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
-            >
-              <Phone className="w-5 h-5" />
-              Abrir WhatsApp
-            </button>
+  onClick={() => {
+    setShowConfirmationModal(false);
+    
+    // ✅ DETECTAR SI ES MÓVIL Y ABRIR WHATSAPP NATIVO
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // ✅ EXTRAER NÚMERO DE modalWhatsappUrl
+      const phoneNumber = modalWhatsappUrl.match(/wa\.me\/(\d+)/)?.[1];
+      const message = decodeURIComponent(modalWhatsappUrl.split('?text=')[1]);
+      
+      // ✅ USAR ESQUEMA NATIVO SEGÚN PLATAFORMA
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const nativeUrl = isIOS 
+        ? `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`  // iOS requiere https
+        : `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;  // Android
+      
+      // ✅ INTENTAR ABRIR APP NATIVA
+      window.location.href = nativeUrl;
+      
+      // ✅ FALLBACK A WEB SI NO ABRE EN 2 SEGUNDOS
+      setTimeout(() => {
+        window.open(modalWhatsappUrl, '_blank');
+      }, 2000);
+    } else {
+      // ✅ EN ESCRITORIO, ABRIR WEB NORMALMENTE
+      window.open(modalWhatsappUrl, '_blank');
+    }
+  }}
+  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+>
+  <Phone className="w-5 h-5" />
+  Abrir WhatsApp
+</button>
             <button
               onClick={() => setShowConfirmationModal(false)}
               className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-colors"
