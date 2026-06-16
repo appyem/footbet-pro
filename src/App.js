@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth';
 import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
 import { getCountryFlag, getCountryOptions } from './services/countryFlags';
@@ -22,6 +23,7 @@ const firebaseConfig = {
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app); 
 // Componente aislado para los inputs del cliente
 const CustomerInfoForm = React.memo(({ customerName, customerPhone, onNameChange, onPhoneChange }) => {
   return (
@@ -1852,28 +1854,158 @@ useEffect(() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [matchResults]);  // ✅ matchResults COMO DEPENDENCIA
 
-// Authentication data
-  const adminUsers = useMemo(() => [
-    { id: 'admin1', email: 'admin@footbet.com', password: 'admin123', name: 'Administrador' }
-  ], []);
-  const handleLogin = useCallback(() => {
-    const admin = adminUsers.find(u => u.email === loginEmail && u.password === loginPassword);
-    if (admin) {
-      setCurrentUser(admin);
-      setUserRole('admin');
-      setCurrentView('admin-dashboard');
+
+  // 🔁 LISTENER DE AUTENTICACIÓN - Persistencia de sesión
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        console.log('🔍 Usuario autenticado detectado:', user.email);
+        
+        try {
+          // Verificar si es admin
+          const adminDocSnap = await getDocs(query(collection(db, 'admins'), where('__name__', '==', user.uid)));
+          
+          if (!adminDocSnap.empty) {
+            const adminData = adminDocSnap.docs[0].data();
+            setCurrentUser({
+              id: user.uid,
+              email: user.email,
+              name: adminData.name || 'Administrador',
+              role: 'admin'
+            });
+            setUserRole('admin');
+            console.log('✅ Sesión restaurada como ADMIN');
+          } else {
+            // Verificar si es vendedor
+            const sellerQuery = query(collection(db, 'sellers'), where('email', '==', user.email));
+            const sellerDocSnap = await getDocs(sellerQuery);
+            
+            if (!sellerDocSnap.empty) {
+              const sellerData = sellerDocSnap.docs[0].data();
+              setCurrentUser({
+                id: sellerDocSnap.docs[0].id,
+                email: user.email,
+                name: sellerData.name,
+                phone: sellerData.phone,
+                commission: sellerData.commission,
+                role: 'seller'
+              });
+              setUserRole('seller');
+              console.log('✅ Sesión restaurada como VENDEDOR');
+            }
+          }
+        } catch (error) {
+          console.error('Error verificando rol:', error);
+        }
+      } else {
+        console.log('🔍 No hay usuario autenticado');
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+
+
+    const handleLogin = useCallback(async () => {
+    if (!loginEmail.trim() || !loginPassword.trim()) {
+      alert('Por favor ingresa email y contraseña');
       return;
     }
-    const seller = sellerUsers.find(u => u.email === loginEmail && u.password === loginPassword);
-    if (seller) {
-      setCurrentUser(seller);
-      setUserRole('seller');
-      setCurrentView('seller-dashboard');
-      return;
+
+    try {
+      // ✅ 1. Autenticar con Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+      const firebaseUser = userCredential.user;
+
+      console.log('✅ Usuario autenticado:', firebaseUser.email);
+      console.log('✅ UID:', firebaseUser.uid);
+
+      // ✅ 2. Verificar si es ADMIN (buscar en colección 'admins' por UID)
+      
+      const adminDocSnap = await getDocs(query(collection(db, 'admins'), where('__name__', '==', firebaseUser.uid)));
+      
+      if (!adminDocSnap.empty) {
+        // ✅ ES ADMIN
+        const adminData = adminDocSnap.docs[0].data();
+        const adminUser = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: adminData.name || 'Administrador',
+          role: 'admin'
+        };
+        
+        setCurrentUser(adminUser);
+        setUserRole('admin');
+        setCurrentView('admin-dashboard');
+        console.log('✅ Login como ADMIN exitoso');
+        return;
+      }
+
+      // ✅ 3. Si no es admin, verificar si es VENDEDOR (buscar por email en 'sellers')
+      const sellerQuery = query(collection(db, 'sellers'), where('email', '==', loginEmail.toLowerCase()));
+      const sellerDocSnap = await getDocs(sellerQuery);
+      
+      if (!sellerDocSnap.empty) {
+        // ✅ ES VENDEDOR
+        const sellerData = sellerDocSnap.docs[0].data();
+        const sellerUser = {
+          id: sellerDocSnap.docs[0].id,
+          email: firebaseUser.email,
+          name: sellerData.name,
+          phone: sellerData.phone,
+          commission: sellerData.commission,
+          role: 'seller'
+        };
+        
+        setCurrentUser(sellerUser);
+        setUserRole('seller');
+        setCurrentView('seller-dashboard');
+        console.log('✅ Login como VENDEDOR exitoso');
+        return;
+      }
+
+      // ✅ 4. Si no es ni admin ni vendedor, cerrar sesión y mostrar error
+      await signOut(auth);
+      alert('No tienes permisos para acceder al sistema. Contacta al administrador.');
+      
+    } catch (error) {
+      console.error('❌ Error al iniciar sesión:', error);
+      
+      // ✅ Mensajes de error específicos de Firebase
+      let errorMessage = 'Error al iniciar sesión';
+      switch (error.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'Usuario no encontrado';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Contraseña incorrecta';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Email inválido';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Demasiados intentos. Espera un momento';
+          break;
+        case 'auth/invalid-credential':
+          errorMessage = 'Credenciales incorrectas';
+          break;
+        default:
+          errorMessage = error.message;
+      }
+      
+      alert(errorMessage);
     }
-    alert('Credenciales incorrectas');
-  }, [loginEmail, loginPassword, adminUsers, sellerUsers]);
-  const handleLogout = useCallback(() => {
+  }, [loginEmail, loginPassword]);
+    const handleLogout = useCallback(async () => {
+    try {
+      // ✅ Cerrar sesión en Firebase Auth
+      await signOut(auth);
+      console.log('✅ Sesión cerrada en Firebase Auth');
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
+    
+    // ✅ Limpiar estados locales
     setCurrentView('login');
     setUserRole(null);
     setCurrentUser(null);
@@ -2078,15 +2210,52 @@ useEffect(() => {
     }
   };
 
-  const handleCreateSeller = async (newSeller) => {
+    const handleCreateSeller = async (newSeller) => {
   try {
-    const docRef = await addDoc(collection(db, 'sellers'), newSeller);
-    const sellerWithId = { ...newSeller, id: docRef.id };
+    // ✅ 1. Crear usuario en Firebase Auth
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      newSeller.email,
+      newSeller.password
+    );
+    const firebaseUser = userCredential.user;
+    
+    console.log('✅ Usuario Firebase creado:', firebaseUser.uid);
+    
+    // ✅ 2. Guardar en Firestore SIN la contraseña (ya está segura en Firebase Auth)
+    const sellerData = {
+      name: newSeller.name,
+      email: newSeller.email.toLowerCase(),
+      phone: newSeller.phone,
+      commission: newSeller.commission,
+      active: true,
+      createdAt: new Date().toISOString()
+    };
+    
+    const docRef = await addDoc(collection(db, 'sellers'), sellerData);
+    
+    // ✅ 3. Actualizar estado local
+    const sellerWithId = { 
+      ...sellerData, 
+      id: docRef.id,
+      uid: firebaseUser.uid
+    };
     setSellerUsers(prev => [...prev, sellerWithId]);
+    
     alert('Vendedor creado exitosamente');
   } catch (error) {
     console.error('Error al crear vendedor:', error);
-    alert('Error al crear el vendedor. Intente nuevamente.');
+    
+    let errorMessage = 'Error al crear el vendedor';
+    if (error.code === 'auth/email-already-in-use') {
+      errorMessage = 'Este email ya está registrado';
+    } else if (error.code === 'auth/weak-password') {
+      errorMessage = 'La contraseña debe tener al menos 6 caracteres';
+    } else if (error.code === 'auth/invalid-email') {
+      errorMessage = 'Email inválido';
+    }
+    
+    alert(errorMessage);
   }
 };
   const handleDeleteSeller = async (sellerId) => {
