@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth';
 import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
@@ -2234,25 +2234,26 @@ useEffect(() => {
     await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
     console.log('✅ Sesión de administrador restaurada');
     
-    // ✅ 5. AHORA sí, crear el documento en Firestore (como admin)
+    // ✅ 5. Crear el documento en Firestore USANDO EL UID COMO ID (CRÍTICO)
     const sellerData = {
       name: newSeller.name,
       email: newSeller.email.toLowerCase(),
       phone: newSeller.phone,
       commission: newSeller.commission,
       active: true,
-      uid: newSellerUid,  // ← Guardamos el UID del vendedor
+      uid: newSellerUid,
       createdAt: new Date().toISOString()
     };
     
-    const docRef = await addDoc(collection(db, 'sellers'), sellerData);
+    // ✅ USAR setDoc con el UID como ID del documento
+    await setDoc(doc(db, 'sellers', newSellerUid), sellerData);
     
-    console.log('✅ Vendedor guardado en Firestore con UID:', newSellerUid);
+    console.log('✅ Vendedor guardado en Firestore con UID como ID:', newSellerUid);
     
     // ✅ 6. Actualizar estado local
     const sellerWithId = { 
       ...sellerData, 
-      id: docRef.id
+      id: newSellerUid
     };
     setSellerUsers(prev => [...prev, sellerWithId]);
     
