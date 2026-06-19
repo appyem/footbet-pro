@@ -2212,7 +2212,11 @@ useEffect(() => {
 
     const handleCreateSeller = async (newSeller) => {
   try {
-    // ✅ 1. Crear usuario en Firebase Auth
+    // ✅ 1. Guardar credenciales del admin antes de crear el vendedor
+    const adminEmail = loginEmail;
+    const adminPassword = loginPassword;
+    
+    // ✅ 2. Crear usuario en Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       newSeller.email,
@@ -2222,27 +2226,35 @@ useEffect(() => {
     
     console.log('✅ Usuario Firebase creado:', firebaseUser.uid);
     
-    // ✅ 2. Guardar en Firestore SIN la contraseña (ya está segura en Firebase Auth)
+    // ✅ 3. Guardar en Firestore CON el campo uid (CRÍTICO)
     const sellerData = {
       name: newSeller.name,
       email: newSeller.email.toLowerCase(),
       phone: newSeller.phone,
       commission: newSeller.commission,
       active: true,
+      uid: firebaseUser.uid,  // ← ESTE CAMPO ES CRÍTICO
       createdAt: new Date().toISOString()
     };
     
     const docRef = await addDoc(collection(db, 'sellers'), sellerData);
     
-    // ✅ 3. Actualizar estado local
+    console.log('✅ Vendedor guardado en Firestore con UID:', firebaseUser.uid);
+    
+    // ✅ 4. Actualizar estado local
     const sellerWithId = { 
       ...sellerData, 
-      id: docRef.id,
-      uid: firebaseUser.uid
+      id: docRef.id
     };
     setSellerUsers(prev => [...prev, sellerWithId]);
     
-    alert('Vendedor creado exitosamente');
+    // ✅ 5. Cerrar sesión del vendedor nuevo y volver a login como admin
+    await signOut(auth);
+    
+    // ✅ 6. Volver a iniciar sesión como admin
+    await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+    
+    alert('Vendedor creado exitosamente. Has sido reconectado como administrador.');
   } catch (error) {
     console.error('Error al crear vendedor:', error);
     
@@ -2253,6 +2265,8 @@ useEffect(() => {
       errorMessage = 'La contraseña debe tener al menos 6 caracteres';
     } else if (error.code === 'auth/invalid-email') {
       errorMessage = 'Email inválido';
+    } else if (error.code === 'permission-denied') {
+      errorMessage = 'Error de permisos. Contacta al administrador.';
     }
     
     alert(errorMessage);
