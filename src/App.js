@@ -1940,13 +1940,12 @@ useEffect(() => {
         return;
       }
 
-      // ✅ 3. Si no es admin, verificar si es VENDEDOR (buscar por email en 'sellers')
-      const sellerQuery = query(collection(db, 'sellers'), where('email', '==', loginEmail.toLowerCase()));
-      const sellerDocSnap = await getDocs(sellerQuery);
+      // ✅ 3. Si no es admin, verificar si es VENDEDOR (buscar por UID)
+      const sellerDoc = await getDoc(doc(db, 'sellers', firebaseUser.uid));
       
-      if (!sellerDocSnap.empty) {
+      if (sellerDoc.exists()) {
         // ✅ ES VENDEDOR
-        const sellerData = sellerDocSnap.docs[0].data();
+        const sellerData = sellerDoc.data();
         const sellerUser = {
           id: sellerDoc.id,
           email: firebaseUser.email,
