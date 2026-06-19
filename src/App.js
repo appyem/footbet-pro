@@ -2212,51 +2212,53 @@ useEffect(() => {
 
     const handleCreateSeller = async (newSeller) => {
   try {
-    // ✅ 1. Guardar credenciales del admin antes de crear el vendedor
+    // ✅ 1. Guardar credenciales del admin ANTES de cualquier cambio
     const adminEmail = loginEmail;
     const adminPassword = loginPassword;
     
-    // ✅ 2. Crear usuario en Firebase Auth
+    // ✅ 2. Crear usuario en Firebase Auth (esto cambia la sesión automáticamente)
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       newSeller.email,
       newSeller.password
     );
-    const firebaseUser = userCredential.user;
+    const newSellerUid = userCredential.user.uid;
     
-    console.log('✅ Usuario Firebase creado:', firebaseUser.uid);
+    console.log('✅ Usuario Firebase creado con UID:', newSellerUid);
     
-    // ✅ 3. Guardar en Firestore CON el campo uid (CRÍTICO)
+    // ✅ 3. Cerrar sesión del vendedor nuevo inmediatamente
+    await signOut(auth);
+    console.log('✅ Sesión del vendedor cerrada');
+    
+    // ✅ 4. Volver a iniciar sesión como admin
+    await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+    console.log('✅ Sesión de administrador restaurada');
+    
+    // ✅ 5. AHORA sí, crear el documento en Firestore (como admin)
     const sellerData = {
       name: newSeller.name,
       email: newSeller.email.toLowerCase(),
       phone: newSeller.phone,
       commission: newSeller.commission,
       active: true,
-      uid: firebaseUser.uid,  // ← ESTE CAMPO ES CRÍTICO
+      uid: newSellerUid,  // ← Guardamos el UID del vendedor
       createdAt: new Date().toISOString()
     };
     
     const docRef = await addDoc(collection(db, 'sellers'), sellerData);
     
-    console.log('✅ Vendedor guardado en Firestore con UID:', firebaseUser.uid);
+    console.log('✅ Vendedor guardado en Firestore con UID:', newSellerUid);
     
-    // ✅ 4. Actualizar estado local
+    // ✅ 6. Actualizar estado local
     const sellerWithId = { 
       ...sellerData, 
       id: docRef.id
     };
     setSellerUsers(prev => [...prev, sellerWithId]);
     
-    // ✅ 5. Cerrar sesión del vendedor nuevo y volver a login como admin
-    await signOut(auth);
-    
-    // ✅ 6. Volver a iniciar sesión como admin
-    await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-    
-    alert('Vendedor creado exitosamente. Has sido reconectado como administrador.');
+    alert('Vendedor creado exitosamente');
   } catch (error) {
-    console.error('Error al crear vendedor:', error);
+    console.error('❌ Error al crear vendedor:', error);
     
     let errorMessage = 'Error al crear el vendedor';
     if (error.code === 'auth/email-already-in-use') {
@@ -2266,7 +2268,7 @@ useEffect(() => {
     } else if (error.code === 'auth/invalid-email') {
       errorMessage = 'Email inválido';
     } else if (error.code === 'permission-denied') {
-      errorMessage = 'Error de permisos. Contacta al administrador.';
+      errorMessage = 'Error de permisos. Verifica las reglas de seguridad.';
     }
     
     alert(errorMessage);
