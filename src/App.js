@@ -1863,7 +1863,7 @@ useEffect(() => {
         
         try {
           // Verificar si es admin
-          const adminDocSnap = await getDocs(query(collection(db, 'admins'), where('__name__', '==', user.uid)));
+          const adminDocSnap = await getDocs(query(collection(db, 'admin'), where('__name__', '==', user.uid)));
           
           if (!adminDocSnap.empty) {
             const adminData = adminDocSnap.docs[0].data();
@@ -1922,7 +1922,7 @@ useEffect(() => {
 
       // ✅ 2. Verificar si es ADMIN (buscar en colección 'admins' por UID)
       
-      const adminDocSnap = await getDocs(query(collection(db, 'admins'), where('__name__', '==', firebaseUser.uid)));
+      const adminDocSnap = await getDocs(query(collection(db, 'admin'), where('__name__', '==', firebaseUser.uid)));
       
       if (!adminDocSnap.empty) {
         // ✅ ES ADMIN
