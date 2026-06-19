@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc, onSnapshot, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth';
 import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
@@ -1877,13 +1877,12 @@ useEffect(() => {
             console.log('✅ Sesión restaurada como ADMIN');
           } else {
             // Verificar si es vendedor
-            const sellerQuery = query(collection(db, 'sellers'), where('email', '==', user.email));
-            const sellerDocSnap = await getDocs(sellerQuery);
+            const sellerDoc = await getDoc(doc(db, 'sellers', user.uid));
             
-            if (!sellerDocSnap.empty) {
-              const sellerData = sellerDocSnap.docs[0].data();
+            if (sellerDoc.exists()) {
+              const sellerData = sellerDoc.data();
               setCurrentUser({
-                id: sellerDocSnap.docs[0].id,
+                id: sellerDoc.id,
                 email: user.email,
                 name: sellerData.name,
                 phone: sellerData.phone,
@@ -1949,7 +1948,7 @@ useEffect(() => {
         // ✅ ES VENDEDOR
         const sellerData = sellerDocSnap.docs[0].data();
         const sellerUser = {
-          id: sellerDocSnap.docs[0].id,
+          id: sellerDoc.id,
           email: firebaseUser.email,
           name: sellerData.name,
           phone: sellerData.phone,
