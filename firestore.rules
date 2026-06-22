@@ -11,23 +11,15 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Verifica si el usuario actual es ADMIN
     function isAdmin() {
       return isAuthenticated() && 
              exists(/databases/$(database)/documents/admin/$(request.auth.uid));
     }
     
-    // Verifica si el usuario autenticado es dueño del vendedor con ese doc.id
     function isSellerOf(sellerDocId) {
       return isAuthenticated() && 
              exists(/databases/$(database)/documents/sellers/$(sellerDocId)) &&
              get(/databases/$(database)/documents/sellers/$(sellerDocId)).data.uid == request.auth.uid;
-    }
-    
-    // Verifica si un sellerDocId existe y está activo (para uso público)
-    function isValidSeller(sellerDocId) {
-      return exists(/databases/$(database)/documents/sellers/$(sellerDocId)) &&
-             get(/databases/$(database)/documents/sellers/$(sellerDocId)).data.active == true;
     }
     
     // ═══════════════════════════════════════════════════
@@ -42,27 +34,18 @@ service cloud.firestore {
     // 🔒 COLECCIÓN: sellers
     // ═══════════════════════════════════════════════════
     match /sellers/{sellerId} {
-      // ✅ PÚBLICO puede leer (para PublicDashboard) - solo vendedores activos
-      allow read: if resource.data.active == true;
-      
-      // Vendedor autenticado: leer su propio documento
-      allow read: if isSellerOf(sellerId);
+      // ✅ PÚBLICO puede leer TODOS los vendedores activos
+      allow read: if true;
       
       // Admin: acceso completo
-      allow read, write: if isAdmin();
-      
-      // Nadie más puede escribir
-      allow create, update, delete: if isAdmin();
+      allow write: if isAdmin();
     }
     
     // ═══════════════════════════════════════════════════
     // 🔒 COLECCIÓN: matches
     // ═══════════════════════════════════════════════════
     match /matches/{matchId} {
-      // Público puede leer (para PublicDashboard)
       allow read: if true;
-      
-      // Solo admin puede crear/modificar/eliminar
       allow write: if isAdmin();
     }
     
@@ -70,10 +53,7 @@ service cloud.firestore {
     // 🔒 COLECCIÓN: match_results
     // ═══════════════════════════════════════════════════
     match /match_results/{resultId} {
-      // Público puede leer (para mostrar resultados)
       allow read: if true;
-      
-      // Solo admin puede marcar resultados
       allow write: if isAdmin();
     }
     
@@ -81,19 +61,10 @@ service cloud.firestore {
     // 🔒 COLECCIÓN: tickets
     // ═══════════════════════════════════════════════════
     match /tickets/{ticketId} {
-      // Admin: acceso completo
       allow read, write: if isAdmin();
-      
-      // Vendedor: solo puede crear tickets suyos
       allow create: if isSellerOf(request.resource.data.sellerId);
-      
-      // Vendedor: solo puede leer sus propios tickets
       allow read: if isSellerOf(resource.data.sellerId);
-      
-      // Vendedor: solo puede eliminar sus propios tickets
       allow delete: if isSellerOf(resource.data.sellerId);
-      
-      // Vendedor: solo puede actualizar sus propios tickets
       allow update: if isSellerOf(resource.data.sellerId);
     }
     
@@ -101,11 +72,7 @@ service cloud.firestore {
     // 🔒 COLECCIÓN: pending_tickets
     // ═══════════════════════════════════════════════════
     match /pending_tickets/{ticketId} {
-      // PÚBLICO puede crear (sin login) con validaciones estrictas
       allow create: if 
-        // El vendedor debe existir y estar activo
-        isValidSeller(request.resource.data.sellerId) &&
-        // Debe tener todos los campos requeridos
         request.resource.data.keys().hasAll([
           'customerName', 
           'customerPhone', 
@@ -115,23 +82,17 @@ service cloud.firestore {
           'totalStake', 
           'status'
         ]) &&
-        // El status debe ser 'pending'
         request.resource.data.status == 'pending' &&
-        // El monto debe ser $5,000 COP
         request.resource.data.totalStake == 5000 &&
-        // Debe tener exactamente 7 apuestas
         request.resource.data.bets.size() == 7;
       
-      // Admin: acceso completo
       allow read, write: if isAdmin();
-      
-      // Vendedor: solo puede leer y escribir sus propios tickets pendientes
       allow read: if isSellerOf(resource.data.sellerId);
       allow update, delete: if isSellerOf(resource.data.sellerId);
     }
     
     // ═══════════════════════════════════════════════════
-    // 🔒 BLOQUEO TOTAL de otras colecciones
+    // 🔒 BLOQUEO TOTAL
     // ═══════════════════════════════════════════════════
     match /{document=**} {
       allow read, write: if false;
