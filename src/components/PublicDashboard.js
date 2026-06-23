@@ -3,7 +3,7 @@ import { Phone, User, AlertCircle, CheckCircle, Calendar, Clock } from 'lucide-r
 import { db } from '../services/firebase';
 
 
-import { collection, onSnapshot, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 
 import { getCountryFlag } from '../services/countryFlags';
 import { shouldCloseMatch } from '../services/matchService';
