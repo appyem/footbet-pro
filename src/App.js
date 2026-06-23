@@ -2633,7 +2633,7 @@ useEffect(() => {
               onClick={() => {
                 // ✅ USAR EL ID CORRECTO DE FIREBASE
                 const sellerId = currentUser?.id;
-                const link = `https://footbet-pro.vercel.app/#/public-dashboard?seller=${sellerId}`;
+                const link = `#/public-dashboard/#/public-dashboard?seller=${sellerId}`;
                 const message = `🍀 ¡Tu suerte empieza aquí! 🍀
             ⚽ *La Jugada 7* - Tu jugada Inteligente
             🎯 PREMIOS:
