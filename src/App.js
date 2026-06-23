@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
+import { submitMatchResult, createSeller, updateSeller, deleteSeller as deleteSellerFromServer, createMatch, updateMatch, deleteMatch as deleteMatchFromServer, hideMatch } from './services/cloudFunctions';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth';
 import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
@@ -2085,19 +2086,16 @@ useEffect(() => {
 }, [customerName, customerPhone, selectedBets, currentUser, tickets.length, matches.length]);
   const handleSaveResult = async (matchId, result) => {
   try {
-    const resultData = {
-      matchId,
-      result,
-      date: getCurrentDate(),
-      timestamp: new Date().toISOString()
-    };
-    await addDoc(collection(db, 'match_results'), resultData);
+    // ✅ USAR CLOUD FUNCTION (validación del servidor)
+    const response = await submitMatchResult(matchId, result);
+    
+    // Actualizar estado local
     setMatchResults(prev => ({ ...prev, [matchId]: result }));
-    // ✅ NO es necesario filtrar localmente, el useEffect lo hace automáticamente
-    alert('Resultado guardado exitosamente');
+    
+    alert(`✅ ${response.message}`);
   } catch (error) {
     console.error('Error al guardar resultado:', error);
-    alert('Error al guardar el resultado');
+    alert('Error al guardar el resultado: ' + error.message);
   }
 };
 
@@ -2108,9 +2106,6 @@ useEffect(() => {
     return;
   }
   try {
-    if (editingMatch) {
-      await deleteDoc(doc(db, 'matches', editingMatch.id));
-    }
     const completeMatch = {
       ...matchForm,
       hidden: false,
@@ -2118,15 +2113,20 @@ useEffect(() => {
       odds: { home: 1.0, draw: 2.0, away: 3.0 },
       isTrap: false
     };
-    const docRef = await addDoc(collection(db, 'matches'), completeMatch);
-    await updateDoc(docRef, { id: docRef.id });
-    alert('Partido guardado exitosamente');
-
+    
+    // ✅ USAR CLOUD FUNCTION (validación del servidor)
+    if (editingMatch) {
+      await updateMatch(editingMatch.id, completeMatch);
+      alert('✅ Partido actualizado exitosamente');
+    } else {
+      const result = await createMatch(completeMatch);
+      alert(`✅ Partido creado exitosamente (ID: ${result.matchId})`);
+    }
     
     setEditingMatch(null);
   } catch (error) {
     console.error('Error al guardar partido:', error);
-    alert('Error al guardar el partido');
+    alert('Error al guardar el partido: ' + error.message);
   }
 }, [matchForm, editingMatch]); // ← Dependencias correctas
 
@@ -2134,12 +2134,12 @@ useEffect(() => {
   const deleteMatch = async (matchId) => {
     if (window.confirm('¿Seguro que desea eliminar este partido?')) {
       try {
-        await deleteDoc(doc(db, 'matches', matchId));
-        
-        alert('Partido eliminado exitosamente');
+        // ✅ USAR CLOUD FUNCTION (validación del servidor)
+        await deleteMatchFromServer(matchId);
+        alert('✅ Partido eliminado exitosamente');
       } catch (error) {
         console.error('Error al eliminar partido:', error);
-        alert('Error al eliminar el partido');
+        alert('Error al eliminar el partido: ' + error.message);
       }
     }
   };
@@ -2276,7 +2276,8 @@ useEffect(() => {
   const handleDeleteSeller = async (sellerId) => {
   try {
     // ✅ 1. Eliminar de Firebase
-    await deleteDoc(doc(db, 'sellers', sellerId));
+    // ✅ USAR CLOUD FUNCTION (validación del servidor)
+    await deleteSellerFromServer(sellerId);
     
     // ✅ 2. Eliminar del estado local
     setSellerUsers(prev => prev.filter(seller => seller.id !== sellerId));
@@ -2298,6 +2299,10 @@ useEffect(() => {
   const handleDeleteTicket = async (ticketId) => {
   try {
     // ✅ 1. Eliminar de Firebase
+    // ✅ Validar que el usuario sea admin antes de eliminar
+    if (!currentUser || !currentUser.isAdmin) {
+      throw new Error('Solo administradores pueden eliminar tickets');
+    }
     await deleteDoc(doc(db, 'tickets', ticketId));
     // ✅ 2. NO es necesario actualizar el estado local manualmente
     //    El listener de onSnapshot lo hará automáticamente

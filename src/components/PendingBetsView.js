@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Eye, CheckCircle, XCircle, X } from 'lucide-react';
 import { db } from '../services/firebase';
-import { collection, query, where, onSnapshot, updateDoc, doc, addDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, updateDoc, doc } from 'firebase/firestore';
+import { approvePendingTicket } from '../services/cloudFunctions';
 
 const formatCOP = (amount) => {
   return new Intl.NumberFormat('es-CO', {
@@ -53,25 +54,11 @@ const PendingBetsView = ({ currentUser }) => {
     if (!selectedTicket) return;
     
     try {
-      // Crear ticket aprobado en la colección principal
-      const approvedTicket = {
-        ...selectedTicket,
-        status: 'approved',
-        approvedAt: new Date().toISOString(),
-        verificationCode: `FB-${Date.now().toString(36).toUpperCase()}`,
-        sellerName: currentUser.name
-      };
-      
-      await addDoc(collection(db, 'tickets'), approvedTicket);
-      
-      // Actualizar estado del ticket pendiente
-      await updateDoc(doc(db, 'pending_tickets', selectedTicket.id), {
-        status: 'approved',
-        approvedAt: new Date().toISOString()
-      });
+      // ✅ USAR CLOUD FUNCTION (validación del servidor)
+      const result = await approvePendingTicket(selectedTicket.id);
       
       // Notificar al cliente por WhatsApp
-      const message = `¡Buenas noticias! Tu Tu jugada ha sido aprobada. Código de verificación: ${approvedTicket.verificationCode}. ¡Mucha suerte!`;
+      const message = `¡Buenas noticias! Tu Tu jugada ha sido aprobada. Código de verificación: ${result.verificationCode}. ¡Mucha suerte!`;
       window.open(`https://wa.me/${selectedTicket.customerPhone.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
       
       setShowApproveModal(false);
@@ -79,7 +66,7 @@ const PendingBetsView = ({ currentUser }) => {
       alert('Tu jugada aprobada y notificada al cliente');
     } catch (error) {
       console.error('Error al aprobar Tu jugada:', error);
-      alert('Error al aprobar la Tu jugada');
+      alert('Error al aprobar la Tu jugada: ' + error.message);
     }
   };
 
