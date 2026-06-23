@@ -1,69 +1,71 @@
-// Mapeo de países a sus banderas (emojis)
+// Mapeo simplificado SIN TILDES y en MINUSCULAS para máxima compatibilidad
 const countryToFlag = {
-  'argentina': '🇦🇷', 'australia': '🇦🇺', 'austria': '🇦🇹', 'bélgica': '🇧🇪', 'belgium': '🇧🇪',
-  'brasil': '🇧🇷', 'brazil': '🇧🇷', 'camerún': '🇨🇲', 'cameroon': '🇨🇲', 'canadá': '🇨🇦', 'canada': '🇨🇦',
+  'argentina': '🇦🇷', 'australia': '🇦🇺', 'austria': '🇦🇹', 'belgica': '🇧🇪', 'belgium': '🇧🇪',
+  'brasil': '🇧🇷', 'brazil': '🇧🇷', 'camerun': '🇨🇲', 'cameroon': '🇨🇲', 'canada': '🇨🇦',
   'chile': '🇨🇱', 'colombia': '🇨🇴', 'corea del sur': '🇰🇷', 'south korea': '🇰🇷', 'costa rica': '🇨🇷',
   'croacia': '🇭🇷', 'croatia': '🇭🇷', 'dinamarca': '🇩🇰', 'denmark': '🇩🇰', 'ecuador': '🇪🇨',
-  'egipto': '🇪🇬', 'egypt': '🇪🇬', 'españa': '🇪🇸', 'spain': '🇪🇸', 'estados unidos': '🇺🇸', 'usa': '🇺🇸', 'united states': '🇺🇸',
+  'egipto': '🇪🇬', 'egypt': '🇪🇬', 'espana': '🇪🇸', 'spain': '🇪🇸', 'estados unidos': '🇺🇸', 'usa': '🇺🇸', 'united states': '🇺🇸',
   'francia': '🇫🇷', 'france': '🇫🇷', 'alemania': '🇩🇪', 'germany': '🇩🇪', 'ghana': '🇬🇭',
-  'inglaterra': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'england': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'irán': '🇮🇷', 'iran': '🇮🇷', 'italia': '🇮🇹', 'italy': '🇮🇹',
-  'japón': '🇯🇵', 'japan': '🇯🇵', 'marruecos': '🇲🇦', 'morocco': '🇲🇦', 'méxico': '🇲🇽', 'mexico': '🇲🇽',
-  'países bajos': '🇳🇱', 'netherlands': '🇳🇱', 'polonia': '🇵🇱', 'poland': '🇵🇱', 'portugal': '🇵🇹',
+  'inglaterra': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'england': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'iran': '🇮🇷', 'italia': '🇮🇹', 'italy': '🇮🇹',
+  'japon': '🇯🇵', 'japan': '🇯🇵', 'marruecos': '🇲🇦', 'morocco': '🇲🇦', 'mexico': '🇲🇽',
+  'paises bajos': '🇳🇱', 'netherlands': '🇳🇱', 'polonia': '🇵🇱', 'poland': '🇵🇱', 'portugal': '🇵🇹',
   'qatar': '🇶🇦', 'arabia saudita': '🇸🇦', 'saudi arabia': '🇸🇦', 'senegal': '🇸🇳', 'serbia': '🇷🇸',
-  'suiza': '🇨🇭', 'switzerland': '🇨🇭', 'túnez': '🇹🇳', 'tunisia': '🇹🇳', 'uruguay': '🇺🇾',
+  'suiza': '🇨🇭', 'switzerland': '🇨🇭', 'tunez': '🇹🇳', 'tunisia': '🇹🇳', 'uruguay': '🇺🇾',
   'gales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿', 'wales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
   'champions league': '🏆', 'europa league': '🇪🇺', 'premier league': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
   'la liga': '🇪🇸', 'serie a': '🇮🇹', 'bundesliga': '🇩🇪', 'ligue 1': '🇫🇷', 'liga mx': '🇲🇽',
   'copa libertadores': '🌎', 'mundial': '🌍', 'world cup': '🌍', 'fifa': '🌍'
 };
 
-// Mapeo simple de equipos a países (para el mundial)
+// Mapeo de equipos a países (sin tildes)
 const teamToCountry = {
   'argentina': 'argentina', 'brasil': 'brasil', 'francia': 'francia', 'alemania': 'alemania',
-  'españa': 'españa', 'inglaterra': 'inglaterra', 'italia': 'italia', 'portugal': 'portugal',
-  'méxico': 'méxico', 'colombia': 'colombia', 'uruguay': 'uruguay', 'chile': 'chile',
-  'estados unidos': 'estados unidos', 'canadá': 'canadá', 'japón': 'japón', 'corea del sur': 'corea del sur',
-  'croacia': 'croacia', 'bélgica': 'bélgica', 'países bajos': 'países bajos', 'suiza': 'suiza',
+  'espana': 'espana', 'inglaterra': 'inglaterra', 'italia': 'italia', 'portugal': 'portugal',
+  'mexico': 'mexico', 'colombia': 'colombia', 'uruguay': 'uruguay', 'chile': 'chile',
+  'estados unidos': 'estados unidos', 'canada': 'canada', 'japon': 'japon', 'corea del sur': 'corea del sur',
+  'croacia': 'croacia', 'belgica': 'belgica', 'paises bajos': 'paises bajos', 'suiza': 'suiza',
   'dinamarca': 'dinamarca', 'serbia': 'serbia', 'polonia': 'polonia', 'gales': 'gales',
-  'marruecos': 'marruecos', 'senegal': 'senegal', 'ghana': 'ghana', 'camerún': 'camerún',
-  'túnez': 'túnez', 'egipto': 'egipto', 'arabia saudita': 'arabia saudita', 'irán': 'irán',
+  'marruecos': 'marruecos', 'senegal': 'senegal', 'ghana': 'ghana', 'camerun': 'camerun',
+  'tunez': 'tunez', 'egipto': 'egipto', 'arabia saudita': 'arabia saudita', 'iran': 'iran',
   'australia': 'australia', 'ecuador': 'ecuador', 'qatar': 'qatar', 'costa rica': 'costa rica'
 };
 
 /**
- * Busca una bandera ignorando mayúsculas y buscando coincidencias parciales
+ * Normaliza el texto: quita tildes, pasa a minúsculas y limpia espacios
  */
-const findFlag = (text, map) => {
-  if (!text) return null;
-  const lowerText = text.toLowerCase().trim();
-  
-  // 1. Búsqueda exacta
-  if (map[lowerText]) return map[lowerText];
-
-  // 2. Búsqueda parcial (si el texto contiene el país)
-  for (const [key, value] of Object.entries(map)) {
-    if (lowerText.includes(key)) {
-      return value;
-    }
-  }
-  return null;
+const normalize = (text) => {
+  if (!text) return '';
+  return text.toString().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Quita tildes
+    .trim();
 };
 
 export const getCountryFlag = (country) => {
-  return findFlag(country, countryToFlag) || '🌐';
+  const key = normalize(country);
+  // Búsqueda exacta primero
+  if (countryToFlag[key]) return countryToFlag[key];
+  
+  // Búsqueda parcial (si el país está dentro del string)
+  for (const [k, v] of Object.entries(countryToFlag)) {
+    if (key.includes(k)) return v;
+  }
+  return '🌐';
 };
 
 export const getTeamFlag = (teamName) => {
-  const countryKey = findFlag(teamName, teamToCountry);
-  if (countryKey) {
-    return findFlag(countryKey, countryToFlag) || '';
+  const key = normalize(teamName);
+  // Buscar si el equipo corresponde a un país
+  for (const [team, countryKey] of Object.entries(teamToCountry)) {
+    if (key.includes(team)) {
+      return countryToFlag[countryKey] || '';
+    }
   }
   return '';
 };
 
 export const getCountryOptions = () => {
   return Object.keys(countryToFlag).map(key => ({
-    label: `${countryToFlag[key]} ${key.charAt(0).toUpperCase() + key.slice(1)}`,
+    label: `${countryToFlag[key]} ${key}`,
     value: key
   }));
 };
