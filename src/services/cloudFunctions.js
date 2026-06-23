@@ -1,5 +1,8 @@
 // src/services/cloudFunctions.js
-// Servicio centralizado para llamar a Cloud Functions de forma segura
+import { getAuth } from 'firebase/auth';
+import { app } from './firebase'; // Asegúrate de que esta ruta sea correcta
+
+const auth = getAuth(app);
 
 const FUNCTIONS = {
   createPendingTicket: 'https://creatependingticket-wxcqdudneq-uc.a.run.app',
@@ -10,7 +13,7 @@ const FUNCTIONS = {
 };
 
 /**
- * Función auxiliar para llamar a cualquier Cloud Function
+ * Función auxiliar para llamar a cualquier Cloud Function con Autenticación
  */
 const callFunction = async (functionName, data) => {
   const url = FUNCTIONS[functionName];
@@ -19,10 +22,20 @@ const callFunction = async (functionName, data) => {
     throw new Error(`Función ${functionName} no encontrada`);
   }
 
+  // ✅ 1. Obtener el token del usuario actual
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('Debes iniciar sesión para realizar esta acción');
+  }
+
+  const token = await user.getIdToken();
+
+  // ✅ 2. Hacer la petición incluyendo el token en el header
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}` // <--- ESTO ES LO QUE FALTABA
     },
     body: JSON.stringify({ data })
   });
@@ -58,50 +71,35 @@ export const submitMatchResult = async (matchId, result) => {
 };
 
 /**
- * Crear vendedor (admin)
+ * Gestionar vendedores (admin)
  */
 export const createSeller = async (sellerData) => {
   return callFunction('manageSeller', { action: 'create', sellerData });
 };
 
-/**
- * Actualizar vendedor (admin)
- */
 export const updateSeller = async (sellerId, sellerData) => {
   return callFunction('manageSeller', { action: 'update', sellerId, sellerData });
 };
 
-/**
- * Eliminar vendedor (admin)
- */
 export const deleteSeller = async (sellerId) => {
   return callFunction('manageSeller', { action: 'delete', sellerId });
 };
 
 /**
- * Crear partido (admin)
+ * Gestionar partidos (admin)
  */
 export const createMatch = async (matchData) => {
   return callFunction('manageMatch', { action: 'create', matchData });
 };
 
-/**
- * Actualizar partido (admin)
- */
 export const updateMatch = async (matchId, matchData) => {
   return callFunction('manageMatch', { action: 'update', matchId, matchData });
 };
 
-/**
- * Eliminar partido (admin)
- */
 export const deleteMatch = async (matchId) => {
   return callFunction('manageMatch', { action: 'delete', matchId });
 };
 
-/**
- * Ocultar/mostrar partido (admin)
- */
 export const hideMatch = async (matchId, hidden) => {
   return callFunction('manageMatch', { action: 'hide', matchId, hidden });
 };
