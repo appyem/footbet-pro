@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
-import { submitMatchResult, createSeller, updateSeller, deleteSeller as deleteSellerFromServer, createMatch, updateMatch, deleteMatch as deleteMatchFromServer, hideMatch } from './services/cloudFunctions';
+import { submitMatchResult, deleteSeller as deleteSellerFromServer, createMatch, updateMatch, deleteMatch as deleteMatchFromServer } from './services/cloudFunctions';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth';
 import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
