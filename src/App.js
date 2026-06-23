@@ -7,6 +7,7 @@ import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, P
 import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
 import { getCountryFlag, getCountryOptions } from './services/countryFlags';
 import PublicDashboard from './components/PublicDashboard';
+import PendingBetsView from './components/PendingBetsView';
 
 
 
@@ -2678,65 +2679,8 @@ useEffect(() => {
           </div>
         </div>
         
-        {/* Jugadas Pendientes */}
-{pendingTickets.filter(pt => pt.sellerId === currentUser?.id).length > 0 && (
-  <div className="bg-yellow-900/30 border border-yellow-700 rounded-xl p-6 mb-6">
-    <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
-      <AlertTriangle className="w-5 h-5 text-yellow-400" />
-      Jugadas Pendientes ({pendingTickets.filter(pt => pt.sellerId === currentUser?.id).length})
-    </h2>
-    <div className="space-y-3">
-      {pendingTickets
-        .filter(pt => pt.sellerId === currentUser?.id)
-        .map(ticket => (
-          <div key={ticket.id} className="bg-gray-800 p-4 rounded-lg">
-            <p className="text-white font-medium">{ticket.customerName}</p>
-            <p className="text-gray-400 text-sm">{ticket.customerPhone}</p>
-            <p className="text-gray-500 text-xs mt-1">
-              {ticket.bets.length} Jugadas • Enviado: {ticket.submittedAt}
-            </p>
-            <div className="flex gap-2 mt-2">
-              {/* ✅ BOTÓN APROBAR */}
-              <button
-                onClick={async () => {
-                  const newTicket = {
-                    ...ticket,
-                    id: `TKT${Date.now()}`,
-                    verificationCode: Math.random().toString(36).substring(2, 10).toUpperCase(),
-                    date: getCurrentDate(),
-                    time: getCurrentTime(),
-                    sellerName: currentUser?.name || 'Invitado',
-                    status: 'paid'
-                  };
-                  await addDoc(collection(db, 'tickets'), newTicket);
-                  await deleteDoc(doc(db, 'pending_tickets', ticket.id));
-                  copyToWhatsApp(newTicket);
-                  alert('Ticket aprobado y enviado al cliente.');
-                }}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-2 rounded flex items-center justify-center gap-1"
-              >
-                ✅ Aprobar
-              </button>
-              
-              {/* ❌ BOTÓN RECHAZAR (NUEVO) */}
-              <button
-                onClick={async () => {
-                  if (window.confirm(`¿Está seguro que desea RECHAZAR el ticket de ${ticket.customerName}? Esta acción no se puede deshacer.`)) {
-                    await deleteDoc(doc(db, 'pending_tickets', ticket.id));
-                    alert('Ticket rechazado. El cliente será notificado manualmente si lo desea.');
-                  }
-                }}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded flex items-center justify-center gap-1"
-              >
-                ❌ Rechazar
-              </button>
-            </div>
-          </div>
-        ))
-      }
-    </div>
-  </div>
-)}
+        {/* Jugadas Pendientes - Componente Seguro con Cloud Functions */}
+        <PendingBetsView currentUser={currentUser} />
 
         <div className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
           <div className="flex justify-between items-center mb-4">
