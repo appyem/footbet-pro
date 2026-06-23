@@ -352,21 +352,29 @@ if (selectedBets.size !== matches.length || matches.length !== 7) {
     message += `\n*¿Aprobar esta Tu jugada?* ✅`;
     
     // ✅ 10. Guardar en pending_tickets (CON sellerId VALIDADO)
-    await addDoc(collection(db, 'pending_tickets'), {
-      customerName: customerName.trim(),
-      customerPhone: formattedPhone,
-      sellerId: sellerData.id,  // ← ESTE ES EL CAMPO CRÍTICO
-      sellerName: sellerData.name,
-      bets: betsArray,
-      totalStake: 5000,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      submittedAt: new Date().toLocaleTimeString('es-CO', {
-        timeZone: 'America/Bogota',
-        hour: '2-digit',
-        minute: '2-digit'
+    // ✅ LLAMAR A LA CLOUD FUNCTION (segura en el servidor)
+    const response = await fetch('https://creatependingticket-wxcqdudneq-uc.a.run.app', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: {
+          customerName: customerName.trim(),
+          customerPhone: formattedPhone,
+          sellerId: sellerData.id,
+          bets: betsArray,
+          totalStake: 5000,
+        }
       })
     });
+
+    const result = await response.json();
+
+    // ✅ Manejar errores de la Cloud Function
+    if (!response.ok) {
+      throw new Error(result.error?.message || 'Error al enviar la apuesta');
+    }
 
     console.log('✅ Apuesta guardada en pending_tickets');
     console.log('🔍 sellerId guardado:', selectedSeller);

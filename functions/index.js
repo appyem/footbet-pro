@@ -1,32 +1,65 @@
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore } = require("firebase-admin/firestore");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+
+// Inicializar Firebase Admin (acceso privilegiado al servidor)
+initializeApp();
+const db = getFirestore();
+
 /**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
+ * 🛡️ FUNCIÓN: createPendingTicket
+ * Permite que un usuario público envíe una apuesta pendiente.
+ * Se ejecuta en el servidor, por lo que es 100% segura.
  */
+exports.createPendingTicket = onCall(async (request) => {
+  const data = request.data;
 
-const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
-const logger = require("firebase-functions/logger");
+  // 1. Validar que existan los datos
+  if (!data) {
+    throw new HttpsError("invalid-argument", "Faltan datos de la apuesta.");
+  }
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+  // 2. Validar monto exacto ($5,000)
+  if (data.totalStake !== 5000) {
+    throw new HttpsError("invalid-argument", "El monto debe ser exactamente $5,000.");
+  }
 
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
+  // 3. Validar que sean exactamente 7 partidos
+  if (!Array.isArray(data.bets) || data.bets.length !== 7) {
+    throw new HttpsError("invalid-argument", "Debes seleccionar exactamente 7 partidos.");
+  }
 
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+  // 4. Validar que el vendedor exista y esté activo
+  const sellerRef = db.collection("sellers").doc(data.sellerId);
+  const sellerDoc = await sellerRef.get();
+
+  if (!sellerDoc.exists) {
+    throw new HttpsError("not-found", "El vendedor no existe.");
+  }
+
+  const sellerData = sellerDoc.data();
+  if (sellerData.active !== true) {
+    throw new HttpsError("permission-denied", "El vendedor no está activo.");
+  }
+
+  // 5. Si todo está correcto, guardar en pending_tickets
+  const newTicket = {
+    customerName: String(data.customerName).trim(),
+    customerPhone: String(data.customerPhone).trim(),
+    sellerId: data.sellerId,
+    sellerName: sellerData.name,
+    bets: data.bets,
+    totalStake: 5000,
+    status: "pending",
+    createdAt: new Date().toISOString(),
+  };
+
+  const docRef = await db.collection("pending_tickets").add(newTicket);
+
+  // 6. Retornar éxito al cliente
+  return { 
+    success: true, 
+    ticketId: docRef.id,
+    message: "Apuesta enviada correctamente al vendedor." 
+  };
+});
