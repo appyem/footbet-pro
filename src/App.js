@@ -1853,7 +1853,7 @@ useEffect(() => {
     unsubscribePendingTickets();
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [matchResults]);  // ✅ matchResults COMO DEPENDENCIA
+}, []);  // ✅ Sin dependencias para evitar bucle
 
 
   // 🔁 LISTENER DE AUTENTICACIÓN - Persistencia de sesión

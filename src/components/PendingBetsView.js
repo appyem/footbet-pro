@@ -27,7 +27,7 @@ const PendingBetsView = ({ currentUser }) => {
     const q = query(
       collection(db, 'pending_tickets'),
       where('sellerId', '==', currentUser.id),
-      where('status', '==', 'pending_approval')
+      where('status', '==', 'pending')
     );
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
