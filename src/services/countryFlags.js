@@ -1,23 +1,44 @@
-// Mapeo simplificado SIN TILDES y en MINUSCULAS para máxima compatibilidad
+// Mapeo completo de países del Mundial 2026 (Sin tildes, minúsculas)
 const countryToFlag = {
-  'argentina': '🇦🇷', 'australia': '🇦🇺', 'austria': '🇦🇹', 'belgica': '🇧🇪', 'belgium': '🇧🇪',
-  'brasil': '🇧🇷', 'brazil': '🇧🇷', 'camerun': '🇨🇲', 'cameroon': '🇨🇲', 'canada': '🇨🇦',
-  'chile': '🇨🇱', 'colombia': '🇨🇴', 'corea del sur': '🇰🇷', 'south korea': '🇰🇷', 'costa rica': '🇨🇷',
-  'croacia': '🇭🇷', 'croatia': '🇭🇷', 'dinamarca': '🇩🇰', 'denmark': '🇩🇰', 'ecuador': '🇪🇨',
-  'egipto': '🇪🇬', 'egypt': '🇪🇬', 'espana': '🇪🇸', 'spain': '🇪🇸', 'estados unidos': '🇺🇸', 'usa': '🇺🇸', 'united states': '🇺🇸',
-  'francia': '🇫🇷', 'france': '🇫🇷', 'alemania': '🇩🇪', 'germany': '🇩🇪', 'ghana': '🇬🇭',
-  'inglaterra': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'england': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'iran': '🇮🇷', 'italia': '🇮🇹', 'italy': '🇮🇹',
-  'japon': '🇯🇵', 'japan': '🇯🇵', 'marruecos': '🇲🇦', 'morocco': '🇲🇦', 'mexico': '🇲🇽',
-  'paises bajos': '🇳🇱', 'netherlands': '🇳🇱', 'polonia': '🇵🇱', 'poland': '🇵🇱', 'portugal': '🇵🇹',
-  'qatar': '🇶🇦', 'arabia saudita': '🇸🇦', 'saudi arabia': '🇸🇦', 'senegal': '🇸🇳', 'serbia': '🇷🇸',
-  'suiza': '🇨🇭', 'switzerland': '🇨🇭', 'tunez': '🇹🇳', 'tunisia': '🇹🇳', 'uruguay': '🇺🇾',
-  'gales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿', 'wales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
+  // Anfitriones (CONCACAF)
+  'canada': '🇨🇦', 'estados unidos': '🇺🇸', 'usa': '🇺🇸', 'united states': '🇺🇸', 'mexico': '🇲🇽',
+  
+  // Sudamérica (CONMEBOL)
+  'argentina': '🇦🇷', 'brasil': '🇧🇷', 'brazil': '🇧🇷', 'colombia': '🇨🇴', 'uruguay': '🇺🇾', 
+  'ecuador': '🇪🇨', 'paraguay': '🇵🇾',
+  
+  // Europa (UEFA)
+  'alemania': '🇩🇪', 'germany': '🇩🇪', 'austria': '🇦🇹', 'belgica': '🇧🇪', 'belgium': '🇧🇪',
+  'bosnia y herzegovina': '🇧🇦', 'croacia': '🇭🇷', 'croatia': '🇭🇷', 'escocia': '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  'espana': '🇪🇸', 'spain': '🇪🇸', 'francia': '🇫🇷', 'france': '🇫🇷', 'inglaterra': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'england': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+  'noruega': '🇳🇴', 'norway': '🇳🇴', 'paises bajos': '🇳🇱', 'netherlands': '🇳🇱', 'portugal': '🇵🇹',
+  'republica checa': '🇨🇿', 'czech republic': '🇨🇿', 'suecia': '🇸🇪', 'sweden': '🇸🇪', 'suiza': '🇨🇭', 
+  'switzerland': '🇨🇭', 'turquia': '🇹🇷', 'turkey': '🇹🇷',
+  
+  // África (CAF)
+  'argelia': '🇩🇿', 'algeria': '🇩🇿', 'cabo verde': '🇨🇻', 'cape verde': '🇨🇻', 'costa de marfil': '🇨🇮',
+  'ivory coast': '🇨🇮', 'egipto': '🇪🇬', 'egypt': '🇪🇬', 'ghana': '🇬🇭', 'marruecos': '🇲🇦', 'morocco': '🇲🇦',
+  'republica democratica del congo': '🇨🇩', 'dr congo': '🇨🇩', 'senegal': '🇸🇳', 'sudafrica': '🇿🇦', 
+  'south africa': '🇿🇦', 'tunez': '🇹🇳', 'tunisia': '🇹🇳',
+  
+  // Asia (AFC)
+  'arabia saudita': '🇸🇦', 'saudi arabia': '🇸🇦', 'australia': '🇦🇺', 'corea del sur': '🇰🇷', 'south korea': '🇰🇷',
+  'irak': '🇮🇶', 'iraq': '🇮🇶', 'iran': '🇮🇷', 'japon': '🇯🇵', 'japan': '🇯🇵', 'jordania': '🇯🇴', 'jordan': '🇯🇴',
+  'qatar': '🇶🇦', 'uzbekistan': '🇺🇿',
+  
+  // CONCACAF (Adicionales)
+  'curazao': '🇨🇼', 'curacao': '🇨🇼', 'haiti': '🇭🇹', 'panama': '🇵🇦',
+  
+  // Oceanía (OFC)
+  'nueva zelanda': '🇳🇿', 'new zealand': '🇳🇿',
+  
+  // Ligas y Torneos Comunes
   'champions league': '🏆', 'europa league': '🇪🇺', 'premier league': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
   'la liga': '🇪🇸', 'serie a': '🇮🇹', 'bundesliga': '🇩🇪', 'ligue 1': '🇫🇷', 'liga mx': '🇲🇽',
-  'copa libertadores': '🌎', 'mundial': '🌍', 'world cup': '🌍', 'fifa': '🌍'
+  'copa libertadores': '🌎', 'mundial': '🌍', 'world cup': '🌍', 'fifa': '🌍', 'amistoso': '🤝'
 };
 
-// Mapeo de equipos a países (sin tildes)
+// Mapeo de equipos a sus países (para mostrar bandera junto al nombre del equipo)
 const teamToCountry = {
   'argentina': 'argentina', 'brasil': 'brasil', 'francia': 'francia', 'alemania': 'alemania',
   'espana': 'espana', 'inglaterra': 'inglaterra', 'italia': 'italia', 'portugal': 'portugal',
@@ -27,21 +48,29 @@ const teamToCountry = {
   'dinamarca': 'dinamarca', 'serbia': 'serbia', 'polonia': 'polonia', 'gales': 'gales',
   'marruecos': 'marruecos', 'senegal': 'senegal', 'ghana': 'ghana', 'camerun': 'camerun',
   'tunez': 'tunez', 'egipto': 'egipto', 'arabia saudita': 'arabia saudita', 'iran': 'iran',
-  'australia': 'australia', 'ecuador': 'ecuador', 'qatar': 'qatar', 'costa rica': 'costa rica'
+  'australia': 'australia', 'ecuador': 'ecuador', 'qatar': 'qatar', 'costa rica': 'costa rica',
+  'noruega': 'noruega', 'suecia': 'suecia', 'turquia': 'turquia', 'escocia': 'escocia',
+  'austria': 'austria', 'republica checa': 'republica checa', 'bosnia': 'bosnia y herzegovina',
+  'argelia': 'argelia', 'cabo verde': 'cabo verde', 'costa de marfil': 'costa de marfil',
+  'sudafrica': 'sudafrica', 'irak': 'irak', 'jordania': 'jordania', 'uzbekistan': 'uzbekistan',
+  'curazao': 'curazao', 'haiti': 'haiti', 'panama': 'panama', 'nueva zelanda': 'nueva zelanda',
+  'paraguay': 'paraguay'
 };
 
 /**
  * Normaliza el texto: quita tildes, pasa a minúsculas y limpia espacios
  */
 const normalize = (text) => {
-  if (!text) return '';
-  return text.toString().toLowerCase()
+  if (!text || typeof text !== 'string') return '';
+  return text.toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Quita tildes
     .trim();
 };
 
 export const getCountryFlag = (country) => {
   const key = normalize(country);
+  if (!key) return '⚽'; // Default si no hay país
+  
   // Búsqueda exacta primero
   if (countryToFlag[key]) return countryToFlag[key];
   
@@ -49,11 +78,13 @@ export const getCountryFlag = (country) => {
   for (const [k, v] of Object.entries(countryToFlag)) {
     if (key.includes(k)) return v;
   }
-  return '🌐';
+  return '🌐'; // Default si no encuentra nada
 };
 
 export const getTeamFlag = (teamName) => {
   const key = normalize(teamName);
+  if (!key) return '';
+  
   // Buscar si el equipo corresponde a un país
   for (const [team, countryKey] of Object.entries(teamToCountry)) {
     if (key.includes(team)) {
