@@ -1,87 +1,54 @@
-// 🌍 Banderas de Países y Torneos Internacionales
-
-// Función para obtener la bandera según el país/torneo
-export const getCountryFlag = (country) => {
-  const flags = {
-    // 🏆 Torneos Internacionales
-    'Champions League': '🏆',
-    'UEFA Champions League': '🏆',
-    'Copa Libertadores': '🌎',
-    'Libertadores': '🌎',
-    'Copa Sudamericana': '🌎',
-    'Sudamericana': '🌎',
-    'Europa League': '🇪🇺',
-    'UEFA Europa League': '🇪🇺',
-    'Mundial': '🌍',
-    'FIFA World Cup': '🌍',
-    'Eliminatorias': '🎫',
-    'Copa América': '🏆',
-    'Eurocopa': '🇪🇺',
-    
-    // 🌍 Países - Sudamérica
-    'Colombia': '🇨🇴',
-    'Argentina': '🇦🇷',
-    'Brasil': '🇧🇷',
-    'Chile': '🇨🇱',
-    'Uruguay': '🇺🇾',
-    'Paraguay': '🇵🇾',
-    'Perú': '🇵🇪',
-    'Ecuador': '🇪🇨',
-    'Bolivia': '🇧🇴',
-    'Venezuela': '🇻🇪',
-    
-    // 🌍 Países - Europa
-    'España': '🇪🇸',
-    'Inglaterra': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    'Italia': '🇮🇹',
-    'Italy': '🇮🇹',
-    'Alemania': '🇩🇪',
-    'Germany': '🇩🇪',
-    'Francia': '🇫🇷',
-    'France': '🇫🇷',
-    'Portugal': '🇵🇹',
-    'Países Bajos': '🇳🇱',
-    'Netherlands': '🇳🇱',
-    
-    // 🌍 Países - Norteamérica
-    'México': '🇲🇽',
-    'Mexico': '🇲🇽',
-    'Estados Unidos': '🇺🇸',
-    'USA': '🇺🇸',
-    'United States': '🇺🇸',
-    'Canadá': '🇨🇦',
-    'Canada': '🇨🇦',
-    
-    // 🌐 Genérico (fallback)
-    'Internacional': '🌐',
-    'International': '🌐',
-    'Mundo': '🌍'
-  };
-  
-  return flags[country] || '🌐';
+// Mapeo de países a sus banderas (emojis)
+const countryToFlag = {
+  'Argentina': '🇦🇷', 'Australia': '🇦🇺', 'Austria': '🇦🇹', 'Bélgica': '🇧🇪', 'Belgium': '🇧🇪',
+  'Brasil': '🇧🇷', 'Brazil': '🇧🇷', 'Camerún': '🇨🇲', 'Cameroon': '🇨🇲', 'Canadá': '🇨🇦', 'Canada': '🇨🇦',
+  'Chile': '🇨🇱', 'Colombia': '🇨🇴', 'Corea del Sur': '🇰🇷', 'South Korea': '🇰🇷', 'Costa Rica': '🇨🇷',
+  'Croacia': '🇭🇷', 'Croatia': '🇭🇷', 'Dinamarca': '🇩🇰', 'Denmark': '🇩🇰', 'Ecuador': '🇪🇨',
+  'Egipto': '🇪🇬', 'Egypt': '🇪🇬', 'España': '🇪🇸', 'Spain': '🇪🇸', 'Estados Unidos': '🇺🇸', 'USA': '🇺🇸', 'United States': '🇺🇸',
+  'Francia': '🇫🇷', 'France': '🇫🇷', 'Alemania': '🇩🇪', 'Germany': '🇩🇪', 'Ghana': '🇬🇭',
+  'Inglaterra': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Irán': '🇮🇷', 'Iran': '🇮🇷', 'Italia': '🇮🇹', 'Italy': '🇮🇹',
+  'Japón': '🇯🇵', 'Japan': '🇯🇵', 'Marruecos': '🇲🇦', 'Morocco': '🇲🇦', 'México': '🇲🇽', 'Mexico': '🇲🇽',
+  'Países Bajos': '🇳🇱', 'Netherlands': '🇳🇱', 'Polonia': '🇵🇱', 'Poland': '🇵🇱', 'Portugal': '🇵🇹',
+  'Qatar': '🇶🇦', 'Arabia Saudita': '🇸🇦', 'Saudi Arabia': '🇸🇦', 'Senegal': '🇸🇳', 'Serbia': '🇷🇸',
+  'Suiza': '🇨🇭', 'Switzerland': '🇨🇭', 'Túnez': '🇹🇳', 'Tunisia': '🇹🇳', 'Uruguay': '🇺🇾',
+  'Gales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿', 'Wales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
+  'Champions League': '🏆', 'Europa League': '🇪🇺', 'Premier League': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+  'La Liga': '🇪🇸', 'Serie A': '🇮🇹', 'Bundesliga': '🇩🇪', 'Ligue 1': '🇫🇷', 'Liga MX': '🇲🇽',
+  'Copa Libertadores': '🌎', 'Mundial': '🌍', 'World Cup': '🌍'
 };
 
-// 📋 Lista de opciones para el selector en el formulario
+// Mapeo simple de equipos a países (para el mundial)
+const teamToCountry = {
+  'Argentina': 'Argentina', 'Brasil': 'Brasil', 'Francia': 'Francia', 'Alemania': 'Alemania',
+  'España': 'España', 'Inglaterra': 'Inglaterra', 'Italia': 'Italia', 'Portugal': 'Portugal',
+  'México': 'México', 'Colombia': 'Colombia', 'Uruguay': 'Uruguay', 'Chile': 'Chile',
+  'Estados Unidos': 'Estados Unidos', 'Canadá': 'Canadá', 'Japón': 'Japón', 'Corea del Sur': 'Corea del Sur',
+  'Croacia': 'Croacia', 'Bélgica': 'Bélgica', 'Países Bajos': 'Países Bajos', 'Suiza': 'Suiza',
+  'Dinamarca': 'Dinamarca', 'Serbia': 'Serbia', 'Polonia': 'Polonia', 'Gales': 'Gales',
+  'Marruecos': 'Marruecos', 'Senegal': 'Senegal', 'Ghana': 'Ghana', 'Camerún': 'Camerún',
+  'Túnez': 'Túnez', 'Egipto': 'Egipto', 'Arabia Saudita': 'Arabia Saudita', 'Irán': 'Irán',
+  'Australia': 'Australia', 'Ecuador': 'Ecuador', 'Qatar': 'Qatar', 'Costa Rica': 'Costa Rica'
+};
+
+export const getCountryFlag = (country) => {
+  if (!country) return '🌐';
+  return countryToFlag[country] || '🌐';
+};
+
+export const getTeamFlag = (teamName) => {
+  if (!teamName) return '';
+  // Buscar coincidencia exacta o parcial
+  for (const [team, country] of Object.entries(teamToCountry)) {
+    if (teamName.includes(team)) {
+      return countryToFlag[country] || '';
+    }
+  }
+  return '';
+};
+
 export const getCountryOptions = () => {
-  return [
-    { value: 'Colombia', label: '🇨🇴 Colombia' },
-    { value: 'Argentina', label: '🇦🇷 Argentina' },
-    { value: 'Brasil', label: '🇧🇷 Brasil' },
-    { value: 'Chile', label: '🇨🇱 Chile' },
-    { value: 'Uruguay', label: '🇺🇾 Uruguay' },
-    { value: 'España', label: '🇪🇸 España' },
-    { value: 'Inglaterra', label: '🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra' },
-    { value: 'Italia', label: '🇮🇹 Italia' },
-    { value: 'Alemania', label: '🇩🇪 Alemania' },
-    { value: 'Francia', label: '🇫🇷 Francia' },
-    { value: 'Portugal', label: '🇵🇹 Portugal' },
-    { value: 'México', label: '🇲🇽 México' },
-    { value: 'Estados Unidos', label: '🇺🇸 Estados Unidos' },
-    { value: 'Champions League', label: '🏆 Champions League' },
-    { value: 'Copa Libertadores', label: '🌎 Copa Libertadores' },
-    { value: 'Copa Sudamericana', label: '🌎 Copa Sudamericana' },
-    { value: 'Europa League', label: '🇪🇺 Europa League' },
-    { value: 'Internacional', label: '🌐 Internacional' }
-  ];
+  return Object.keys(countryToFlag).map(key => ({
+    label: `${countryToFlag[key]} ${key}`,
+    value: key
+  }));
 };

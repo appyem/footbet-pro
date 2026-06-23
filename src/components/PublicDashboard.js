@@ -5,7 +5,7 @@ import { db } from '../services/firebase';
 
 import { collection, onSnapshot } from 'firebase/firestore';
 
-import { getCountryFlag } from '../services/countryFlags';
+import { getCountryFlag, getTeamFlag } from '../services/countryFlags';
 import { shouldCloseMatch } from '../services/matchService';
 
 // Componente aislado para los inputs del cliente
@@ -48,32 +48,40 @@ const CustomerInfoForm = ({ customerName, customerPhone, onNameChange, onPhoneCh
 const MatchBetCard = ({ match, selectedBet, onSelectionChange, isTrapMatch }) => {
   if (!match || !match.homeTeam || !match.awayTeam) return null;
   
+  const homeFlag = getTeamFlag(match.homeTeam) || getCountryFlag(match.country);
+  const awayFlag = getTeamFlag(match.awayTeam) || getCountryFlag(match.country);
+  
   return (
-    <div className={`bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border ${isTrapMatch ? 'border-purple-600' : 'border-gray-700'} hover:border-green-500 transition-colors`}>
-      <div className="flex justify-between items-start mb-3">
+    <div className={`bg-gray-800/70 backdrop-blur-sm rounded-xl p-5 border ${isTrapMatch ? 'border-purple-600' : 'border-gray-700'} hover:border-green-500 transition-all duration-300 shadow-lg`}>
+      <div className="flex justify-between items-center mb-4">
         <div className="flex flex-col">
-          <span className="text-green-400 text-sm font-medium flex items-center gap-1">
-            <span className="text-lg">{getCountryFlag(match.country)}</span>
-            <Calendar className="w-3 h-3" />
+          <span className="text-green-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+            <span className="text-sm">{getCountryFlag(match.country)}</span>
             {match.league}
           </span>
-          <span className="text-gray-500 text-xs">{match.date}</span>
+          <span className="text-gray-500 text-xs mt-1 flex items-center gap-1">
+            <Calendar className="w-3 h-3" /> {match.date} • <Clock className="w-3 h-3" /> {match.time}
+          </span>
         </div>
-        <span className="text-gray-400 text-sm flex items-center gap-1">
-          <Clock className="w-3 h-3" />
-          {match.time}
-        </span>
       </div>
-      <div className="flex justify-between items-center mb-4">
-        <span className="text-white font-medium">{match.homeTeam}</span>
-        <span className="text-gray-400">vs</span>
-        <span className="text-white font-medium">{match.awayTeam}</span>
+      
+      <div className="flex justify-between items-center mb-6 bg-gray-900/50 p-3 rounded-lg">
+        <div className="flex flex-col items-center w-1/3">
+          <span className="text-3xl mb-1">{homeFlag}</span>
+          <span className="text-white font-bold text-sm text-center leading-tight">{match.homeTeam}</span>
+        </div>
+        <div className="text-gray-500 font-bold text-lg italic">VS</div>
+        <div className="flex flex-col items-center w-1/3">
+          <span className="text-3xl mb-1">{awayFlag}</span>
+          <span className="text-white font-bold text-sm text-center leading-tight">{match.awayTeam}</span>
+        </div>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+
+      <div className="grid grid-cols-3 gap-3">
         {[
-          { key: '1', label: 'Local', color: 'bg-green-500', glow: 'shadow-green-500/50' },
-          { key: 'X', label: 'Empate', color: 'bg-yellow-500', glow: 'shadow-yellow-500/50' },
-          { key: '2', label: 'Visitante', color: 'bg-red-500', glow: 'shadow-red-500/50' }
+          { key: '1', label: 'Local', color: 'bg-green-600', glow: 'shadow-green-600/40' },
+          { key: 'X', label: 'Empate', color: 'bg-yellow-600', glow: 'shadow-yellow-600/40' },
+          { key: '2', label: 'Visitante', color: 'bg-red-600', glow: 'shadow-red-600/40' }
         ].map((option) => {
           const isSelected = selectedBet?.selection === option.key;
           const odds = option.key === '1' ? match.odds?.home : option.key === 'X' ? match.odds?.draw : match.odds?.away;
@@ -82,14 +90,14 @@ const MatchBetCard = ({ match, selectedBet, onSelectionChange, isTrapMatch }) =>
             <button
               key={option.key}
               onClick={() => onSelectionChange(match.id, option.key, odds)}
-              className={`px-2 py-3 rounded-lg text-sm font-bold transition-all transform hover:scale-105 ${
+              className={`py-3 rounded-xl text-sm font-bold transition-all transform hover:scale-105 active:scale-95 ${
                 isSelected
-                  ? `${option.color} text-white shadow-lg ${option.glow} border-2 border-white/30`
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-2 border-transparent'
+                  ? `${option.color} text-white shadow-lg ${option.glow} ring-2 ring-white/50`
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
               }`}
             >
-              <div className="text-xs font-bold">{option.label}</div>
-              <div className="text-lg mt-1 text-white drop-shadow-lg">{odds || '1.0'}</div>
+              <div className="text-xs opacity-80 mb-1">{option.label}</div>
+              <div className="text-lg font-black">{odds || '1.0'}</div>
             </button>
           );
         })}
