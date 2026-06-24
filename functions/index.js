@@ -63,3 +63,88 @@ exports.createPendingTicket = onCall(async (request) => {
     message: "Apuesta enviada correctamente al vendedor." 
   };
 });
+
+/**
+ * 🛡️ FUNCIÓN: approvePendingTicket
+ * Permite que el vendedor apruebe un ticket pendiente.
+ * Crea el ticket en la colección 'tickets' y elimina de 'pending_tickets'.
+ */
+exports.approvePendingTicket = onCall(async (request) => {
+  const { ticketId } = request.data;
+  const sellerId = request.auth.uid; // ID del vendedor autenticado
+
+  if (!ticketId) {
+    throw new HttpsError("invalid-argument", "Falta el ID del ticket.");
+  }
+
+  // 1. Buscar el ticket pendiente
+  const pendingTicketRef = db.collection("pending_tickets").doc(ticketId);
+  const pendingTicketDoc = await pendingTicketRef.get();
+
+  if (!pendingTicketDoc.exists) {
+    throw new HttpsError("not-found", "El ticket pendiente no existe.");
+  }
+
+  const pendingTicket = pendingTicketDoc.data();
+
+  // 2. Validar que el vendedor que aprueba sea el dueño del ticket
+  if (pendingTicket.sellerId !== sellerId) {
+    throw new HttpsError("permission-denied", "No tienes permiso para aprobar este ticket.");
+  }
+
+  // 3. Validar que el ticket esté pendiente
+  if (pendingTicket.status !== "pending") {
+    throw new HttpsError("failed-precondition", "El ticket ya fue procesado.");
+  }
+
+  // 4. Generar código de verificación
+  const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+
+  // 5. Crear el ticket en la colección 'tickets'
+  const newTicket = {
+    customerName: pendingTicket.customerName,
+    customerPhone: pendingTicket.customerPhone,
+    sellerId: pendingTicket.sellerId,
+    sellerName: pendingTicket.sellerName,
+    bets: pendingTicket.bets,
+    totalStake: pendingTicket.totalStake,
+    verificationCode: verificationCode,
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toTimeString().split(' ')[0].substring(0, 5),
+    status: "approved",
+    approvedAt: new Date().toISOString(),
+  };
+
+  const ticketRef = await db.collection("tickets").add(newTicket);
+
+  // 6. Eliminar el ticket de pending_tickets
+  await pendingTicketRef.delete();
+
+  // 7. Enviar alerta a Telegram
+  const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
+  const telegramChatId = "6567201196";
+  
+  const telegramMessage = `🚨 *ALERTA DE SEGURIDAD* 🚨\n\n👤 *Vendedor:* ${pendingTicket.sellerName}\n🎫 *Ticket:* ${ticketRef.id}\n👥 *Cliente:* ${pendingTicket.customerName}\n📱 *Teléfono:* ${pendingTicket.customerPhone}\n💰 *Monto:* $${pendingTicket.totalStake} COP\n🎯 *Partidos:* ${pendingTicket.bets.length} partidos seleccionados\n📝 *Código:* ${verificationCode}\n\n✅ Ticket aprobado exitosamente`;
+
+  try {
+    await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: telegramChatId,
+        text: telegramMessage,
+        parse_mode: "Markdown"
+      })
+    });
+  } catch (error) {
+    console.error("Error enviando alerta a Telegram:", error);
+  }
+
+  // 8. Retornar éxito
+  return {
+    success: true,
+    ticketId: ticketRef.id,
+    verificationCode: verificationCode,
+    message: "Ticket aprobado exitosamente."
+  };
+});
