@@ -7,33 +7,7 @@ import { shouldCloseMatch } from '../services/matchService';
 
 // Componente aislado para los inputs del cliente (Diseño Claro)
 
-// Mapeo de países a códigos de 3 letras (para WhatsApp)
-const getCountryCode = (country) => {
-  const map = {
-    'argentina': 'ARG', 'brasil': 'BRA', 'brazil': 'BRA', 'francia': 'FRA', 'france': 'FRA',
-    'alemania': 'GER', 'germany': 'GER', 'espana': 'ESP', 'spain': 'ESP', 'inglaterra': 'ENG',
-    'england': 'ENG', 'italia': 'ITA', 'italy': 'ITA', 'portugal': 'POR', 'mexico': 'MEX',
-    'colombia': 'COL', 'uruguay': 'URU', 'chile': 'CHI', 'estados unidos': 'USA', 'usa': 'USA',
-    'canada': 'CAN', 'japon': 'JPN', 'japan': 'JPN', 'corea del sur': 'KOR', 'south korea': 'KOR',
-    'croacia': 'CRO', 'croatia': 'CRO', 'belgica': 'BEL', 'belgium': 'BEL', 'paises bajos': 'NED',
-    'netherlands': 'NED', 'suiza': 'SUI', 'switzerland': 'SUI', 'dinamarca': 'DEN', 'denmark': 'DEN',
-    'serbia': 'SRB', 'polonia': 'POL', 'poland': 'POL', 'gales': 'WAL', 'wales': 'WAL',
-    'marruecos': 'MAR', 'morocco': 'MAR', 'senegal': 'SEN', 'ghana': 'GHA', 'camerun': 'CMR',
-    'cameroon': 'CMR', 'tunez': 'TUN', 'tunisia': 'TUN', 'egipto': 'EGY', 'egypt': 'EGY',
-    'arabia saudita': 'KSA', 'saudi arabia': 'KSA', 'iran': 'IRN', 'australia': 'AUS',
-    'ecuador': 'ECU', 'qatar': 'QAT', 'costa rica': 'CRC', 'noruega': 'NOR', 'norway': 'NOR',
-    'suecia': 'SWE', 'sweden': 'SWE', 'turquia': 'TUR', 'turkey': 'TUR', 'escocia': 'SCO',
-    'scotland': 'SCO', 'austria': 'AUT', 'republica checa': 'CZE', 'bosnia': 'BIH',
-    'argelia': 'ALG', 'cabo verde': 'CPV', 'costa de marfil': 'CIV', 'sudafrica': 'RSA',
-    'south africa': 'RSA', 'irak': 'IRQ', 'iraq': 'IRQ', 'jordania': 'JOR', 'jordan': 'JOR',
-    'uzbekistan': 'UZB', 'curazao': 'CUW', 'curacao': 'CUW', 'haiti': 'HAI', 'panama': 'PAN',
-    'nueva zelanda': 'NZL', 'new zealand': 'NZL', 'paraguay': 'PAR'
-  };
-  
-  if (!country || typeof country !== 'string') return 'INT';
-  const key = country.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  return map[key] || 'INT';
-};
+
 
 const CustomerInfoForm = ({ customerName, customerPhone, onNameChange, onPhoneChange }) => {
   return (
@@ -229,7 +203,7 @@ useEffect(() => {
     unsubscribeMatches();
     unsubscribeSellers();
   };
-}, []);
+}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleSelection = (matchId, selection, odds) => {
     setSelectedBets(prev => {
