@@ -1794,7 +1794,7 @@ useEffect(() => {
     
     // ✅ USA matchResults DIRECTO (NO REF)
     const matchesWithoutResults = allMatchesData.filter(match =>
-      matchResults[match.id] === undefined
+      matchResultsRef.current[match.id] === undefined
     );
     if (isMounted) {
       setAllMatches(matchesWithoutResults);
@@ -1805,7 +1805,7 @@ useEffect(() => {
     const activeMatches = allMatchesData.filter(match =>
       match &&
       match.hidden !== true &&
-      matchResults[match.id] === undefined &&  // ✅ USA matchResults DIRECTO
+      matchResultsRef.current[match.id] === undefined &&  // ✅ USA matchResults DIRECTO
       !shouldCloseMatch(match.date, match.time) &&
       match.date >= today
     );
