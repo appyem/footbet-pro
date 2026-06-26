@@ -1723,8 +1723,6 @@ useEffect(() => {
   const [userRole, setUserRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [tickets, setTickets] = useState([]);
-  const [matches, setMatches] = useState([]);
-  const [allMatches, setAllMatches] = useState([]); // Para el panel del admin
   const [allMatchesIncludingResults, setAllMatchesIncludingResults] = useState([]);
   const [pendingTickets, setPendingTickets] = useState([]);
   const [selectedBets, setSelectedBets] = useState(new Map());
@@ -1748,6 +1746,27 @@ useEffect(() => {
   useEffect(() => {
     matchResultsRef.current = matchResults;
   }, [matchResults]);
+
+  // ✅ useMemo para calcular partidos sin resultados (se recalcula cuando cambia matchResults)
+  const allMatches = useMemo(() => {
+    return allMatchesIncludingResults.filter(match =>
+      matchResults[match.id] === undefined
+    );
+  }, [allMatchesIncludingResults, matchResults]);
+
+  // ✅ useMemo para calcular partidos activos del vendedor (se recalcula cuando cambia matchResults)
+  const matches = useMemo(() => {
+    const today = getCurrentDate();
+    const activeMatches = allMatchesIncludingResults.filter(match =>
+      match &&
+      match.hidden !== true &&
+      matchResults[match.id] === undefined &&
+      !shouldCloseMatch(match.date, match.time) &&
+      match.date >= today
+    );
+    
+    return activeMatches.slice(0, 7);
+  }, [allMatchesIncludingResults, matchResults]);
   const [sellerUsers, setSellerUsers] = useState([
     { id: 'seller1', email: 'juan@footbet.com', password: 'juan123', name: 'Juan Perez', commission: 15 },
     { id: 'seller2', email: 'maria@footbet.com', password: 'maria123', name: 'Maria Garcia', commission: 12 }
@@ -1783,6 +1802,7 @@ useEffect(() => {
   });
 
   // 🔁 LISTENER EN TIEMPO REAL PARA TODOS LOS PARTIDOS
+  // ✅ SOLO GUARDA LOS DATOS, NO FILTRA (el filtro se hace con useMemo)
   const unsubscribeMatches = onSnapshot(collection(db, 'matches'), (snapshot) => {
     const allMatchesData = snapshot.docs.map(doc => ({
       id: doc.id,
@@ -1790,29 +1810,6 @@ useEffect(() => {
     }));
     if (isMounted) {
       setAllMatchesIncludingResults(allMatchesData);
-    }
-    
-    // ✅ USA matchResults DIRECTO (NO REF)
-    const matchesWithoutResults = allMatchesData.filter(match =>
-      matchResultsRef.current[match.id] === undefined
-    );
-    if (isMounted) {
-      setAllMatches(matchesWithoutResults);
-    }
-    
-    // Para el VENDEDOR: solo partidos de hoy disponibles
-    const today = getCurrentDate();
-    const activeMatches = allMatchesData.filter(match =>
-      match &&
-      match.hidden !== true &&
-      matchResultsRef.current[match.id] === undefined &&  // ✅ USA matchResults DIRECTO
-      !shouldCloseMatch(match.date, match.time) &&
-      match.date >= today
-    );
-    
-    const finalMatches = activeMatches.slice(0, 7);
-    if (isMounted) {
-      setMatches(finalMatches);
     }
   });
 
@@ -2154,12 +2151,7 @@ useEffect(() => {
         const docRef = doc(db, 'matches', matchesSnapshot.docs[0].id);
         await updateDoc(docRef, { hidden: hide });
 
-        // ✅ Actualizar allMatches para el ADMIN (optimistic update)
-        setAllMatches(prev => 
-          prev.map(match => 
-            match.id === matchId ? { ...match, hidden: hide } : match
-          )
-        );
+        // ✅ allMatches se recalcula automáticamente con useMemo
 
         // ✅ Actualizar matches para el VENDEDOR usando la lógica correcta
         const today = getCurrentDate();
@@ -2195,11 +2187,7 @@ useEffect(() => {
           return (aH * 60 + aM) - (bH * 60 + bM);
         });
 
-        const finalMatches = allAvailableMatches.length >= 7 
-          ? allAvailableMatches.slice(0, 7) 
-          : [];
-
-        setMatches(finalMatches);
+        // ✅ matches se recalcula automáticamente con useMemo
 
         alert(hide ? 'Partido oculto exitosamente' : 'Partido mostrado exitosamente');
       }
