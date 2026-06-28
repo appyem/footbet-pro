@@ -728,7 +728,10 @@ const SalesView = ({ tickets, currentUser, userRole, onDeleteTicket }) => {
     let filtered = [...tickets];
     // Filtrar por fecha
     if (timeFilter === 'today') {
-      filtered = filtered.filter(ticket => ticket.date === today);
+      filtered = filtered.filter(ticket => {
+        const ticketDate = ticket.date?.split('T')[0] || ticket.date;
+        return ticketDate === today;
+      });
     }
     // Filtrar por vendedor (solo admin puede ver todos)
     if (userRole === 'seller') {
@@ -2558,7 +2561,10 @@ useEffect(() => {
   console.log('🔍 Pending Tickets para este vendedor:', myPendingTickets.length);
   console.log('🔍 === FIN SELLER DASHBOARD ===');
   
-  const todaySales = tickets.filter(t => t.sellerId === currentUser?.id && t.date === getCurrentDate());
+  const todaySales = tickets.filter(t => {
+      const ticketDate = t.date?.split('T')[0] || t.date;
+      return t.sellerId === currentUser?.id && ticketDate === getCurrentDate();
+    });
     const todayTotal = todaySales.reduce((sum, t) => sum + t.totalStake, 0);
     const commissionAmount = (todayTotal * (currentUser?.commission || 0)) / 100;
     const amountToPay = todayTotal - commissionAmount;
