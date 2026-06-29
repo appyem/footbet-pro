@@ -694,8 +694,9 @@ ${ticket.bets.map((bet, index) =>
   }
 };
 
-// ✅ FUNCIÓN CORREGIDA PARA ENVIAR PARTIDOS
+// ✅ FUNCIÓN CORREGIDA PARA ENVIAR PARTIDOS CON UTF-8
 const sendMatchesToWhatsApp = (message) => {
+  // ✅ Asegurar codificación UTF-8 correcta para emojis
   const encodedMessage = encodeURIComponent(message);
   const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
   
@@ -703,8 +704,10 @@ const sendMatchesToWhatsApp = (message) => {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   
   if (isIOS) {
+    // iOS: Abrir directamente
     window.open(whatsappUrl, '_blank');
   } else {
+    // Android/Desktop: Intentar abrir app nativa primero
     window.location.href = whatsappUrl;
     setTimeout(() => {
       window.open(whatsappUrl, '_blank');
@@ -1591,6 +1594,7 @@ const generateResultsMessage = (matchResults, allMatches, sellerName) => {
   allMatches.forEach(match => {
     matchMap[match.id] = match;
   });
+
   // Filtrar solo partidos que ya tienen resultado
   const finishedMatches = Object.entries(matchResults)
     .map(([matchId, result]) => {
@@ -1600,7 +1604,6 @@ const generateResultsMessage = (matchResults, allMatches, sellerName) => {
     })
     .filter(Boolean)
     .sort((a, b) => {
-      // Usar zona horaria de Colombia explícitamente
       const parseColombiaDateTime = (dateStr, timeStr) => {
         const [year, month, day] = dateStr.split('-').map(Number);
         const [hours, minutes] = timeStr.split(':').map(Number);
@@ -1608,42 +1611,68 @@ const generateResultsMessage = (matchResults, allMatches, sellerName) => {
       };
       const timeA = parseColombiaDateTime(a.date, a.time);
       const timeB = parseColombiaDateTime(b.date, b.time);
-      return timeB - timeA; // más reciente primero
+      return timeB - timeA;
     })
     .slice(0, 7);
 
   if (finishedMatches.length === 0) {
-    return `*📢 La Jugada 7*\nHola! Por ahora no hay resultados disponibles.\n— *${sellerName}* 🟢`;
+    return `*LA JUGADA 7*\n\nHola! Por ahora no hay resultados disponibles.\n\n— *${sellerName}*`;
   }
 
-  let message = `*🏆 ÚLTIMOS RESULTADOS - La Jugada 7* 🏆\n`;
-  message += `⚽ *¡Revisa los últimos partidos jugados!* 💰\n`;
-  message += `──────────────────────\n`;
-  finishedMatches.forEach((match, index) => {
-    const timeEmoji = index < 3 ? '🕗' : index < 6 ? '🕘' : '🕙';
-    const flagEmoji = match.country === 'Colombia' ? '🇨🇴' :
-    match.country === 'España' ? '🇪🇸' :
-    match.country === 'Inglaterra' ? '🏴󠁧󠁢󠁥󠁮󠁧󠁿' :
-    match.country === 'Italia' ? '🇮🇹' :
-    match.country === 'Alemania' ? '🇩🇪' :
-    match.country === 'Francia' ? '🇫🇷' :
-    match.country === 'Brasil' ? '🇧🇷' :
-    match.country === 'Argentina' ? '🇦🇷' :
-    match.country === 'México' ? '🇲🇽' :
-    match.country === 'Estados Unidos' ? '🇺🇸' :
-    match.country === 'Champions League' ? '🏆' :
-    match.country === 'Copa Libertadores' ? '🌎' :
-    match.country === 'Copa Sudamericana' ? '🌎' :
-    match.country === 'Europa League' ? '🇪🇺' : '🌐';
-
-    const resultText = match.result === '1' ? '✅ Local' :
-    match.result === 'X' ? '⚪ Empate' : '✅ Visitante';
-    message += `${timeEmoji} *${match.time}* | ${flagEmoji} *${match.league}*\n`;
-    message += `📊 *${match.homeTeam}* vs *${match.awayTeam}*\n`;
-    message += `✅ Resultado: ${resultText}\n\n`;
+  // Obtener fecha del primer resultado
+  const firstMatchDate = finishedMatches[0].date;
+  const dateObj = new Date(firstMatchDate + 'T12:00:00');
+  const formattedDate = dateObj.toLocaleDateString('es-CO', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
   });
-  message += `📲 *¿Listo para jugar la próxima ronda?* ¡Escríbeme!\n`;
-  message += `— *${sellerName} – La Jugada 7* 🟢`;
+
+  let message = `*RESULTADOS OFICIALES*\n`;
+  message += `*${formattedDate}*\n`;
+  message += `━━━━━━━━━━━━━━━━━━\n\n`;
+
+  finishedMatches.forEach((match, index) => {
+    // Emojis 100% compatibles con WhatsApp nativo
+    const resultEmoji = match.result === '1' ? '✅' : 
+                       match.result === 'X' ? '✅' : '✅';
+    const resultText = match.result === '1' ? 'LOCAL' : 
+                      match.result === 'X' ? 'EMPATE' : 'VISITANTE';
+    
+    // Emoji de bandera (solo banderas simples que funcionan en WhatsApp)
+    const flagEmoji = match.country === 'Colombia' ? '🇨🇴' :
+      match.country === 'España' ? '🇪🇸' :
+      match.country === 'Inglaterra' ? '🏴' :
+      match.country === 'Italia' ? '🇮🇹' :
+      match.country === 'Alemania' ? '🇩🇪' :
+      match.country === 'Francia' ? '🇫🇷' :
+      match.country === 'Brasil' ? '🇧🇷' :
+      match.country === 'Argentina' ? '🇦🇷' :
+      match.country === 'México' ? '🇲🇽' :
+      match.country === 'Estados Unidos' ? '🇺🇸' :
+      match.country === 'Champions League' ? '🏆' :
+      match.country === 'Copa Libertadores' ? '🌎' :
+      match.country === 'Copa Sudamericana' ? '🌎' :
+      match.country === 'Europa League' ? '🇪🇺' : '🌐';
+    
+    message += `⚽ *${match.time}* - ${flagEmoji} ${match.league}\n`;
+    message += `${match.homeTeam} vs ${match.awayTeam}\n`;
+    message += `*Resultado: ${resultText}* ${resultEmoji}\n`;
+    
+    if (index < finishedMatches.length - 1) {
+      message += `──────────────────\n`;
+    }
+  });
+
+  message += `\n━━━━━━━━━━━━━━━━━━\n`;
+  message += `*¡Juega ahora y gana!*\n`;
+  message += `✅ 5 aciertos: Recupera tu jugada\n`;
+  message += `✅ 6 aciertos: 10 juegos GRATIS\n`;
+  message += `✅ 7 aciertos: $1.000.000\n\n`;
+  message += `*¿Listo para la próxima?*\n`;
+  message += `— *${sellerName} - La Jugada 7*`;
+
   return message;
 };
 
