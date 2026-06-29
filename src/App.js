@@ -722,15 +722,17 @@ const SalesView = ({ tickets, currentUser, userRole, onDeleteTicket }) => {
   const [ticketToDelete, setTicketToDelete] = useState(null);
   const [showResendModal, setShowResendModal] = useState(false);
   const [ticketToResend, setTicketToResend] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const today = getCurrentDate();
   // Filtrar tickets - solo del vendedor actual si es vendedor
   const filteredTickets = useMemo(() => {
     let filtered = [...tickets];
     // Filtrar por fecha
     if (timeFilter === 'today') {
+      const todayStr = getCurrentDate();
       filtered = filtered.filter(ticket => {
         const ticketDate = ticket.date?.split('T')[0] || ticket.date;
-        return ticketDate === today;
+        return ticketDate === todayStr;
       });
     }
     // Filtrar por vendedor (solo admin puede ver todos)
@@ -747,7 +749,7 @@ const SalesView = ({ tickets, currentUser, userRole, onDeleteTicket }) => {
       );
     }
     return filtered.sort((a, b) => new Date(`${b.date} ${b.time}`) - new Date(`${a.date} ${a.time}`));
-  }, [tickets, searchTerm, timeFilter, userRole, currentUser, today]);
+  }, [tickets, searchTerm, timeFilter, userRole, currentUser]);
   const totalSales = filteredTickets.reduce((sum, t) => sum + t.totalStake, 0);
   const averageTicket = filteredTickets.length > 0 ? totalSales / filteredTickets.length : 0;
   const handleShowDetails = (ticket) => {
@@ -1817,10 +1819,19 @@ useEffect(() => {
   });
 
   // 🔁 LISTENER PARA TICKETS
-  const unsubscribeTickets = onSnapshot(collection(db, 'tickets'), (snapshot) => {
-    const ticketsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-    if (isMounted) setTickets(ticketsData);
-  });
+  const unsubscribeTickets = onSnapshot(
+    collection(db, 'tickets'), 
+    (snapshot) => {
+      const ticketsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      // ✅ PROTECCIÓN: No vaciar el array si el snapshot está vacío pero ya teníamos tickets
+      if (isMounted && (ticketsData.length > 0 || tickets.length === 0)) {
+        setTickets(ticketsData);
+      }
+    },
+    (error) => {
+      console.error('❌ Error escuchando tickets:', error);
+    }
+  );
 
   // 🔁 LISTENER PARA VENDEDORES
   const unsubscribeSellers = onSnapshot(collection(db, 'sellers'), (snapshot) => {
@@ -2561,9 +2572,10 @@ useEffect(() => {
   console.log('🔍 Pending Tickets para este vendedor:', myPendingTickets.length);
   console.log('🔍 === FIN SELLER DASHBOARD ===');
   
-  const todaySales = tickets.filter(t => {
+  const today = getCurrentDate();
+    const todaySales = tickets.filter(t => {
       const ticketDate = t.date?.split('T')[0] || t.date;
-      return t.sellerId === currentUser?.id && ticketDate === getCurrentDate();
+      return t.sellerId === currentUser?.id && ticketDate === today;
     });
     const todayTotal = todaySales.reduce((sum, t) => sum + t.totalStake, 0);
     const commissionAmount = (todayTotal * (currentUser?.commission || 0)) / 100;
