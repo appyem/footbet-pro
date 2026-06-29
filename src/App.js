@@ -1791,47 +1791,28 @@ useEffect(() => {
   
 
 
+// 🔁 LISTENERS BÁSICOS (sin dependencia de usuario)
 useEffect(() => {
   let isMounted = true;
   
-  // 🔁 LISTENER EN TIEMPO REAL PARA RESULTADOS
+  // 🔁 LISTENER PARA RESULTADOS
   const unsubscribeResults = onSnapshot(collection(db, 'match_results'), (snapshot) => {
     const resultsData = {};
     snapshot.docs.forEach(doc => {
       const data = doc.data();
       resultsData[data.matchId] = data.result;
     });
-    if (isMounted) {
-      setMatchResults(resultsData);
-    }
+    if (isMounted) setMatchResults(resultsData);
   });
 
-  // 🔁 LISTENER EN TIEMPO REAL PARA TODOS LOS PARTIDOS
-  // ✅ SOLO GUARDA LOS DATOS, NO FILTRA (el filtro se hace con useMemo)
+  // 🔁 LISTENER PARA PARTIDOS
   const unsubscribeMatches = onSnapshot(collection(db, 'matches'), (snapshot) => {
     const allMatchesData = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
-    if (isMounted) {
-      setAllMatchesIncludingResults(allMatchesData);
-    }
+    if (isMounted) setAllMatchesIncludingResults(allMatchesData);
   });
-
-  // 🔁 LISTENER PARA TICKETS
-  const unsubscribeTickets = onSnapshot(
-    collection(db, 'tickets'), 
-    (snapshot) => {
-      const ticketsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-      // ✅ PROTECCIÓN: No vaciar el array si el snapshot está vacío pero ya teníamos tickets
-      if (isMounted && (ticketsData.length > 0 || tickets.length === 0)) {
-        setTickets(ticketsData);
-      }
-    },
-    (error) => {
-      console.error('❌ Error escuchando tickets:', error);
-    }
-  );
 
   // 🔁 LISTENER PARA VENDEDORES
   const unsubscribeSellers = onSnapshot(collection(db, 'sellers'), (snapshot) => {
@@ -1839,33 +1820,69 @@ useEffect(() => {
     if (isMounted) setSellerUsers(sellersData);
   });
 
+  return () => {
+    isMounted = false;
+    unsubscribeResults();
+    unsubscribeMatches();
+    unsubscribeSellers();
+  };
+}, []);
+
+// 🔁 LISTENERS DEPENDIENTES DEL USUARIO (tickets y pending_tickets)
+useEffect(() => {
+  if (!currentUser?.id) {
+    console.log('⚠️ No hay usuario autenticado, no se cargan tickets');
+    return;
+  }
+
+  let isMounted = true;
+  console.log('🔍 Iniciando listeners para usuario:', currentUser.id, 'Rol:', currentUser.role);
+
+  // 🔁 LISTENER PARA TICKETS
+  // Admin: lee TODOS los tickets | Vendedor: solo los suyos
+  const ticketsQuery = currentUser.role === 'admin'
+    ? collection(db, 'tickets')
+    : query(collection(db, 'tickets'), where('sellerId', '==', currentUser.id));
+
+  const unsubscribeTickets = onSnapshot(
+    ticketsQuery,
+    (snapshot) => {
+      const ticketsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      console.log('🔍 Tickets recibidos - Rol:', currentUser.role, '- Total:', ticketsData.length);
+      if (isMounted) setTickets(ticketsData);
+    },
+    (error) => {
+      console.error('❌ Error en tickets:', error.code, error.message);
+    }
+  );
+
   // 🔁 LISTENER PARA TICKETS PENDIENTES
+  // Admin: lee TODOS | Vendedor: solo los suyos
+  const pendingTicketsQuery = currentUser.role === 'admin'
+    ? collection(db, 'pending_tickets')
+    : query(collection(db, 'pending_tickets'), where('sellerId', '==', currentUser.id));
+
   const unsubscribePendingTickets = onSnapshot(
-    collection(db, 'pending_tickets'),
+    pendingTicketsQuery,
     (snapshot) => {
       const pendingData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      console.log('🔍 Pending Tickets cargados:', pendingData.length);
-      console.log('🔍 Pending Tickets:', pendingData);
+      console.log('🔍 Pending Tickets - Rol:', currentUser.role, '- Total:', pendingData.length);
       if (isMounted) setPendingTickets(pendingData);
     },
     (error) => {
-      console.error('Error escuchando pending_tickets:', error);
+      console.error('❌ Error en pending_tickets:', error.code, error.message);
     }
   );
 
   return () => {
     isMounted = false;
-    unsubscribeResults();
-    unsubscribeMatches();
     unsubscribeTickets();
-    unsubscribeSellers();
     unsubscribePendingTickets();
   };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);  // ✅ Sin dependencias para evitar bucle
+}, [currentUser]);
 
 
   // 🔁 LISTENER DE AUTENTICACIÓN - Persistencia de sesión

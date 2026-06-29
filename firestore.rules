@@ -53,10 +53,10 @@ service cloud.firestore {
     // 🔒 COLECCIÓN: tickets
     // ═══════════════════════════════════════════════════
     match /tickets/{ticketId} {
-      // Admin: acceso total
+      // Admin: acceso total a TODOS los tickets
       allow read, write, delete, update: if isAdmin();
       
-      // Vendedor: solo puede acceder a SUS propios tickets (sellerId == UID de Auth)
+      // Vendedor: solo puede acceder a SUS propios tickets
       allow create: if isAuthenticated() && request.resource.data.sellerId == request.auth.uid;
       allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
       allow delete: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
@@ -69,19 +69,17 @@ service cloud.firestore {
     match /pending_tickets/{ticketId} {
       allow create: if 
         request.resource.data.keys().hasAll([
-          'customerName', 
-          'customerPhone', 
-          'sellerId', 
-          'sellerName', 
-          'bets', 
-          'totalStake', 
-          'status'
+          'customerName', 'customerPhone', 'sellerId', 'sellerName', 
+          'bets', 'totalStake', 'status'
         ]) &&
         request.resource.data.status == 'pending' &&
         request.resource.data.totalStake == 5000 &&
         request.resource.data.bets.size() == 7;
       
-      allow read, write: if isAdmin();
+      // Admin: acceso total
+      allow read, write, delete, update: if isAdmin();
+      
+      // Vendedor: solo puede acceder a SUS propios tickets pendientes
       allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
       allow update, delete: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
     }
@@ -93,4 +91,5 @@ service cloud.firestore {
       allow read, write: if false;
     }
   }
+}
 }
