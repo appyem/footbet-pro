@@ -57,9 +57,27 @@ const PendingBetsView = ({ currentUser }) => {
       // ✅ USAR CLOUD FUNCTION (validación del servidor)
       const result = await approvePendingTicket(selectedTicket.id);
       
-      // Notificar al cliente por WhatsApp
-      const message = `¡Buenas noticias! Tu Tu jugada ha sido aprobada. Código de verificación: ${result.verificationCode}. ¡Mucha suerte!`;
-      window.open(`https://wa.me/${selectedTicket.customerPhone.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+            // Notificar al cliente por WhatsApp
+      const customerPhone = selectedTicket.customerPhone.replace(/\D/g, '');
+      const resultsLink = `https://footbet-pro-rvdy.vercel.app/#/mis-resultados?phone=${customerPhone}`;
+      
+      const message = `🎉 *¡Buenas noticias!* 🎉
+
+✅ Tu jugada ha sido *APROBADA*
+
+🎫 *Código de verificación:* ${result.verificationCode}
+
+📊 *Consulta tus resultados aquí:*
+${resultsLink}
+
+🏆 *PREMIOS:*
+✅ 5 aciertos: Recupera tu jugada
+✅ 6 aciertos: 10 juegos GRATIS
+✅ 7 aciertos: $1.000.000
+
+¡Mucha suerte! 🍀`;
+      
+      window.open(`https://wa.me/${customerPhone}?text=${encodeURIComponent(message)}`, '_blank');
       
       setShowApproveModal(false);
       setShowDetailsModal(false);
