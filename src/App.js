@@ -2949,6 +2949,19 @@ useEffect(() => {
         </div>
       </button>
 
+
+            {/* 🔹 BOTÓN SECUNDARIO - VER MIS RESULTADOS */}
+      <button
+        onClick={() => setCurrentView('mis-resultados')}
+        className="w-full bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-400 hover:to-blue-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-blue-500/50 flex items-center justify-center gap-3 mb-6"
+      >
+        <span className="text-2xl">📊</span>
+        <div className="text-left">
+          <div className="text-lg">VER MIS RESULTADOS</div>
+          <div className="text-xs text-blue-200 font-normal">Consulta tus jugadas y estadísticas</div>
+        </div>
+      </button>
+
       {/* 🔹 PREMIOS DESTACADOS */}
       <div className="bg-gradient-to-r from-purple-900/50 to-purple-800/50 rounded-xl p-4 mb-6 border border-purple-600/30">
         <h3 className="text-white font-bold text-sm mb-2 text-center">🏆 PREMIOS</h3>
