@@ -2947,16 +2947,18 @@ useEffect(() => {
   const LoginScreen = useCallback(() => (
   <div className="min-h-screen bg-gradient-to-br from-green-900 via-gray-900 to-green-800 flex items-center justify-center p-4 relative overflow-hidden">
     
-    {/* 🔹 FONDO MARCA DE AGUA */}
-    <div 
-      className="absolute inset-0 opacity-10 pointer-events-none"
-      style={{
-        backgroundImage: `url(https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Trofe%CC%81os%20dorados%20en%20un%20estadio%20vibrante.png)`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      }}
-    ></div>
+        {/* 🎬 VIDEO DE FONDO */}
+    <video
+      autoPlay
+      loop
+      muted
+      playsInline
+      className="fixed inset-0 w-full h-full object-cover z-0"
+      poster="https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Trofe%CC%81os%20dorados%20en%20un%20estadio%20vibrante.png"
+    >
+      <source src="/video/estadio.mp4" type="video/mp4" />
+    </video>
+    <div className="fixed inset-0 bg-black/60 z-0"></div>
 
     <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-8 w-full max-w-md shadow-2xl border border-gray-500/30 relative z-10">
       

@@ -364,7 +364,17 @@ useEffect(() => {
 
   return (
   <div className="min-h-screen bg-gray-900 pb-24 relative overflow-hidden">
-    <div className="absolute inset-0 opacity-15 pointer-events-none" style={{ backgroundImage: `url(https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Trofe%CC%81os%20dorados%20en%20un%20estadio%20vibrante.png)`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}></div>
+        {/* 🎬 VIDEO DE FONDO */}
+    <video
+      autoPlay
+      loop
+      muted
+      playsInline
+      className="fixed inset-0 w-full h-full object-cover z-0"
+    >
+      <source src="/video/estadio.mp4" type="video/mp4" />
+    </video>
+    <div className="fixed inset-0 bg-black/50 z-0"></div>
     
     <div className="py-6 relative z-10">
       <div className="max-w-4xl mx-auto flex flex-col items-center">
