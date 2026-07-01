@@ -1702,6 +1702,42 @@ const App = () => {
 // 🟢 DESPUÉS (solución definitiva)
 const [currentView, setCurrentView] = useState('login'); // Siempre login inicial
 
+
+  // 🎵 Estados de audio
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const bgMusicRef = React.useRef(null);
+  const goalSoundRef = React.useRef(null);
+
+  // 🎵 Función para inicializar audio
+  const initializeAudio = useCallback(() => {
+    if (!bgMusicRef.current) {
+      bgMusicRef.current = new Audio('/audio/background-music.mp3');
+      bgMusicRef.current.loop = true;
+      bgMusicRef.current.volume = 0.3;
+    }
+    if (!goalSoundRef.current) {
+      goalSoundRef.current = new Audio('/audio/goal-sound.mp3');
+      goalSoundRef.current.volume = 0.7;
+    }
+    setAudioEnabled(true);
+    // Intentar reproducir música de fondo
+    bgMusicRef.current.play().catch(err => {
+      console.log('Audio autoplay bloqueado:', err);
+    });
+  }, []);
+
+  
+  // 🎵 Función para reproducir sonido de gol
+  const playGoalSound = () => {
+    if (audioEnabled && goalSoundRef.current) {
+      goalSoundRef.current.currentTime = 0;
+      goalSoundRef.current.play().catch(err => {
+        console.log('Error reproduciendo sonido de gol:', err);
+      });
+    }
+  };
+
+
 // ✅ Verificar hash DESPUÉS de montar el componente
 useEffect(() => {
   const checkHashOnLoad = () => {
@@ -2867,10 +2903,10 @@ useEffect(() => {
       case 'login':
         return LoginScreen();
       case 'public-dashboard':
-        return <PublicDashboard />;
+        return <PublicDashboard playGoalSound={playGoalSound} audioEnabled={audioEnabled} />;
 
       case 'mis-resultados':
-        return <ClientResults />;
+        return <ClientResults bgMusicRef={bgMusicRef} audioEnabled={audioEnabled} />;
       
       case 'admin-dashboard':
         return AdminDashboard();
@@ -2939,7 +2975,10 @@ useEffect(() => {
 
       {/* 🔹 BOTÓN PRINCIPAL - IR A APOSTAR (GRANDE Y ATRACTIVO) */}
       <button
-        onClick={() => setCurrentView('public-dashboard')}
+        onClick={() => {
+          initializeAudio();
+          setCurrentView('public-dashboard');
+        }}
         className="w-full bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-green-500/50 flex items-center justify-center gap-3 mb-6"
       >
         <span className="text-2xl">⚽</span>
@@ -2952,7 +2991,10 @@ useEffect(() => {
 
             {/* 🔹 BOTÓN SECUNDARIO - VER MIS RESULTADOS */}
       <button
-        onClick={() => setCurrentView('mis-resultados')}
+        onClick={() => {
+          if (!audioEnabled) initializeAudio();
+          setCurrentView('mis-resultados');
+        }}
         className="w-full bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-400 hover:to-blue-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-blue-500/50 flex items-center justify-center gap-3 mb-6"
       >
         <span className="text-2xl">📊</span>
@@ -3036,7 +3078,7 @@ useEffect(() => {
       </div>
     </div>
   </div>
-), [loginEmail, loginPassword, handleLogin, setCurrentView]);
+), [loginEmail, loginPassword, handleLogin, setCurrentView, initializeAudio, audioEnabled]);
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {renderCurrentView()}

@@ -21,7 +21,7 @@ const getSelectionText = (selection) => {
   }
 };
 
-const ClientResults = () => {
+const ClientResults = ({ bgMusicRef, audioEnabled }) => {
   const [searchMode, setSearchMode] = useState('phone'); // 'phone' o 'ticket'
   const [searchValue, setSearchValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,6 +31,15 @@ const ClientResults = () => {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [clientUid, setClientUid] = useState('');
+
+    // 🎵 Iniciar música de fondo al montar
+  useEffect(() => {
+    if (audioEnabled && bgMusicRef && bgMusicRef.current) {
+      bgMusicRef.current.play().catch(err => {
+        console.log('Error reproduciendo música de fondo:', err);
+      });
+    }
+  }, [audioEnabled, bgMusicRef]);
 
   // Cargar todos los resultados de partidos
   useEffect(() => {

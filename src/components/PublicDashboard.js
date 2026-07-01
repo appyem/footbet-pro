@@ -45,7 +45,7 @@ const CustomerInfoForm = ({ customerName, customerPhone, onNameChange, onPhoneCh
 };
 
 // Componente para cada partido (Diseño Cristal Moderno)
-const MatchBetCard = ({ match, selectedBet, onSelectionChange, isTrapMatch }) => {
+const MatchBetCard = ({ match, selectedBet, onSelectionChange, isTrapMatch, playGoalSound }) => {
   if (!match || !match.homeTeam || !match.awayTeam) return null;
   
   const homeFlag = getTeamFlag(match.homeTeam) || getCountryFlag(match.country);
@@ -89,7 +89,10 @@ const MatchBetCard = ({ match, selectedBet, onSelectionChange, isTrapMatch }) =>
           return (
             <button
               key={option.key}
-              onClick={() => onSelectionChange(match.id, option.key, odds)}
+              onClick={() => {
+                onSelectionChange(match.id, option.key, odds);
+                if (playGoalSound) playGoalSound();
+              }}
               className={`py-3 rounded-xl text-sm font-bold transition-all transform hover:scale-105 active:scale-95 ${
                 isSelected
                   ? `${option.color} text-white shadow-lg ${option.glow} ring-2 ring-white/40`
@@ -107,7 +110,7 @@ const MatchBetCard = ({ match, selectedBet, onSelectionChange, isTrapMatch }) =>
 };
 
 // Componente principal del Dashboard Público
-const PublicDashboard = () => {
+const PublicDashboard = ({ playGoalSound, audioEnabled }) => {
   const [matches, setMatches] = useState([]);
   const [sellers, setSellers] = useState([]);
   const [selectedBets, setSelectedBets] = useState(new Map());
