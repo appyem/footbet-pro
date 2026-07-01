@@ -97,8 +97,49 @@ exports.approvePendingTicket = onCall(async (request) => {
     throw new HttpsError("failed-precondition", "El ticket ya fue procesado.");
   }
 
+    // 3.5. Generar/obtener UID único del cliente (6 dígitos)
+  const customerPhone = pendingTicket.customerPhone.replace(/\D/g, '');
+  let clientUid;
+  
+  // Buscar si el teléfono ya tiene UID
+  const existingUidQuery = await db.collection("client_uids")
+    .where("phone", "==", customerPhone)
+    .limit(1)
+    .get();
+  
+  if (!existingUidQuery.empty) {
+    // Ya existe, usar el UID existente
+    clientUid = existingUidQuery.docs[0].data().uid;
+  } else {
+    // No existe, generar UID único de 6 dígitos
+    let uidGenerated = false;
+    while (!uidGenerated) {
+      const newUid = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Verificar que no exista ya
+      const uidCheck = await db.collection("client_uids")
+        .where("uid", "==", newUid)
+        .limit(1)
+        .get();
+      
+      if (uidCheck.empty) {
+        clientUid = newUid;
+        uidGenerated = true;
+        
+        // Guardar en client_uids
+        await db.collection("client_uids").add({
+          phone: customerPhone,
+          uid: newUid,
+          createdAt: new Date().toISOString()
+        });
+      }
+    }
+  }
+
   // 4. Generar código de verificación
   const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+
+
 
   // 5. Crear el ticket en la colección 'tickets'
   const newTicket = {
@@ -140,11 +181,12 @@ exports.approvePendingTicket = onCall(async (request) => {
     console.error("Error enviando alerta a Telegram:", error);
   }
 
-  // 8. Retornar éxito
+    // 8. Retornar éxito
   return {
     success: true,
     ticketId: ticketRef.id,
     verificationCode: verificationCode,
+    clientUid: clientUid,
     message: "Ticket aprobado exitosamente."
   };
 });

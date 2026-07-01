@@ -162,7 +162,7 @@ ${resultsLink}
                 {ticket.bets.length} Tu jugada(s)
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={() => handleViewDetails(ticket)}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2 rounded-lg flex items-center justify-center gap-1"

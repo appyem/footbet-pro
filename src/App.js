@@ -873,7 +873,7 @@ const SalesView = ({ tickets, currentUser, userRole, onDeleteTicket }) => {
                   <Ticket className="w-3 h-3" />
                   {ticket.bets.length} Tu jugada(s) • Código: {ticket.id}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <button
                     onClick={() => handleResendTicket(ticket)}
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded flex items-center justify-center gap-1"
@@ -1509,7 +1509,7 @@ const SettingsView = ({ sellerUsers, setSellerUsers, userRole }) => {
                 <h3 className="text-white font-medium">Exportar Datos</h3>
               </div>
               <p className="text-gray-400 text-sm mb-4">Exporta tus datos a CSV o Excel</p>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
                   CSV
                 </button>
@@ -1545,7 +1545,7 @@ const todayMatches = matches;
                 </span>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 onClick={() => handleSaveResult(match.id, '1')}
                 className={`px-3 py-1 rounded text-sm ${
@@ -2522,7 +2522,7 @@ useEffect(() => {
                       <span>• {match.time}</span>
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <button
                       onClick={() => {
                         setEditingMatch(match);
@@ -2738,7 +2738,7 @@ useEffect(() => {
                     <Ticket className="w-3 h-3" />
                     {ticket.bets.length} Tu jugada(s) • {ticket.time}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <button
                       onClick={() => handleResendTicket(ticket)}
                       className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded flex items-center justify-center gap-1"
