@@ -30,6 +30,7 @@ const ClientResults = () => {
   const [error, setError] = useState('');
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showTicketModal, setShowTicketModal] = useState(false);
+  const [clientUid, setClientUid] = useState('');
 
   // Cargar todos los resultados de partidos
   useEffect(() => {
@@ -78,12 +79,47 @@ const ClientResults = () => {
         const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
         setTickets(results);
-      } else {
-        // ✅ SEGURO: Búsqueda por teléfono con consultas específicas
+        } else {
+        // ✅ VALIDACIÓN DE UID (código de acceso)
+        if (!clientUid || clientUid.length !== 6) {
+          setError('Por favor ingresa tu código de acceso de 6 dígitos');
+          setLoading(false);
+          return;
+        }
+
+        // Normalizar teléfono
         let phoneDigits = searchValue.trim().replace(/\D/g, '');
         
         if (phoneDigits.startsWith('57') && phoneDigits.length === 12) {
           phoneDigits = phoneDigits.substring(2);
+        }
+
+        // Buscar el UID en la colección client_uids
+        const phoneFormatsForUid = [
+          `57${phoneDigits}`,
+          phoneDigits
+        ];
+
+        let uidValid = false;
+        
+        for (const format of phoneFormatsForUid) {
+          const uidQuery = query(
+            collection(db, 'client_uids'),
+            where('phone', '==', format),
+            where('uid', '==', clientUid)
+          );
+          const uidSnapshot = await getDocs(uidQuery);
+          
+          if (!uidSnapshot.empty) {
+            uidValid = true;
+            break;
+          }
+        }
+
+        if (!uidValid) {
+          setError('Código de acceso incorrecto. Verifica que el teléfono y el código coincidan.');
+          setLoading(false);
+          return;
         }
         
         const phoneFormats = [
@@ -438,6 +474,27 @@ const ClientResults = () => {
               )}
             </button>
           </div>
+        
+                  {/* Input para UID - solo cuando busca por teléfono */}
+          {searchMode === 'phone' && (
+            <div className="mt-3">
+              <label className="text-white text-sm font-medium mb-2 block">
+                🔐 Código de acceso (6 dígitos)
+              </label>
+              <input
+                type="text"
+                value={clientUid}
+                onChange={(e) => setClientUid(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Ej: 191701"
+                maxLength={6}
+                className="w-full bg-white/10 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-400 border border-white/20 placeholder-gray-400 font-mono text-center text-lg tracking-widest"
+              />
+              <p className="text-gray-400 text-xs mt-1">
+                Este código te lo enviamos por WhatsApp cuando aprobamos tu jugada
+              </p>
+            </div>
+          )}
 
           {error && (
             <div className="mt-3 bg-red-900/50 border border-red-500/50 rounded-lg p-3">

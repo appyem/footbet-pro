@@ -61,11 +61,14 @@ const PendingBetsView = ({ currentUser }) => {
       const customerPhone = selectedTicket.customerPhone.replace(/\D/g, '');
       const resultsLink = `https://footbet-pro-rvdy.vercel.app/#/mis-resultados?phone=${customerPhone}`;
       
-      const message = `🎉 *¡Buenas noticias!* 🎉
+            const message = `🎉 *¡Buenas noticias!* 🎉
 
 ✅ Tu jugada ha sido *APROBADA*
 
 🎫 *Código de verificación:* ${result.verificationCode}
+
+🔐 *Tu código de acceso permanente:* ${result.clientUid}
+⚠️ *Guárdalo bien, lo necesitarás para ver tus resultados*
 
 📊 *Consulta tus resultados aquí:*
 ${resultsLink}
