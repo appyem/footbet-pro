@@ -19,17 +19,12 @@ exports.createPendingTicket = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Faltan datos de la apuesta.");
   }
 
-  // 2. Validar monto exacto ($5,000)
-  if (data.totalStake !== 5000) {
-    throw new HttpsError("invalid-argument", "El monto debe ser exactamente $5,000.");
-  }
-
-  // 3. Validar que sean exactamente 7 partidos
+  // 2. Validar que sean exactamente 7 partidos
   if (!Array.isArray(data.bets) || data.bets.length !== 7) {
     throw new HttpsError("invalid-argument", "Debes seleccionar exactamente 7 partidos.");
   }
 
-  // 4. Validar que el vendedor exista y esté activo
+  // 3. Validar que el vendedor exista y esté activo
   const sellerRef = db.collection("sellers").doc(data.sellerId);
   const sellerDoc = await sellerRef.get();
 
@@ -42,25 +37,101 @@ exports.createPendingTicket = onCall(async (request) => {
     throw new HttpsError("permission-denied", "El vendedor no está activo.");
   }
 
-  // 5. Si todo está correcto, guardar en pending_tickets
+  // 4. Normalizar teléfono
+  const customerPhone = String(data.customerPhone).trim().replace(/\D/g, '');
+
+  // 5. Verificar si el cliente quiere usar un premio
+  let isPrize = false;
+  let prizeUsed = null;
+  let totalStake = 5000; // Por defecto es pago normal
+
+  if (data.usePrize === true) {
+    // Buscar premios del cliente
+    const clientPrizeRef = db.collection("client_prizes").doc(customerPhone);
+    const clientPrizeDoc = await clientPrizeRef.get();
+
+    if (!clientPrizeDoc.exists) {
+      throw new HttpsError("failed-precondition", "No tienes premios disponibles.");
+    }
+
+    const clientPrizeData = clientPrizeDoc.data();
+    const today = new Date().toISOString().split('T')[0];
+
+    // Buscar el primer premio disponible (FIFO - más antiguo primero)
+    const availablePrizes = (clientPrizeData.prizes || []).filter(prize => {
+      // Verificar que no esté vencido
+      if (prize.expiresAt < today) return false;
+      // Verificar que tenga tickets restantes
+      if (prize.remainingTickets <= 0) return false;
+      // Para premios de 6 aciertos, verificar que no haya usado uno hoy
+      if (prize.type === "6_aciertos" && prize.lastUsedDate === today) return false;
+      return true;
+    });
+
+    if (availablePrizes.length === 0) {
+      throw new HttpsError("failed-precondition", "No tienes premios disponibles para usar hoy.");
+    }
+
+    // Usar el primer premio disponible
+    prizeUsed = availablePrizes[0];
+    isPrize = true;
+    totalStake = 0; // No se cobra
+
+    // Actualizar el premio usado
+    const updatedPrizes = clientPrizeData.prizes.map(prize => {
+      if (prize.type === prizeUsed.type && prize.earnedDate === prizeUsed.earnedDate) {
+        return {
+          ...prize,
+          usedTickets: prize.usedTickets + 1,
+          remainingTickets: prize.remainingTickets - 1,
+          lastUsedDate: today
+        };
+      }
+      return prize;
+    });
+
+    const newTotalAvailable = updatedPrizes.reduce((sum, p) => sum + p.remainingTickets, 0);
+
+    await clientPrizeRef.update({
+      prizes: updatedPrizes,
+      totalAvailable: newTotalAvailable,
+      updatedAt: today
+    });
+
+    console.log(`🎁 Premio usado por ${customerPhone}: ${prizeUsed.type}`);
+  } else {
+    // Validar monto exacto ($5,000) solo si no es premio
+    if (data.totalStake !== 5000) {
+      throw new HttpsError("invalid-argument", "El monto debe ser exactamente $5,000.");
+    }
+  }
+
+  // 6. Si todo está correcto, guardar en pending_tickets
   const newTicket = {
     customerName: String(data.customerName).trim(),
-    customerPhone: String(data.customerPhone).trim(),
+    customerPhone: customerPhone,
     sellerId: data.sellerId,
     sellerName: sellerData.name,
     bets: data.bets,
-    totalStake: 5000,
+    totalStake: totalStake,
+    isPrize: isPrize,
+    prizeType: prizeUsed ? prizeUsed.type : null,
     status: "pending",
     createdAt: new Date().toISOString(),
   };
 
-    const docRef = await db.collection("pending_tickets").add(newTicket);
+  const docRef = await db.collection("pending_tickets").add(newTicket);
 
-  // 6. Enviar notificación a Telegram
+  // 7. Enviar notificación a Telegram
   const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
   const telegramChatId = "6567201196";
   
-  const telegramMessage = `🔔 *NUEVA APUESTA PENDIENTE* 🔔\n\n👤 *Cliente:* ${newTicket.customerName}\n📱 *Teléfono:* ${newTicket.customerPhone}\n🏪 *Vendedor:* ${newTicket.sellerName}\n💰 *Monto:* $${newTicket.totalStake} COP\n⚽ *Partidos:* ${newTicket.bets.length} seleccionados\n🎫 *Ticket ID:* ${docRef.id}\n\n⏰ Esperando aprobación del vendedor...`;
+  let telegramMessage;
+  if (isPrize) {
+    telegramMessage = `🏆 *NUEVA APUESTA DE PREMIO* 🏆\n\n👤 *Cliente:* ${newTicket.customerName}\n📱 *Teléfono:* ${newTicket.customerPhone}\n🏪 *Vendedor:* ${newTicket.sellerName}\n🎁 *Tipo:* ${prizeUsed.type}\n⚽ *Partidos:* ${newTicket.bets.length} seleccionados\n🎫 *Ticket ID:* ${docRef.id}\n\n✅ Premio usado - NO COBRAR`;
+  } else {
+    telegramMessage = `🔔 *NUEVA APUESTA PENDIENTE* 🔔\n\n👤 *Cliente:* ${newTicket.customerName}\n📱 *Teléfono:* ${newTicket.customerPhone}\n🏪 *Vendedor:* ${newTicket.sellerName}\n💰 *Monto:* $${newTicket.totalStake} COP\n⚽ *Partidos:* ${newTicket.bets.length} seleccionados\n🎫 *Ticket ID:* ${docRef.id}\n\n⏰ Esperando aprobación del vendedor...`;
+  }
 
   try {
     await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
@@ -76,13 +147,17 @@ exports.createPendingTicket = onCall(async (request) => {
     console.error("Error enviando alerta a Telegram:", error);
   }
 
-  // 7. Retornar éxito al cliente
+  // 8. Retornar éxito al cliente
   return { 
     success: true, 
     ticketId: docRef.id,
-    message: "Apuesta enviada correctamente al vendedor." 
+    isPrize: isPrize,
+    message: isPrize ? "¡Premio usado exitosamente!" : "Apuesta enviada correctamente al vendedor." 
   };
 });
+
+
+
 
 /**
  * 🛡️ FUNCIÓN: approvePendingTicket
