@@ -92,6 +92,19 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
     }
     
+        // ═══════════════════════════════════════════════════
+    // 🔒 COLECCIÓN: client_uids
+    // ═══════════════════════════════════════════════════
+    match /client_uids/{uidId} {
+      // Público: puede leer para validar código de acceso
+      allow read: if true;
+      
+      // Solo Cloud Functions (admin) puede escribir
+      // Los clientes NO pueden crear, modificar ni eliminar UIDs
+      allow write: if isAdmin();
+    }
+    
+
     // ═══════════════════════════════════════════════════
     // 🔒 BLOQUEO TOTAL (cualquier otra colección)
     // ═══════════════════════════════════════════════════
