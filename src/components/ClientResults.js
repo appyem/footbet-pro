@@ -21,7 +21,7 @@ const getSelectionText = (selection) => {
   }
 };
 
-const ClientResults = () => {
+const ClientResults = ({ bgMusicRef, audioEnabled }) => {
   const [searchMode, setSearchMode] = useState('phone'); // 'phone' o 'ticket'
   const [searchValue, setSearchValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,6 +30,16 @@ const ClientResults = () => {
   const [error, setError] = useState('');
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showTicketModal, setShowTicketModal] = useState(false);
+  const [clientUid, setClientUid] = useState('');
+
+    // 🎵 Iniciar música de fondo al montar
+  useEffect(() => {
+    if (audioEnabled && bgMusicRef && bgMusicRef.current) {
+      bgMusicRef.current.play().catch(err => {
+        console.log('Error reproduciendo música de fondo:', err);
+      });
+    }
+  }, [audioEnabled, bgMusicRef]);
 
   // Cargar todos los resultados de partidos
   useEffect(() => {
@@ -78,12 +88,47 @@ const ClientResults = () => {
         const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
         setTickets(results);
-      } else {
-        // ✅ SEGURO: Búsqueda por teléfono con consultas específicas
+        } else {
+        // ✅ VALIDACIÓN DE UID (código de acceso)
+        if (!clientUid || clientUid.length !== 6) {
+          setError('Por favor ingresa tu código de acceso de 6 dígitos');
+          setLoading(false);
+          return;
+        }
+
+        // Normalizar teléfono
         let phoneDigits = searchValue.trim().replace(/\D/g, '');
         
         if (phoneDigits.startsWith('57') && phoneDigits.length === 12) {
           phoneDigits = phoneDigits.substring(2);
+        }
+
+        // Buscar el UID en la colección client_uids
+        const phoneFormatsForUid = [
+          `57${phoneDigits}`,
+          phoneDigits
+        ];
+
+        let uidValid = false;
+        
+        for (const format of phoneFormatsForUid) {
+          const uidQuery = query(
+            collection(db, 'client_uids'),
+            where('phone', '==', format),
+            where('uid', '==', clientUid)
+          );
+          const uidSnapshot = await getDocs(uidQuery);
+          
+          if (!uidSnapshot.empty) {
+            uidValid = true;
+            break;
+          }
+        }
+
+        if (!uidValid) {
+          setError('Código de acceso incorrecto. Verifica que el teléfono y el código coincidan.');
+          setLoading(false);
+          return;
         }
         
         const phoneFormats = [
@@ -358,15 +403,17 @@ const ClientResults = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 pb-8 relative overflow-hidden">
-      <div 
-        className="absolute inset-0 opacity-15 pointer-events-none"
-        style={{ 
-          backgroundImage: `url(https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Trofe%CC%81os%20dorados%20en%20un%20estadio%20vibrante.png)`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
-      ></div>
+            {/* 🎬 VIDEO DE FONDO */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed inset-0 w-full h-full object-cover z-0"
+      >
+        <source src="/video/estadio.mp4" type="video/mp4" />
+      </video>
+      <div className="fixed inset-0 bg-black/50 z-0"></div>
 
       {/* Header */}
       <div className="py-6 relative z-10">
@@ -438,6 +485,27 @@ const ClientResults = () => {
               )}
             </button>
           </div>
+        
+                  {/* Input para UID - solo cuando busca por teléfono */}
+          {searchMode === 'phone' && (
+            <div className="mt-3">
+              <label className="text-white text-sm font-medium mb-2 block">
+                🔐 Código de acceso (6 dígitos)
+              </label>
+              <input
+                type="text"
+                value={clientUid}
+                onChange={(e) => setClientUid(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Ej: 191701"
+                maxLength={6}
+                className="w-full bg-white/10 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-400 border border-white/20 placeholder-gray-400 font-mono text-center text-lg tracking-widest"
+              />
+              <p className="text-gray-400 text-xs mt-1">
+                Este código te lo enviamos por WhatsApp cuando aprobamos tu jugada
+              </p>
+            </div>
+          )}
 
           {error && (
             <div className="mt-3 bg-red-900/50 border border-red-500/50 rounded-lg p-3">
