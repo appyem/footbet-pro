@@ -309,20 +309,30 @@ exports.awardPrize = onDocumentCreated("match_results/{resultId}", async (event)
 
   console.log(`🏆 Nuevo resultado agregado: Match ${matchId} = ${result}`);
 
-  // 1. Buscar todos los tickets que contengan este partido
-  const ticketsSnapshot = await db.collection("tickets")
-    .where("bets", "array-contains", matchId)
-    .get();
+  // 1. Buscar TODOS los tickets y filtrar en memoria
+  const allTicketsSnapshot = await db.collection("tickets").get();
 
-  if (ticketsSnapshot.empty) {
-    console.log("No se encontraron tickets con este partido");
+  if (allTicketsSnapshot.empty) {
+    console.log("No hay tickets en el sistema");
     return null;
   }
 
-  console.log(`📋 Encontrados ${ticketsSnapshot.size} tickets con este partido`);
+  // Filtrar tickets que contengan este matchId en su array bets
+  const ticketsWithMatch = allTicketsSnapshot.docs.filter(doc => {
+    const ticket = doc.data();
+    return ticket.bets && Array.isArray(ticket.bets) && 
+           ticket.bets.some(bet => bet.matchId === matchId);
+  });
+
+  if (ticketsWithMatch.length === 0) {
+    console.log(`No se encontraron tickets con el partido ${matchId}`);
+    return null;
+  }
+
+  console.log(`📋 Encontrados ${ticketsWithMatch.length} tickets con este partido`);
 
   // 2. Procesar cada ticket
-  for (const ticketDoc of ticketsSnapshot.docs) {
+  for (const ticketDoc of ticketsWithMatch) {
     const ticket = ticketDoc.data();
     const ticketId = ticketDoc.id;
 
@@ -356,7 +366,7 @@ exports.awardPrize = onDocumentCreated("match_results/{resultId}", async (event)
       processedAt: new Date().toISOString()
     });
 
-    console.log(`✅ Ticket ${ticketId} procesado correctamente`);
+    console.log(`✅ Ticket ${ticketId} procesado correctamente con ${correctBets} aciertos`);
   }
 
   return null;
@@ -385,7 +395,9 @@ async function checkAllMatchesHaveResults(bets) {
 async function countCorrectBets(bets) {
   let correctCount = 0;
 
-  for (const matchId of bets) {
+  for (const bet of bets) {
+    const matchId = bet.matchId;
+    
     // Buscar el resultado del partido
     const resultQuery = await db.collection("match_results")
       .where("matchId", "==", matchId)
@@ -395,18 +407,12 @@ async function countCorrectBets(bets) {
     if (!resultQuery.empty) {
       const matchResult = resultQuery.docs[0].data();
       
-      // Buscar la apuesta del cliente para este partido
-      const ticketQuery = await db.collection("tickets")
-        .where("bets", "array-contains", matchId)
-        .get();
-
-      for (const ticketDoc of ticketQuery.docs) {
-        const ticket = ticketDoc.data();
-        const bet = ticket.bets.find(b => b.matchId === matchId);
-        
-        if (bet && bet.selection === matchResult.result) {
-          correctCount++;
-        }
+      // Comparar la selección del cliente con el resultado real
+      if (bet.selection === matchResult.result) {
+        correctCount++;
+        console.log(`  ✅ Acierto: ${bet.homeTeam} vs ${bet.awayTeam} - Selección: ${bet.selection}, Resultado: ${matchResult.result}`);
+      } else {
+        console.log(`  ❌ Fallo: ${bet.homeTeam} vs ${bet.awayTeam} - Selección: ${bet.selection}, Resultado: ${matchResult.result}`);
       }
     }
   }
