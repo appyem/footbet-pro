@@ -123,6 +123,11 @@ const PublicDashboard = ({ playGoalSound, audioEnabled }) => {
   const [success, setSuccess] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);  
   const [modalWhatsappUrl, setModalWhatsappUrl] = useState('');
+
+  const [clientPrizes, setClientPrizes] = useState(null);
+  const [usePrize, setUsePrize] = useState(false);
+  const [loadingPrizes, setLoadingPrizes] = useState(false);
+
   
 useEffect(() => {
   let isMounted = true;
@@ -208,6 +213,71 @@ useEffect(() => {
   };
 }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+
+  // Detectar premios del cliente cuando cambia el teléfono
+  useEffect(() => {
+    const checkPrizes = async () => {
+      if (!customerPhone || customerPhone.length < 10) {
+        setClientPrizes(null);
+        setUsePrize(false);
+        return;
+      }
+
+      setLoadingPrizes(true);
+      try {
+        const cleanPhone = customerPhone.replace(/\D/g, '');
+        const { doc, getDoc } = await import('firebase/firestore');
+        const prizeRef = doc(db, 'client_prizes', cleanPhone);
+        const prizeSnap = await getDoc(prizeRef);
+
+        if (prizeSnap.exists()) {
+          const prizeData = prizeSnap.data();
+          const today = new Date().toISOString().split('T')[0];
+          
+          // Filtrar premios disponibles
+          const availablePrizes = (prizeData.prizes || []).filter(prize => {
+            if (prize.expiresAt < today) return false;
+            if (prize.remainingTickets <= 0) return false;
+            if (prize.type === "6_aciertos" && prize.lastUsedDate === today) return false;
+            return true;
+          });
+
+          if (availablePrizes.length > 0) {
+            setClientPrizes({
+              phone: cleanPhone,
+              availablePrizes: availablePrizes,
+              totalAvailable: availablePrizes.reduce((sum, p) => sum + p.remainingTickets, 0)
+            });
+          } else {
+            setClientPrizes(null);
+            setUsePrize(false);
+          }
+        } else {
+          setClientPrizes(null);
+          setUsePrize(false);
+        }
+      } catch (error) {
+        console.error('Error consultando premios:', error);
+        setClientPrizes(null);
+      } finally {
+        setLoadingPrizes(false);
+      }
+    };
+
+    // Debounce: esperar 500ms después de que el usuario deje de escribir
+    const timer = setTimeout(checkPrizes, 500);
+    return () => clearTimeout(timer);
+  }, [customerPhone]);
+
+
+
+
+
+
+
+
+
+
   const toggleSelection = (matchId, selection, odds) => {
     setSelectedBets(prev => {
       const newMap = new Map(prev);
@@ -279,12 +349,52 @@ useEffect(() => {
         const selectionText = bet.selection === '1' ? 'Local' : bet.selection === 'X' ? 'Empate' : 'Visitante';
         message += `${index + 1}. ${bet.homeTeam} vs ${bet.awayTeam}\n   → ${selectionText} (x${bet.odds})\n`;
       });
-      message += `\n*Total:* $5.000 COP\n\n*¿Aprobar esta Tu jugada?* ✅`;
+
+
+      if (usePrize) {
+        message += `\n*Total:* 🎁 TICKET DE PREMIO (NO COBRAR)\n\n*¿Aprobar esta Tu jugada?* ✅`;
+      } else {
+        message += `\n*Total:* $5.000 COP\n\n*¿Aprobar esta Tu jugada?* ✅`;
+      }
+
+
+
+
+
+
+
+
       
       const response = await fetch('https://creatependingticket-wxcqdudneq-uc.a.run.app', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: { customerName: customerName.trim(), customerPhone: formattedPhone, sellerId: sellerData.id, bets: betsArray, totalStake: 5000 } })
+        
+         body: JSON.stringify({ 
+          data: { 
+            customerName: customerName.trim(), 
+            customerPhone: formattedPhone, 
+            sellerId: sellerData.id, 
+            bets: betsArray, 
+            totalStake: usePrize ? 0 : 5000,
+            usePrize: usePrize
+          } 
+        })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       });
 
       const result = await response.json();
@@ -415,6 +525,38 @@ useEffect(() => {
               <span className="font-medium">{selectedSeller && sellers.find(s => s.id === selectedSeller)?.name ? sellers.find(s => s.id === selectedSeller)?.name : 'Cargando...'}</span>
             </div>
           </div>
+
+        
+        {/* Mensaje de premios disponibles */}
+        {clientPrizes && clientPrizes.totalAvailable > 0 && (
+          <div className="mt-4 bg-gradient-to-r from-yellow-600/30 to-yellow-800/30 border border-yellow-500/50 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">🏆</span>
+              <h3 className="text-yellow-300 font-bold">¡Tienes premios disponibles!</h3>
+            </div>
+            <p className="text-yellow-100 text-sm mb-3">
+              Puedes usar <strong>{clientPrizes.totalAvailable}</strong> ticket{clientPrizes.totalAvailable > 1 ? 's' : ''} gratis
+            </p>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={usePrize}
+                onChange={(e) => setUsePrize(e.target.checked)}
+                className="w-5 h-5 text-yellow-600 bg-gray-700 border-gray-600 rounded focus:ring-yellow-500"
+              />
+              <span className="text-white font-medium">Usar ticket de premio (NO pagar $5,000)</span>
+            </label>
+          </div>
+        )}
+        
+        {loadingPrizes && (
+          <div className="mt-4 text-center text-gray-400 text-sm">
+            <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin inline-block mr-2"></div>
+            Verificando premios...
+          </div>
+        )}
+
+
         </div>
       </div>
 
