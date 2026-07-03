@@ -54,9 +54,29 @@ exports.createPendingTicket = onCall(async (request) => {
     createdAt: new Date().toISOString(),
   };
 
-  const docRef = await db.collection("pending_tickets").add(newTicket);
+    const docRef = await db.collection("pending_tickets").add(newTicket);
 
-  // 6. Retornar éxito al cliente
+  // 6. Enviar notificación a Telegram
+  const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
+  const telegramChatId = "6567201196";
+  
+  const telegramMessage = `🔔 *NUEVA APUESTA PENDIENTE* 🔔\n\n👤 *Cliente:* ${newTicket.customerName}\n📱 *Teléfono:* ${newTicket.customerPhone}\n🏪 *Vendedor:* ${newTicket.sellerName}\n💰 *Monto:* $${newTicket.totalStake} COP\n⚽ *Partidos:* ${newTicket.bets.length} seleccionados\n🎫 *Ticket ID:* ${docRef.id}\n\n⏰ Esperando aprobación del vendedor...`;
+
+  try {
+    await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: telegramChatId,
+        text: telegramMessage,
+        parse_mode: "Markdown"
+      })
+    });
+  } catch (error) {
+    console.error("Error enviando alerta a Telegram:", error);
+  }
+
+  // 7. Retornar éxito al cliente
   return { 
     success: true, 
     ticketId: docRef.id,

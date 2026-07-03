@@ -434,7 +434,7 @@ useEffect(() => {
         ) : (
           <div className="space-y-4">
             {matches.map(match => (
-              <MatchBetCard key={match.id} match={match} selectedBet={selectedBets.get(match.id)} onSelectionChange={toggleSelection} isTrapMatch={match.isTrap} />
+              <MatchBetCard key={match.id} match={match} selectedBet={selectedBets.get(match.id)} onSelectionChange={toggleSelection} isTrapMatch={match.isTrap} playGoalSound={playGoalSound} />
             ))}
           </div>
         )}
