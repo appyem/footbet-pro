@@ -3,13 +3,14 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
 import { submitMatchResult, deleteSeller as deleteSellerFromServer, createMatch, updateMatch, deleteMatch as deleteMatchFromServer } from './services/cloudFunctions';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth';
-import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, RefreshCw, Info } from 'lucide-react';
+import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, RefreshCw, Info, Wallet } from 'lucide-react';
 import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
 import { getCountryFlag, getCountryOptions } from './services/countryFlags';
 import PublicDashboard from './components/PublicDashboard';
 import PendingBetsView from './components/PendingBetsView';
 import ClientResults from './components/ClientResults';
 import CreditModal from './components/CreditModal';
+import AdminCreditPanel from './components/AdminCreditPanel';
 
 
 
@@ -1789,6 +1790,7 @@ useEffect(() => {
     // 💰 Estados para modal de créditos
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [creditModalPhone, setCreditModalPhone] = useState('');
+  const [adminTab, setAdminTab] = useState('dashboard');
 
     // Función para abrir modal de créditos
   const openCreditModal = (phone) => {
@@ -2405,8 +2407,39 @@ useEffect(() => {
             <LogOut className="w-6 h-6" />
           </button>
         </div>
-        <p className="text-gray-400">Bienvenido, {currentUser?.name || 'Vendedor'}</p>
+                <p className="text-gray-400">Bienvenido, {currentUser?.name || 'Vendedor'}</p>
       </div>
+      
+      {/* 💰 Tabs del Admin */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setAdminTab('dashboard')}
+          className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+            adminTab === 'dashboard' 
+              ? 'bg-green-600 text-white' 
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          <Home className="w-4 h-4 inline mr-2" />
+          Dashboard
+        </button>
+        <button
+          onClick={() => setAdminTab('credits')}
+          className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+            adminTab === 'credits' 
+              ? 'bg-yellow-600 text-white' 
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          <Wallet className="w-4 h-4 inline mr-2" />
+          Créditos
+        </button>
+      </div>
+
+      {adminTab === 'credits' && <AdminCreditPanel />}
+      
+      {adminTab === 'dashboard' && (
+      <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl p-4 shadow-lg">
           <div className="flex items-center justify-between">
@@ -2599,15 +2632,17 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Panel de resultados */}
+            {/* Panel de resultados */}
       <ResultsPanel 
         matchResults={matchResults}
         handleSaveResult={handleSaveResult}
         matches={allMatches} // ← Mostrar todos los partidos al admin
       />
+      </>
+      )}
     </div>
 
-  ), [currentUser, tickets, sellerUsers, handleLogout, matchResults, matchForm, editingMatch, saveMatch, allMatches]);
+  ), [currentUser, tickets, sellerUsers, handleLogout, matchResults, matchForm, editingMatch, saveMatch, allMatches, adminTab]);
 
   const SellerDashboard = useCallback(() => {
   // 🔍 LOGGING MEJORADO PARA DEPURAR
