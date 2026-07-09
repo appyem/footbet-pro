@@ -139,16 +139,33 @@ const ClientResults = ({ bgMusicRef, audioEnabled }) => {
           phoneDigits.substring(0, 3) + ' ' + phoneDigits.substring(3)
         ];
         
-        let results = [];
+                let results = [];
+        let allTicketIds = new Set(); // Para evitar duplicados
         
-        // Probar cada formato (consultas específicas, no masivas)
+        console.log('🔍 Buscando tickets para phoneDigits:', phoneDigits);
+        console.log('🔍 Formatos a probar:', phoneFormats);
+        
+        // Buscar en TODOS los formatos y combinar resultados
         for (const format of phoneFormats) {
+          console.log(`🔍 Probando formato: "${format}"`);
           q = query(collection(db, 'tickets'), where('customerPhone', '==', format));
           const snapshot = await getDocs(q);
-          results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          const formatResults = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           
-          if (results.length > 0) break;
+          console.log(`🔍 Formato "${format}": ${formatResults.length} tickets encontrados`);
+          
+          // Agregar tickets que no estén ya en results
+          for (const ticket of formatResults) {
+            if (!allTicketIds.has(ticket.id)) {
+              allTicketIds.add(ticket.id);
+              results.push(ticket);
+            }
+          }
         }
+        
+        console.log('✅ Total de tickets únicos encontrados:', results.length);
+        
+        console.log('🔍 Total de resultados antes del filtro de fecha:', results.length);
         
         // ❌ ELIMINADO: Fallback que descargaba todos los tickets
         // Si no encuentra, simplemente muestra "No se encontraron tickets"
@@ -157,11 +174,17 @@ const ClientResults = ({ bgMusicRef, audioEnabled }) => {
         const fifteenDaysAgo = new Date();
         fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
         
+                console.log('🔍 Filtrando por fecha. fifteenDaysAgo:', fifteenDaysAgo);
+        console.log('🔍 Tickets antes del filtro:', results.map(t => ({ id: t.id, date: t.date, createdAt: t.createdAt })));
+        
         results = results.filter(t => {
           const ticketDate = new Date(t.createdAt?.toDate ? t.createdAt.toDate() : t.date);
-          return ticketDate >= fifteenDaysAgo;
+          const isWithinRange = ticketDate >= fifteenDaysAgo;
+          console.log(`🔍 Ticket ${t.id}: date="${t.date}", ticketDate=${ticketDate}, isWithinRange=${isWithinRange}`);
+          return isWithinRange;
         });
         
+        console.log('🔍 Total de resultados DESPUÉS del filtro de fecha:', results.length);
         setTickets(results);
       }
 
