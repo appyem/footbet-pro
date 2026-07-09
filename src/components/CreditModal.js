@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, DollarSign, TrendingUp, AlertCircle, CheckCircle, Wallet } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { DollarSign, TrendingUp, AlertCircle, CheckCircle, Wallet } from 'lucide-react';
 import { getBalance, requestCreditPurchase, requestWithdrawal } from '../services/cloudFunctions';
 
 const CreditModal = ({ phone, onClose }) => {
@@ -18,12 +18,7 @@ const CreditModal = ({ phone, onClose }) => {
   const [withdrawMethod, setWithdrawMethod] = useState('nequi');
   const [accountNumber, setAccountNumber] = useState('');
 
-  // Cargar saldo al abrir el modal
-  useEffect(() => {
-    loadBalance();
-  }, [phone]);
-
-  const loadBalance = async () => {
+    const loadBalance = useCallback(async () => {
     if (!phone) return;
     setLoading(true);
     try {
@@ -35,7 +30,12 @@ const CreditModal = ({ phone, onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [phone]);
+
+  // Cargar saldo al abrir el modal
+  useEffect(() => {
+    loadBalance();
+  }, [phone, loadBalance]);
 
   const handleDeposit = async () => {
     setError('');
