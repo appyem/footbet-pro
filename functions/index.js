@@ -523,6 +523,44 @@ exports.requestCreditPurchase = onCall(async (request) => {
   const phoneNormalized = phone.replace(/\D/g, '');
   const copAmount = amount * 10; // 1 crédito = 10 COP
   
+  // 🔒 SEGURIDAD: Verificar si el cliente ya tiene UID, si no, crear uno
+  const uidQuery = await db.collection('client_uids')
+    .where('phone', '==', phoneNormalized)
+    .limit(1)
+    .get();
+  
+  let clientUid = null;
+  
+  if (uidQuery.empty) {
+    // Generar UID de 6 dígitos único
+    const generateUniqueUID = async () => {
+      let uid;
+      let exists = true;
+      while (exists) {
+        uid = Math.floor(100000 + Math.random() * 900000).toString(); // 6 dígitos
+        const check = await db.collection('client_uids')
+          .where('uid', '==', uid)
+          .limit(1)
+          .get();
+        exists = !check.empty;
+      }
+      return uid;
+    };
+    
+    clientUid = await generateUniqueUID();
+    
+    // Guardar UID en client_uids
+    await db.collection('client_uids').add({
+      phone: phoneNormalized,
+      uid: clientUid,
+      createdAt: new Date().toISOString()
+    });
+    
+    console.log(`✅ UID creado para ${phoneNormalized}: ${clientUid}`);
+  } else {
+    clientUid = uidQuery.docs[0].data().uid;
+  }
+  
   // Crear solicitud de recarga
   const purchaseRequest = {
     phone: phoneNormalized,
@@ -556,7 +594,12 @@ exports.requestCreditPurchase = onCall(async (request) => {
     console.error("Error enviando notificación a Telegram:", error);
   }
   
-  return { success: true, requestId: requestRef.id, message: 'Solicitud enviada al administrador' };
+  return { 
+    success: true, 
+    requestId: requestRef.id, 
+    uid: clientUid,
+    message: 'Solicitud enviada al administrador' 
+  };
 });
 
 /**
@@ -631,10 +674,10 @@ exports.addCredits = onCall(async (request) => {
  * El cliente solicita retirar créditos (comisión 10%, mínimo 5000 créditos)
  */
 exports.requestWithdrawal = onCall(async (request) => {
-  const { phone, amount, paymentMethod, accountNumber } = request.data;
+  const { phone, uid, amount, paymentMethod, accountNumber } = request.data;
   
-  if (!phone || !amount || amount < 5000) {
-    throw new HttpsError('invalid-argument', 'Teléfono y cantidad mínima (5000 créditos) son requeridos');
+  if (!phone || !uid || !amount || amount < 5000) {
+    throw new HttpsError('invalid-argument', 'Teléfono, código UID y cantidad mínima (5000 créditos) son requeridos');
   }
   
   if (!paymentMethod || !accountNumber) {
@@ -642,6 +685,18 @@ exports.requestWithdrawal = onCall(async (request) => {
   }
   
   const phoneNormalized = phone.replace(/\D/g, '');
+  const uidNormalized = uid.toString().trim();
+  
+  // 🔒 SEGURIDAD: Verificar que el UID coincida con el teléfono
+  const uidQuery = await db.collection('client_uids')
+    .where('phone', '==', phoneNormalized)
+    .where('uid', '==', uidNormalized)
+    .limit(1)
+    .get();
+  
+  if (uidQuery.empty) {
+    throw new HttpsError('permission-denied', 'Código UID incorrecto o no registrado');
+  }
   
   // Verificar que el cliente tenga saldo suficiente
   const balanceRef = db.collection('client_balances').doc(phoneNormalized);
@@ -786,17 +841,29 @@ exports.processWithdrawal = onCall(async (request) => {
 });
 
 /**
- * Función: Consultar saldo
- * Cualquier persona puede consultar el saldo de un cliente (público)
+ * Función: Consultar saldo (SEGURA - requiere UID)
+ * Solo el cliente con el código UID correcto puede ver su saldo
  */
 exports.getBalance = onCall(async (request) => {
-  const { phone } = request.data;
+  const { phone, uid } = request.data;
   
-  if (!phone) {
-    throw new HttpsError('invalid-argument', 'Teléfono es requerido');
+  if (!phone || !uid) {
+    throw new HttpsError('invalid-argument', 'Teléfono y código UID son requeridos');
   }
   
   const phoneNormalized = phone.replace(/\D/g, '');
+  const uidNormalized = uid.toString().trim();
+  
+  // Verificar que el UID coincida con el teléfono
+  const uidQuery = await db.collection('client_uids')
+    .where('phone', '==', phoneNormalized)
+    .where('uid', '==', uidNormalized)
+    .limit(1)
+    .get();
+  
+  if (uidQuery.empty) {
+    throw new HttpsError('permission-denied', 'Código UID incorrecto o no registrado');
+  }
   
   const balanceRef = db.collection('client_balances').doc(phoneNormalized);
   const balanceDoc = await balanceRef.get();
