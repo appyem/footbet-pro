@@ -9,7 +9,13 @@ const FUNCTIONS = {
   approvePendingTicket: 'https://approvependingticket-wxcqdudneq-uc.a.run.app',
   submitMatchResult: 'https://submitmatchresult-wxcqdudneq-uc.a.run.app',
   manageSeller: 'https://manageseller-wxcqdudneq-uc.a.run.app',
-  manageMatch: 'https://managematch-wxcqdudneq-uc.a.run.app'
+  manageMatch: 'https://managematch-wxcqdudneq-uc.a.run.app',
+  // 💰 Sistema de Créditos
+  requestCreditPurchase: 'https://requestcreditpurchase-wxcqdudneq-uc.a.run.app',
+  addCredits: 'https://addcredits-wxcqdudneq-uc.a.run.app',
+  requestWithdrawal: 'https://requestwithdrawal-wxcqdudneq-uc.a.run.app',
+  processWithdrawal: 'https://processwithdrawal-wxcqdudneq-uc.a.run.app',
+  getBalance: 'https://getbalance-wxcqdudneq-uc.a.run.app'
 };
 
 /**
@@ -102,4 +108,75 @@ export const deleteMatch = async (matchId) => {
 
 export const hideMatch = async (matchId, hidden) => {
   return callFunction('manageMatch', { action: 'hide', matchId, hidden });
+};
+
+
+// ═══════════════════════════════════════════════════
+// 💰 SISTEMA DE CRÉDITOS - Funciones públicas (sin auth)
+// ═══════════════════════════════════════════════════
+
+/**
+ * Función auxiliar para llamar a Cloud Functions SIN autenticación
+ */
+const callPublicFunction = async (functionName, data) => {
+  const url = FUNCTIONS[functionName];
+  
+  if (!url) {
+    throw new Error(`Función ${functionName} no encontrada`);
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ data })
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error?.message || 'Error al procesar la solicitud');
+  }
+
+  return result.result;
+};
+
+/**
+ * Consultar saldo de créditos (público)
+ */
+export const getBalance = async (phone) => {
+  return callPublicFunction('getBalance', { phone });
+};
+
+/**
+ * Solicitar recarga de créditos (público)
+ */
+export const requestCreditPurchase = async (phone, amount, paymentMethod) => {
+  return callPublicFunction('requestCreditPurchase', { phone, amount, paymentMethod });
+};
+
+/**
+ * Solicitar retiro de créditos (público)
+ */
+export const requestWithdrawal = async (phone, amount, paymentMethod, accountNumber) => {
+  return callPublicFunction('requestWithdrawal', { phone, amount, paymentMethod, accountNumber });
+};
+
+// ═══════════════════════════════════════════════════
+// 💰 SISTEMA DE CRÉDITOS - Funciones admin (con auth)
+// ═══════════════════════════════════════════════════
+
+/**
+ * Agregar créditos (solo admin)
+ */
+export const addCredits = async (phone, amount, requestId) => {
+  return callFunction('addCredits', { phone, amount, requestId });
+};
+
+/**
+ * Procesar retiro (solo admin)
+ */
+export const processWithdrawal = async (requestId, approve) => {
+  return callFunction('processWithdrawal', { requestId, approve });
 };

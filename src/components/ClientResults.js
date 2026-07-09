@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Ticket, Phone, Calendar, Award, TrendingUp, X, CheckCircle, XCircle, Clock, DollarSign, Target, Flame } from 'lucide-react';
+import { Search, Ticket, Phone, Calendar, Award, TrendingUp, X, CheckCircle, XCircle, Clock, DollarSign, Target, Flame, Wallet } from 'lucide-react';
 import { db } from '../services/firebase';
 import { collection, query, where, getDocs, getDoc, doc, onSnapshot } from 'firebase/firestore';
 
@@ -21,7 +21,7 @@ const getSelectionText = (selection) => {
   }
 };
 
-const ClientResults = ({ bgMusicRef, audioEnabled }) => {
+const ClientResults = ({ bgMusicRef, audioEnabled, openCreditModal }) => {
   const [searchMode, setSearchMode] = useState('phone'); // 'phone' o 'ticket'
   const [searchValue, setSearchValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,6 +31,8 @@ const ClientResults = ({ bgMusicRef, audioEnabled }) => {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [clientUid, setClientUid] = useState('');
+    
+  const [searchedPhone, setSearchedPhone] = useState('');
 
     // 🎵 Iniciar música de fondo al montar
   useEffect(() => {
@@ -186,6 +188,11 @@ const ClientResults = ({ bgMusicRef, audioEnabled }) => {
         
         console.log('🔍 Total de resultados DESPUÉS del filtro de fecha:', results.length);
         setTickets(results);
+              // Guardar teléfono buscado para el modal de créditos
+        if (searchMode === 'phone') {
+          setSearchedPhone(searchValue.replace(/\D/g, ''));
+        }
+
       }
 
       if (tickets.length === 0) {
@@ -449,7 +456,18 @@ const ClientResults = ({ bgMusicRef, audioEnabled }) => {
             />
           </div>
           <h1 className="text-2xl font-bold text-white mt-4 drop-shadow-lg">Mis Resultados</h1>
-          <p className="text-green-100 text-sm mt-1">Consulta tus jugadas y estadísticas</p>
+                    <p className="text-green-100 text-sm mt-1">Consulta tus jugadas y estadísticas</p>
+          
+          {/* 💰 Botón Mis Créditos */}
+          {searchedPhone && (
+            <button
+              onClick={() => openCreditModal && openCreditModal(searchedPhone)}
+              className="mt-4 bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-yellow-500/50 flex items-center gap-2"
+            >
+              <Wallet className="w-5 h-5" />
+              Mis Créditos
+            </button>
+          )}
         </div>
       </div>
 

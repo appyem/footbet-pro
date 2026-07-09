@@ -9,6 +9,7 @@ import { getCountryFlag, getCountryOptions } from './services/countryFlags';
 import PublicDashboard from './components/PublicDashboard';
 import PendingBetsView from './components/PendingBetsView';
 import ClientResults from './components/ClientResults';
+import CreditModal from './components/CreditModal';
 
 
 
@@ -1785,6 +1786,16 @@ useEffect(() => {
   const [showResendModal, setShowResendModal] = useState(false);
   const [ticketToResend, setTicketToResend] = useState(null);
   const [matchResults, setMatchResults] = useState({});
+    // 💰 Estados para modal de créditos
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [creditModalPhone, setCreditModalPhone] = useState('');
+
+    // Función para abrir modal de créditos
+  const openCreditModal = (phone) => {
+    setCreditModalPhone(phone);
+    setShowCreditModal(true);
+  };
+
   const matchResultsRef = useRef(matchResults);
   // eslint-disable-next-line no-empty-pattern
   const [] = useState(false);
@@ -2906,7 +2917,7 @@ useEffect(() => {
         return <PublicDashboard playGoalSound={playGoalSound} audioEnabled={audioEnabled} />;
 
       case 'mis-resultados':
-        return <ClientResults bgMusicRef={bgMusicRef} audioEnabled={audioEnabled} />;
+        return <ClientResults bgMusicRef={bgMusicRef} audioEnabled={audioEnabled} openCreditModal={openCreditModal} />;
       
       case 'admin-dashboard':
         return AdminDashboard();
@@ -3003,6 +3014,24 @@ useEffect(() => {
         <div className="text-left">
           <div className="text-lg">VER MIS RESULTADOS</div>
           <div className="text-xs text-blue-200 font-normal">Consulta tus jugadas y estadísticas</div>
+        </div>
+      </button>
+
+
+            {/* 💰 BOTÓN COMPRAR CRÉDITOS */}
+      <button
+        onClick={() => {
+          const phone = prompt('Ingresa tu número de teléfono (solo números):\nEj: 3113003606');
+          if (phone && phone.trim()) {
+            openCreditModal(phone.replace(/\D/g, ''));
+          }
+        }}
+        className="w-full bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-yellow-500/50 flex items-center justify-center gap-3 mb-6"
+      >
+        <span className="text-2xl">💰</span>
+        <div className="text-left">
+          <div className="text-lg">COMPRAR CRÉDITOS</div>
+          <div className="text-xs text-yellow-200 font-normal">Recarga y juega con tus amigos</div>
         </div>
       </button>
 
@@ -3142,6 +3171,13 @@ useEffect(() => {
           ticket={ticketToResend}
           onClose={() => setShowResendModal(false)}
           onResend={handleResendConfirm}
+        />
+      )}
+
+            {showCreditModal && (
+        <CreditModal
+          phone={creditModalPhone}
+          onClose={() => setShowCreditModal(false)}
         />
       )}
     </div>
