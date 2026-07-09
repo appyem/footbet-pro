@@ -53,21 +53,11 @@ service cloud.firestore {
     // 🔒 COLECCIÓN: tickets
     // ═══════════════════════════════════════════════════
     match /tickets/{ticketId} {
-      // Admin: acceso total a TODOS los tickets
       allow read, write, delete, update: if isAdmin();
-      
-      // Vendedor: crea tickets con su UID como sellerId
       allow create: if isAuthenticated() && request.resource.data.sellerId == request.auth.uid;
-      
-      // Vendedor: lee solo SUS propios tickets
       allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
-      
-      // Vendedor: elimina y actualiza solo SUS propios tickets
       allow delete: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
       allow update: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
-      
-      // 🆕 PÚBLICO: Cliente puede leer tickets filtrando por su número de teléfono
-      // Esto permite que el componente ClientResults funcione sin autenticación
       allow read: if true;
     }
     
@@ -84,41 +74,64 @@ service cloud.firestore {
         request.resource.data.totalStake == 5000 &&
         request.resource.data.bets.size() == 7;
       
-      // Admin: acceso total
       allow read, write, delete, update: if isAdmin();
-      
-      // Vendedor: solo puede acceder a SUS propios tickets pendientes
       allow read: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
       allow update, delete: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
     }
     
-        // ═══════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════
     // 🔒 COLECCIÓN: client_uids
     // ═══════════════════════════════════════════════════
     match /client_uids/{uidId} {
-      // Público: puede leer para validar código de acceso
       allow read: if true;
-      
-      // Solo Cloud Functions (admin) puede escribir
-      // Los clientes NO pueden crear, modificar ni eliminar UIDs
       allow write: if isAdmin();
     }
     
-
-    
-        // ═══════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════
     // 🔒 COLECCIÓN: client_prizes (Premios de clientes)
     // ═══════════════════════════════════════════════════
     match /client_prizes/{phone} {
-      // Público: puede leer para ver sus premios disponibles
       allow read: if true;
-      
-      // Solo Cloud Functions (admin) puede escribir
-      // Los clientes NO pueden crear, modificar ni eliminar premios
       allow write: if isAdmin();
     }
     
-
+    // ═══════════════════════════════════════════════════
+    // 🆕 COLECCIÓN: client_balances (Saldos de créditos)
+    // ═══════════════════════════════════════════════════
+    match /client_balances/{phone} {
+      // Cliente puede leer su propio saldo
+      allow read: if true;
+      
+      // Solo Cloud Functions (admin) puede escribir
+      allow write: if isAdmin();
+    }
+    
+    // ═══════════════════════════════════════════════════
+    // 🆕 COLECCIÓN: transactions (Historial de transacciones)
+    // ═══════════════════════════════════════════════════
+    match /transactions/{transactionId} {
+      // Cliente puede leer sus propias transacciones
+      allow read: if true;
+      
+      // Solo Cloud Functions (admin) puede escribir
+      allow write: if isAdmin();
+    }
+    
+    // ═══════════════════════════════════════════════════
+    // 🆕 COLECCIÓN: withdrawal_requests (Solicitudes de retiro/recarga)
+    // ═══════════════════════════════════════════════════
+    match /withdrawal_requests/{requestId} {
+      // Cliente puede leer sus propias solicitudes
+      allow read: if true;
+      
+      // Cliente puede crear solicitudes (recargas y retiros)
+      allow create: if request.resource.data.keys().hasAll([
+        'phone', 'type', 'amount', 'status'
+      ]) && request.resource.data.status == 'pending';
+      
+      // Solo Cloud Functions (admin) puede actualizar/eliminar
+      allow update, delete: if isAdmin();
+    }
 
     // ═══════════════════════════════════════════════════
     // 🔒 BLOQUEO TOTAL (cualquier otra colección)

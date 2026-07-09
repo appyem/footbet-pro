@@ -502,3 +502,316 @@ async function awardPrizeToClient(phone, correctBets, sourceTicketId) {
     console.error("Error enviando alerta a Telegram:", error);
   }
 }
+
+
+
+// ═══════════════════════════════════════════════════
+// 💰 SISTEMA DE CRÉDITOS - FASE 1
+// ═══════════════════════════════════════════════════
+
+/**
+ * Función: Solicitar compra de créditos
+ * El cliente solicita recargar créditos y se notifica al admin por Telegram
+ */
+exports.requestCreditPurchase = onCall(async (request) => {
+  const { phone, amount, paymentMethod } = request.data;
+  
+  if (!phone || !amount || amount < 500) {
+    throw new HttpsError('invalid-argument', 'Teléfono y cantidad mínima (500 créditos) son requeridos');
+  }
+  
+  const phoneNormalized = phone.replace(/\D/g, '');
+  const copAmount = amount * 10; // 1 crédito = 10 COP
+  
+  // Crear solicitud de recarga
+  const purchaseRequest = {
+    phone: phoneNormalized,
+    type: 'deposit',
+    amount: amount,
+    copAmount: copAmount,
+    paymentMethod: paymentMethod || 'nequi',
+    status: 'pending',
+    requestedAt: new Date().toISOString()
+  };
+  
+  const requestRef = await db.collection('withdrawal_requests').add(purchaseRequest);
+  
+  // Enviar notificación a Telegram
+  const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
+  const telegramChatId = "6567201196";
+  
+  const telegramMessage = `💰 *SOLICITUD DE RECARGA* 💰\n\n👤 *Teléfono:* ${phoneNormalized}\n💵 *Monto:* ${amount} créditos\n💰 *COP:* $${copAmount.toLocaleString()}\n💳 *Método:* ${paymentMethod || 'nequi'}\n📋 *ID:* ${requestRef.id}\n\n✅ Pendiente de aprobación`;
+  
+  try {
+    await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: telegramChatId,
+        text: telegramMessage,
+        parse_mode: "Markdown"
+      })
+    });
+  } catch (error) {
+    console.error("Error enviando notificación a Telegram:", error);
+  }
+  
+  return { success: true, requestId: requestRef.id, message: 'Solicitud enviada al administrador' };
+});
+
+/**
+ * Función: Agregar créditos (solo admin)
+ * El admin agrega créditos al saldo del cliente
+ */
+exports.addCredits = onCall(async (request) => {
+  // Verificar que sea admin
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debe estar autenticado');
+  }
+  
+  const adminRef = db.collection('admin').doc(request.auth.uid);
+  const adminDoc = await adminRef.get();
+  
+  if (!adminDoc.exists) {
+    throw new HttpsError('permission-denied', 'Solo administradores pueden agregar créditos');
+  }
+  
+  const { phone, amount, requestId } = request.data;
+  
+  if (!phone || !amount || amount <= 0) {
+    throw new HttpsError('invalid-argument', 'Teléfono y cantidad positiva son requeridos');
+  }
+  
+  const phoneNormalized = phone.replace(/\D/g, '');
+  
+  // Obtener o crear balance del cliente
+  const balanceRef = db.collection('client_balances').doc(phoneNormalized);
+  const balanceDoc = await balanceRef.get();
+  
+  let currentBalance = 0;
+  if (balanceDoc.exists) {
+    currentBalance = balanceDoc.data().balance || 0;
+  }
+  
+  const newBalance = currentBalance + amount;
+  
+  // Actualizar balance
+  await balanceRef.set({
+    phone: phoneNormalized,
+    balance: newBalance,
+    totalDeposited: (balanceDoc.exists ? balanceDoc.data().totalDeposited || 0 : 0) + amount,
+    updatedAt: new Date().toISOString()
+  }, { merge: true });
+  
+  // Registrar transacción
+  await db.collection('transactions').add({
+    phone: phoneNormalized,
+    type: 'deposit',
+    amount: amount,
+    description: 'Recarga de créditos',
+    balanceBefore: currentBalance,
+    balanceAfter: newBalance,
+    reference: requestId || 'manual',
+    createdAt: new Date().toISOString()
+  });
+  
+  // Actualizar solicitud si existe
+  if (requestId) {
+    await db.collection('withdrawal_requests').doc(requestId).update({
+      status: 'completed',
+      processedAt: new Date().toISOString()
+    });
+  }
+  
+  return { success: true, newBalance: newBalance, message: `${amount} créditos agregados exitosamente` };
+});
+
+/**
+ * Función: Solicitar retiro de créditos
+ * El cliente solicita retirar créditos (comisión 10%, mínimo 5000 créditos)
+ */
+exports.requestWithdrawal = onCall(async (request) => {
+  const { phone, amount, paymentMethod, accountNumber } = request.data;
+  
+  if (!phone || !amount || amount < 5000) {
+    throw new HttpsError('invalid-argument', 'Teléfono y cantidad mínima (5000 créditos) son requeridos');
+  }
+  
+  if (!paymentMethod || !accountNumber) {
+    throw new HttpsError('invalid-argument', 'Método de pago y número de cuenta son requeridos');
+  }
+  
+  const phoneNormalized = phone.replace(/\D/g, '');
+  
+  // Verificar que el cliente tenga saldo suficiente
+  const balanceRef = db.collection('client_balances').doc(phoneNormalized);
+  const balanceDoc = await balanceRef.get();
+  
+  if (!balanceDoc.exists || balanceDoc.data().balance < amount) {
+    throw new HttpsError('failed-precondition', 'Saldo insuficiente');
+  }
+  
+  const commission = Math.floor(amount * 0.10); // 10% de comisión
+  const netAmount = amount - commission;
+  const copAmount = netAmount * 10; // 1 crédito = 10 COP
+  
+  // Crear solicitud de retiro
+  const withdrawalRequest = {
+    phone: phoneNormalized,
+    type: 'withdraw',
+    amount: amount,
+    commission: commission,
+    netAmount: netAmount,
+    copAmount: copAmount,
+    paymentMethod: paymentMethod,
+    accountNumber: accountNumber,
+    status: 'pending',
+    requestedAt: new Date().toISOString()
+  };
+  
+  const requestRef = await db.collection('withdrawal_requests').add(withdrawalRequest);
+  
+  // Enviar notificación a Telegram
+  const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
+  const telegramChatId = "6567201196";
+  
+  const telegramMessage = `💸 *SOLICITUD DE RETIRO* 💸\n\n👤 *Teléfono:* ${phoneNormalized}\n💵 *Monto:* ${amount} créditos\n📊 *Comisión (10%):* ${commission} créditos\n💰 *Neto:* ${netAmount} créditos\n💵 *COP:* $${copAmount.toLocaleString()}\n💳 *Método:* ${paymentMethod}\n🏦 *Cuenta:* ${accountNumber}\n📋 *ID:* ${requestRef.id}\n\n✅ Pendiente de aprobación`;
+  
+  try {
+    await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: telegramChatId,
+        text: telegramMessage,
+        parse_mode: "Markdown"
+      })
+    });
+  } catch (error) {
+    console.error("Error enviando notificación a Telegram:", error);
+  }
+  
+  return { success: true, requestId: requestRef.id, message: 'Solicitud de retiro enviada al administrador' };
+});
+
+/**
+ * Función: Procesar retiro (solo admin)
+ * El admin aprueba o rechaza una solicitud de retiro
+ */
+exports.processWithdrawal = onCall(async (request) => {
+  // Verificar que sea admin
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debe estar autenticado');
+  }
+  
+  const adminRef = db.collection('admin').doc(request.auth.uid);
+  const adminDoc = await adminRef.get();
+  
+  if (!adminDoc.exists) {
+    throw new HttpsError('permission-denied', 'Solo administradores pueden procesar retiros');
+  }
+  
+  const { requestId, approve } = request.data;
+  
+  if (!requestId) {
+    throw new HttpsError('invalid-argument', 'ID de solicitud es requerido');
+  }
+  
+  const requestRef = db.collection('withdrawal_requests').doc(requestId);
+  const requestDoc = await requestRef.get();
+  
+  if (!requestDoc.exists) {
+    throw new HttpsError('not-found', 'Solicitud no encontrada');
+  }
+  
+  const requestData = requestDoc.data();
+  
+  if (requestData.status !== 'pending') {
+    throw new HttpsError('failed-precondition', 'Solicitud ya procesada');
+  }
+  
+  if (approve) {
+    // Aprobar retiro
+    const phoneNormalized = requestData.phone;
+    const amount = requestData.amount;
+    
+    // Obtener balance actual
+    const balanceRef = db.collection('client_balances').doc(phoneNormalized);
+    const balanceDoc = await balanceRef.get();
+    
+    const currentBalance = balanceDoc.exists ? balanceDoc.data().balance || 0 : 0;
+    
+    if (currentBalance < amount) {
+      throw new HttpsError('failed-precondition', 'Saldo insuficiente');
+    }
+    
+    const newBalance = currentBalance - amount;
+    
+    // Actualizar balance
+    await balanceRef.update({
+      balance: newBalance,
+      totalWithdrawn: (balanceDoc.data().totalWithdrawn || 0) + amount,
+      updatedAt: new Date().toISOString()
+    });
+    
+    // Registrar transacción
+    await db.collection('transactions').add({
+      phone: phoneNormalized,
+      type: 'withdraw',
+      amount: amount,
+      commission: requestData.commission,
+      description: 'Retiro de créditos',
+      balanceBefore: currentBalance,
+      balanceAfter: newBalance,
+      reference: requestId,
+      createdAt: new Date().toISOString()
+    });
+    
+    // Actualizar solicitud
+    await requestRef.update({
+      status: 'completed',
+      processedAt: new Date().toISOString()
+    });
+    
+    return { success: true, message: 'Retiro aprobado y procesado' };
+  } else {
+    // Rechazar retiro
+    await requestRef.update({
+      status: 'rejected',
+      processedAt: new Date().toISOString()
+    });
+    
+    return { success: true, message: 'Retiro rechazado' };
+  }
+});
+
+/**
+ * Función: Consultar saldo
+ * Cualquier persona puede consultar el saldo de un cliente (público)
+ */
+exports.getBalance = onCall(async (request) => {
+  const { phone } = request.data;
+  
+  if (!phone) {
+    throw new HttpsError('invalid-argument', 'Teléfono es requerido');
+  }
+  
+  const phoneNormalized = phone.replace(/\D/g, '');
+  
+  const balanceRef = db.collection('client_balances').doc(phoneNormalized);
+  const balanceDoc = await balanceRef.get();
+  
+  if (!balanceDoc.exists) {
+    return { success: true, balance: 0, message: 'No hay saldo registrado' };
+  }
+  
+  const balanceData = balanceDoc.data();
+  
+  return {
+    success: true,
+    balance: balanceData.balance || 0,
+    totalDeposited: balanceData.totalDeposited || 0,
+    totalWithdrawn: balanceData.totalWithdrawn || 0,
+    updatedAt: balanceData.updatedAt
+  };
+});
