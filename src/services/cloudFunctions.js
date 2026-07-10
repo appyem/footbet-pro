@@ -145,22 +145,23 @@ const callPublicFunction = async (functionName, data) => {
 /**
  * Consultar saldo de créditos (público)
  */
-export const getBalance = async (phone) => {
-  return callPublicFunction('getBalance', { phone });
+export const getBalance = async (phone, uid) => {
+  return callPublicFunction('getBalance', { phone, uid });
 };
 
 /**
  * Solicitar recarga de créditos (público)
+ * Si el cliente no tiene UID, se crea automáticamente
  */
 export const requestCreditPurchase = async (phone, amount, paymentMethod) => {
   return callPublicFunction('requestCreditPurchase', { phone, amount, paymentMethod });
 };
 
 /**
- * Solicitar retiro de créditos (público)
+ * Solicitar retiro de créditos (público) - REQUIERE UID
  */
-export const requestWithdrawal = async (phone, amount, paymentMethod, accountNumber) => {
-  return callPublicFunction('requestWithdrawal', { phone, amount, paymentMethod, accountNumber });
+export const requestWithdrawal = async (phone, uid, amount, paymentMethod, accountNumber) => {
+  return callPublicFunction('requestWithdrawal', { phone, uid, amount, paymentMethod, accountNumber });
 };
 
 // ═══════════════════════════════════════════════════

@@ -520,12 +520,14 @@ exports.requestCreditPurchase = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'Teléfono y cantidad mínima (500 créditos) son requeridos');
   }
   
-  const phoneNormalized = phone.replace(/\D/g, '');
+    const phoneNormalized = phone.replace(/\D/g, '');
+  // 🌎 Agregar código de país 57 automáticamente si no lo tiene
+  const phoneWithCountry = phoneNormalized.startsWith('57') ? phoneNormalized : '57' + phoneNormalized;
   const copAmount = amount * 10; // 1 crédito = 10 COP
   
   // 🔒 SEGURIDAD: Verificar si el cliente ya tiene UID, si no, crear uno
   const uidQuery = await db.collection('client_uids')
-    .where('phone', '==', phoneNormalized)
+    .where('phone', '==', phoneWithCountry)
     .limit(1)
     .get();
   
@@ -549,9 +551,9 @@ exports.requestCreditPurchase = onCall(async (request) => {
     
     clientUid = await generateUniqueUID();
     
-    // Guardar UID en client_uids
+        // Guardar UID en client_uids
     await db.collection('client_uids').add({
-      phone: phoneNormalized,
+      phone: phoneWithCountry,
       uid: clientUid,
       createdAt: new Date().toISOString()
     });
@@ -561,9 +563,9 @@ exports.requestCreditPurchase = onCall(async (request) => {
     clientUid = uidQuery.docs[0].data().uid;
   }
   
-  // Crear solicitud de recarga
+    // Crear solicitud de recarga
   const purchaseRequest = {
-    phone: phoneNormalized,
+    phone: phoneWithCountry,
     type: 'deposit',
     amount: amount,
     copAmount: copAmount,
@@ -578,7 +580,7 @@ exports.requestCreditPurchase = onCall(async (request) => {
   const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
   const telegramChatId = "6567201196";
   
-  const telegramMessage = `💰 *SOLICITUD DE RECARGA* 💰\n\n👤 *Teléfono:* ${phoneNormalized}\n💵 *Monto:* ${amount} créditos\n💰 *COP:* $${copAmount.toLocaleString()}\n💳 *Método:* ${paymentMethod || 'nequi'}\n📋 *ID:* ${requestRef.id}\n\n✅ Pendiente de aprobación`;
+  const telegramMessage = `💰 *SOLICITUD DE RECARGA* 💰\n\n👤 *Teléfono:* ${phoneWithCountry}\n💵 *Monto:* ${amount} créditos\n💰 *COP:* $${copAmount.toLocaleString()}\n💳 *Método:* ${paymentMethod || 'nequi'}\n📋 *ID:* ${requestRef.id}\n\n✅ Pendiente de aprobación`;
   
   try {
     await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
@@ -684,12 +686,14 @@ exports.requestWithdrawal = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'Método de pago y número de cuenta son requeridos');
   }
   
-  const phoneNormalized = phone.replace(/\D/g, '');
+    const phoneNormalized = phone.replace(/\D/g, '');
+  // 🌎 Agregar código de país 57 automáticamente si no lo tiene
+  const phoneWithCountry = phoneNormalized.startsWith('57') ? phoneNormalized : '57' + phoneNormalized;
   const uidNormalized = uid.toString().trim();
   
   // 🔒 SEGURIDAD: Verificar que el UID coincida con el teléfono
   const uidQuery = await db.collection('client_uids')
-    .where('phone', '==', phoneNormalized)
+    .where('phone', '==', phoneWithCountry)
     .where('uid', '==', uidNormalized)
     .limit(1)
     .get();
@@ -699,7 +703,7 @@ exports.requestWithdrawal = onCall(async (request) => {
   }
   
   // Verificar que el cliente tenga saldo suficiente
-  const balanceRef = db.collection('client_balances').doc(phoneNormalized);
+  const balanceRef = db.collection('client_balances').doc(phoneWithCountry);
   const balanceDoc = await balanceRef.get();
   
   if (!balanceDoc.exists || balanceDoc.data().balance < amount) {
@@ -710,9 +714,9 @@ exports.requestWithdrawal = onCall(async (request) => {
   const netAmount = amount - commission;
   const copAmount = netAmount * 10; // 1 crédito = 10 COP
   
-  // Crear solicitud de retiro
+    // Crear solicitud de retiro
   const withdrawalRequest = {
-    phone: phoneNormalized,
+    phone: phoneWithCountry,
     type: 'withdraw',
     amount: amount,
     commission: commission,
@@ -730,7 +734,7 @@ exports.requestWithdrawal = onCall(async (request) => {
   const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
   const telegramChatId = "6567201196";
   
-  const telegramMessage = `💸 *SOLICITUD DE RETIRO* 💸\n\n👤 *Teléfono:* ${phoneNormalized}\n💵 *Monto:* ${amount} créditos\n📊 *Comisión (10%):* ${commission} créditos\n💰 *Neto:* ${netAmount} créditos\n💵 *COP:* $${copAmount.toLocaleString()}\n💳 *Método:* ${paymentMethod}\n🏦 *Cuenta:* ${accountNumber}\n📋 *ID:* ${requestRef.id}\n\n✅ Pendiente de aprobación`;
+  const telegramMessage = `💸 *SOLICITUD DE RETIRO* 💸\n\n👤 *Teléfono:* ${phoneWithCountry}\n💵 *Monto:* ${amount} créditos\n📊 *Comisión (10%):* ${commission} créditos\n💰 *Neto:* ${netAmount} créditos\n💵 *COP:* $${copAmount.toLocaleString()}\n💳 *Método:* ${paymentMethod}\n🏦 *Cuenta:* ${accountNumber}\n📋 *ID:* ${requestRef.id}\n\n✅ Pendiente de aprobación`;
   
   try {
     await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
@@ -851,12 +855,14 @@ exports.getBalance = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'Teléfono y código UID son requeridos');
   }
   
-  const phoneNormalized = phone.replace(/\D/g, '');
+    const phoneNormalized = phone.replace(/\D/g, '');
+  // 🌎 Agregar código de país 57 automáticamente si no lo tiene
+  const phoneWithCountry = phoneNormalized.startsWith('57') ? phoneNormalized : '57' + phoneNormalized;
   const uidNormalized = uid.toString().trim();
   
   // Verificar que el UID coincida con el teléfono
   const uidQuery = await db.collection('client_uids')
-    .where('phone', '==', phoneNormalized)
+    .where('phone', '==', phoneWithCountry)
     .where('uid', '==', uidNormalized)
     .limit(1)
     .get();
@@ -865,7 +871,7 @@ exports.getBalance = onCall(async (request) => {
     throw new HttpsError('permission-denied', 'Código UID incorrecto o no registrado');
   }
   
-  const balanceRef = db.collection('client_balances').doc(phoneNormalized);
+    const balanceRef = db.collection('client_balances').doc(phoneWithCountry);
   const balanceDoc = await balanceRef.get();
   
   if (!balanceDoc.exists) {
