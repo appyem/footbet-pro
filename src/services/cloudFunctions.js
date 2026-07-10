@@ -15,7 +15,11 @@ const FUNCTIONS = {
   addCredits: 'https://addcredits-wxcqdudneq-uc.a.run.app',
   requestWithdrawal: 'https://requestwithdrawal-wxcqdudneq-uc.a.run.app',
   processWithdrawal: 'https://processwithdrawal-wxcqdudneq-uc.a.run.app',
-  getBalance: 'https://getbalance-wxcqdudneq-uc.a.run.app'
+  getBalance: 'https://getbalance-wxcqdudneq-uc.a.run.app',
+  // 🎮 Juego de Trivia
+  createTriviaGame: 'https://createtriviagame-wxcqdudneq-uc.a.run.app',
+  acceptTriviaGame: 'https://accepttriviagame-wxcqdudneq-uc.a.run.app',
+  rejectTriviaGame: 'https://rejecttriviagame-wxcqdudneq-uc.a.run.app'
 };
 
 /**
@@ -180,4 +184,31 @@ export const addCredits = async (phone, amount, requestId) => {
  */
 export const processWithdrawal = async (requestId, approve) => {
   return callFunction('processWithdrawal', { requestId, approve });
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// 🎮 JUEGO DE TRIVIA - Funciones públicas (sin auth)
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Crear reto de trivia (público) - REQUIERE UID
+ * Congela créditos del retador y envía invitaciones
+ */
+export const createTriviaGame = async (phone, uid, betAmount, invitedPlayers) => {
+  return callPublicFunction('createTriviaGame', { phone, uid, betAmount, invitedPlayers });
+};
+
+/**
+ * Aceptar reto de trivia (público) - REQUIERE UID
+ * Congela créditos del retado
+ */
+export const acceptTriviaGame = async (gameId, phone, uid) => {
+  return callPublicFunction('acceptTriviaGame', { gameId, phone, uid });
+};
+
+/**
+ * Rechazar reto de trivia (público) - REQUIERE UID
+ */
+export const rejectTriviaGame = async (gameId, phone, uid) => {
+  return callPublicFunction('rejectTriviaGame', { gameId, phone, uid });
 };
