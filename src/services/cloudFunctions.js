@@ -16,10 +16,11 @@ const FUNCTIONS = {
   requestWithdrawal: 'https://requestwithdrawal-wxcqdudneq-uc.a.run.app',
   processWithdrawal: 'https://processwithdrawal-wxcqdudneq-uc.a.run.app',
   getBalance: 'https://getbalance-wxcqdudneq-uc.a.run.app',
-  // 🎮 Juego de Trivia
+    // 🎮 Juego de Trivia
   createTriviaGame: 'https://createtriviagame-wxcqdudneq-uc.a.run.app',
   acceptTriviaGame: 'https://accepttriviagame-wxcqdudneq-uc.a.run.app',
-  rejectTriviaGame: 'https://rejecttriviagame-wxcqdudneq-uc.a.run.app'
+  rejectTriviaGame: 'https://rejecttriviagame-wxcqdudneq-uc.a.run.app',
+  generateTriviaQuestions: 'https://generatetriviaquestions-wxcqdudneq-uc.a.run.app'
 };
 
 /**
@@ -211,4 +212,11 @@ export const acceptTriviaGame = async (gameId, phone, uid) => {
  */
 export const rejectTriviaGame = async (gameId, phone, uid) => {
   return callPublicFunction('rejectTriviaGame', { gameId, phone, uid });
+};
+
+/**
+ * Generar preguntas de trivia con Gemini AI (público)
+ */
+export const generateTriviaQuestions = async (category, difficulty) => {
+  return callPublicFunction('generateTriviaQuestions', { category, difficulty });
 };
