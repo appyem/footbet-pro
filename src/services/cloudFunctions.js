@@ -16,11 +16,13 @@ const FUNCTIONS = {
   requestWithdrawal: 'https://requestwithdrawal-wxcqdudneq-uc.a.run.app',
   processWithdrawal: 'https://processwithdrawal-wxcqdudneq-uc.a.run.app',
   getBalance: 'https://getbalance-wxcqdudneq-uc.a.run.app',
-    // 🎮 Juego de Trivia
+      // 🎮 Juego de Trivia
   createTriviaGame: 'https://createtriviagame-wxcqdudneq-uc.a.run.app',
   acceptTriviaGame: 'https://accepttriviagame-wxcqdudneq-uc.a.run.app',
   rejectTriviaGame: 'https://rejecttriviagame-wxcqdudneq-uc.a.run.app',
-  generateTriviaQuestions: 'https://generatetriviaquestions-wxcqdudneq-uc.a.run.app'
+  generateTriviaQuestions: 'https://generatetriviaquestions-wxcqdudneq-uc.a.run.app',
+  submitTriviaAnswer: 'https://submittriviaanswer-wxcqdudneq-uc.a.run.app',
+  finishTriviaGame: 'https://finishtriviagame-wxcqdudneq-uc.a.run.app'
 };
 
 /**
@@ -219,4 +221,19 @@ export const rejectTriviaGame = async (gameId, phone, uid) => {
  */
 export const generateTriviaQuestions = async (category, difficulty) => {
   return callPublicFunction('generateTriviaQuestions', { category, difficulty });
+};
+
+/**
+ * Enviar respuesta a pregunta de trivia (público) - REQUIERE UID
+ */
+export const submitTriviaAnswer = async (gameId, phone, uid, questionIndex, selectedOption) => {
+  return callPublicFunction('submitTriviaAnswer', { gameId, phone, uid, questionIndex, selectedOption });
+};
+
+/**
+ * Finalizar juego de trivia (público) - REQUIERE UID
+ * Solo el creador del juego puede finalizarlo
+ */
+export const finishTriviaGame = async (gameId, phone, uid) => {
+  return callPublicFunction('finishTriviaGame', { gameId, phone, uid });
 };
