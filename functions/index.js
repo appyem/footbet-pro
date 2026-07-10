@@ -1186,3 +1186,101 @@ exports.rejectTriviaGame = onCall(async (request) => {
     message: 'Reto rechazado'
   };
 });
+
+/**
+ * Función: Generar preguntas de trivia con Gemini AI
+ * Genera 10 preguntas de fútbol con 4 opciones cada una
+ */
+exports.generateTriviaQuestions = onCall(async (request) => {
+  const { category, difficulty } = request.data;
+  
+  // Configuración de Gemini API
+  const GEMINI_API_KEY = 'AIzaSyC_ddOzNgFyz9cPZgX_EXXGQhJFynPFxYI';
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
+  
+  // Prompt para generar preguntas
+  const prompt = `Genera exactamente 10 preguntas de trivia sobre fútbol en español.
+  
+Categoría: ${category || 'general'}
+Dificultad: ${difficulty || 'medio'}
+
+Formato requerido (JSON válido):
+{
+  "questions": [
+    {
+      "question": "Texto de la pregunta",
+      "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
+      "correctAnswer": 0,
+      "category": "categoría específica",
+      "difficulty": 1-5
+    }
+  ]
+}
+
+Reglas:
+- correctAnswer es el índice (0-3) de la opción correcta
+- Las preguntas deben ser variadas y entretenidas
+- Incluye preguntas sobre: historia, jugadores famosos, mundiales, equipos, reglas, récords
+- Dificultad 1-5 donde 1 es muy fácil y 5 es muy difícil
+- NO incluyas explicaciones, solo el JSON puro
+- Asegúrate de que el JSON sea válido y esté bien formateado`;
+
+  try {
+    const response = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 2048
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error de Gemini API: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const textResponse = data.candidates[0].content.parts[0].text;
+    
+    // Extraer JSON de la respuesta (puede venir con markdown)
+    const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No se pudo extraer JSON de la respuesta');
+    }
+    
+    const parsedResponse = JSON.parse(jsonMatch[0]);
+    
+    // Validar que tenga exactamente 10 preguntas
+    if (!parsedResponse.questions || parsedResponse.questions.length !== 10) {
+      throw new Error('La respuesta no contiene exactamente 10 preguntas');
+    }
+    
+    // Validar estructura de cada pregunta
+    for (const q of parsedResponse.questions) {
+      if (!q.question || !q.options || q.options.length !== 4 || 
+          q.correctAnswer === undefined || q.correctAnswer < 0 || q.correctAnswer > 3) {
+        throw new Error('Estructura de pregunta inválida');
+      }
+    }
+    
+    return {
+      success: true,
+      questions: parsedResponse.questions
+    };
+    
+  } catch (error) {
+    console.error('Error generando preguntas:', error);
+    throw new HttpsError('internal', `Error al generar preguntas: ${error.message}`);
+  }
+});
