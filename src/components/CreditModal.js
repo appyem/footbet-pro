@@ -7,7 +7,6 @@ const CreditModal = ({ phone, onClose }) => {
   const [balance, setBalance] = useState(null);
   const [uid, setUid] = useState('');
   const [uidVerified, setUidVerified] = useState(false);
-  const [generatedUid, setGeneratedUid] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -61,16 +60,10 @@ const CreditModal = ({ phone, onClose }) => {
     
     setLoading(true);
     try {
-      const result = await requestCreditPurchase(phone, depositAmount, depositMethod);
+      await requestCreditPurchase(phone, depositAmount, depositMethod);
       
-      // 🔒 Si se generó un UID nuevo, mostrarlo al usuario
-      if (result.uid && !uidVerified) {
-        setGeneratedUid(result.uid);
-        setUid(result.uid);
-        setSuccess(`✅ Solicitud enviada. Tu código UID es: ${result.uid}. GUÁRDALO para futuras operaciones.`);
-      } else {
-        setSuccess(`✅ Solicitud enviada. ID: ${result.requestId}`);
-      }
+      // 🔒 SEGURIDAD: NO mostrar UID en pantalla. El cliente lo recibirá por WhatsApp
+      setSuccess(`✅ Solicitud enviada. Recibirás tu código de acceso por WhatsApp cuando el administrador apruebe tu recarga.`);
       
       setDepositAmount(500);
     } catch (err) {
@@ -140,7 +133,7 @@ const CreditModal = ({ phone, onClose }) => {
           </div>
 
           {/* 🔒 Pantalla de validación UID */}
-          {!uidVerified && !generatedUid && activeTab !== 'deposit' && (
+          {!uidVerified && activeTab !== 'deposit' && (
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-purple-600 to-purple-800 rounded-xl p-4 mb-4">
                 <div className="flex items-center gap-3">
@@ -167,7 +160,7 @@ const CreditModal = ({ phone, onClose }) => {
                   maxLength="6"
                 />
                 <p className="text-gray-400 text-xs mt-2">
-                  💡 Este código te fue entregado al solicitar tu primera recarga
+                  💡 Este código te fue entregado por WhatsApp al solicitar tu primera recarga
                 </p>
               </div>
 
@@ -181,7 +174,7 @@ const CreditModal = ({ phone, onClose }) => {
 
               <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-3">
                 <p className="text-blue-300 text-xs">
-                  ℹ️ <strong>¿No tienes código?</strong> Solicita una recarga primero y se te asignará un código único automáticamente.
+                  ℹ️ <strong>¿No tienes código?</strong> Solicita una recarga primero y se te asignará un código único que recibirás por WhatsApp.
                 </p>
               </div>
 
@@ -194,36 +187,8 @@ const CreditModal = ({ phone, onClose }) => {
             </div>
           )}
 
-          {/* 🎉 Mostrar UID generado después de recarga */}
-          {generatedUid && !uidVerified && (
-            <div className="space-y-4">
-              <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-6 text-center">
-                <CheckCircle className="w-16 h-16 text-white mx-auto mb-3" />
-                <h3 className="text-white text-xl font-bold mb-2">¡Recarga Solicitada!</h3>
-                <p className="text-green-200 text-sm mb-4">
-                  Tu solicitud ha sido enviada al administrador
-                </p>
-                
-                <div className="bg-white/20 rounded-lg p-4 mt-4">
-                  <p className="text-white text-sm mb-2">🔐 Tu código UID es:</p>
-                  <p className="text-white text-4xl font-bold tracking-widest">{generatedUid}</p>
-                  <p className="text-green-200 text-xs mt-3">
-                    ⚠️ GUARDA ESTE CÓDIGO. Lo necesitarás para ver tu saldo y retirar créditos.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setUidVerified(true)}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg transition-colors"
-              >
-                Continuar al Panel
-              </button>
-            </div>
-          )}
-
           {/* 💰 Formulario de recarga (disponible sin UID) */}
-          {!uidVerified && activeTab === 'deposit' && !generatedUid && (
+          {!uidVerified && activeTab === 'deposit' && (
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-4 mb-4">
                 <div className="flex items-center gap-3">
@@ -232,7 +197,7 @@ const CreditModal = ({ phone, onClose }) => {
                   </div>
                   <div>
                     <p className="text-white font-bold">Solicitar Recarga</p>
-                    <p className="text-green-200 text-sm">Se te asignará un código UID único</p>
+                    <p className="text-green-200 text-sm">Tu código de acceso te llegará por WhatsApp</p>
                   </div>
                 </div>
               </div>
@@ -298,7 +263,7 @@ const CreditModal = ({ phone, onClose }) => {
 
               <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-3">
                 <p className="text-blue-300 text-xs">
-                  ℹ️ Después de solicitar, el administrador verificará tu pago y acreditará los créditos.
+                  ℹ️ Después de solicitar, el administrador verificará tu pago y te enviará tu código de acceso por WhatsApp.
                 </p>
               </div>
 

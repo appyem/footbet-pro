@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, XCircle, Clock, Wallet, TrendingUp, TrendingDown, AlertCircle, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Wallet, TrendingUp, TrendingDown, AlertCircle, RefreshCw, Lock } from 'lucide-react';
 import { db } from '../services/firebase';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { addCredits, processWithdrawal } from '../services/cloudFunctions';
@@ -56,8 +56,34 @@ const AdminCreditPanel = () => {
     setSuccess('');
     
     try {
-      await addCredits(request.phone, request.amount, request.id);
+      const result = await addCredits(request.phone, request.amount, request.id);
       setSuccess(`✅ Recarga aprobada: ${request.amount} créditos a ${request.phone}`);
+      
+      // 🔒 Obtener UID del cliente (desde la solicitud o desde el resultado)
+      const clientUid = request.clientUid || result.clientUid;
+      
+      // 📱 Abrir WhatsApp con mensaje de confirmación
+      const phoneForWhatsApp = request.phone.replace(/\D/g, '');
+      let message = `✅ *RECARGA APROBADA* ✅\n\n` +
+        `Hola! Tu recarga ha sido aprobada exitosamente.\n\n` +
+        `💰 *Monto acreditado:* ${request.amount} créditos\n` +
+        `💵 *Equivalente:* ${formatCOP(request.amount)}\n` +
+        `📊 *Saldo actual:* ${result.newBalance} créditos\n\n`;
+      
+      // 🔒 Incluir UID si es la primera recarga del cliente
+      if (clientUid) {
+        message += `🔐 *TU CÓDIGO DE ACCESO:* ${clientUid}\n\n` +
+          `⚠️ *GUARDA ESTE CÓDIGO.* Lo necesitarás para:\n` +
+          `• Ver tu saldo de créditos\n` +
+          `• Solicitar retiros de créditos\n\n` +
+          `🔒 *NUNCA compartas este código con nadie.*\n\n`;
+      }
+      
+      message += `¡Gracias por usar FootBet Pro! 🎯`;
+      
+      const whatsappUrl = `https://wa.me/${phoneForWhatsApp}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+      
     } catch (err) {
       setError('❌ Error: ' + err.message);
     } finally {
@@ -79,7 +105,6 @@ const AdminCreditPanel = () => {
         await processWithdrawal(request.id, false);
       } else {
         // Para recargas, solo marcamos como rechazada
-        // No tenemos función para esto, lo hacemos manualmente
         const { doc, updateDoc } = await import('firebase/firestore');
         await updateDoc(doc(db, 'withdrawal_requests', request.id), {
           status: 'rejected',
@@ -104,8 +129,26 @@ const AdminCreditPanel = () => {
     setSuccess('');
     
     try {
-      await processWithdrawal(request.id, true);
+      const result = await processWithdrawal(request.id, true);
       setSuccess(`✅ Retiro aprobado: ${request.netAmount} créditos a ${request.phone}`);
+      
+      // 📱 Abrir WhatsApp con mensaje de confirmación
+      const phoneForWhatsApp = request.phone.replace(/\D/g, '');
+      const message = `✅ *RETIRO APROBADO* ✅\n\n` +
+        `Hola! Tu solicitud de retiro ha sido aprobada.\n\n` +
+        `💰 *Monto solicitado:* ${request.amount} créditos\n` +
+        `📊 *Comisión (10%):* ${request.commission} créditos\n` +
+        `💵 *Neto a recibir:* ${request.netAmount} créditos\n` +
+        `💵 *Equivalente COP:* ${formatCOP(request.netAmount)}\n` +
+        `💳 *Método:* ${request.paymentMethod}\n` +
+        `🏦 *Cuenta:* ${request.accountNumber}\n\n` +
+        `📊 *Saldo actual:* ${result.newBalance || 'consulta en la app'} créditos\n\n` +
+        `El pago se procesará en las próximas horas.\n\n` +
+        `¡Gracias por usar FootBet Pro! 🎯`;
+      
+      const whatsappUrl = `https://wa.me/${phoneForWhatsApp}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+      
     } catch (err) {
       setError('❌ Error: ' + err.message);
     } finally {
@@ -220,6 +263,12 @@ const AdminCreditPanel = () => {
                     <p className="text-gray-500 text-xs mt-1">
                       Método: {request.paymentMethod} • ID: {request.id}
                     </p>
+                    {/* 🔒 Mostrar UID del cliente si existe */}
+                    {request.clientUid && (
+                      <p className="text-purple-400 text-xs mt-1 flex items-center gap-1">
+                        <Lock className="w-3 h-3" /> UID: {request.clientUid}
+                      </p>
+                    )}
                     <p className="text-gray-500 text-xs">
                       <Clock className="w-3 h-3 inline" /> {new Date(request.requestedAt).toLocaleString('es-CO')}
                     </p>

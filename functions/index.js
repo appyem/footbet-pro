@@ -563,13 +563,14 @@ exports.requestCreditPurchase = onCall(async (request) => {
     clientUid = uidQuery.docs[0].data().uid;
   }
   
-    // Crear solicitud de recarga
+      // Crear solicitud de recarga
   const purchaseRequest = {
     phone: phoneWithCountry,
     type: 'deposit',
     amount: amount,
     copAmount: copAmount,
     paymentMethod: paymentMethod || 'nequi',
+    clientUid: clientUid, // 🔒 Guardar UID para que el admin lo vea
     status: 'pending',
     requestedAt: new Date().toISOString()
   };
@@ -596,11 +597,10 @@ exports.requestCreditPurchase = onCall(async (request) => {
     console.error("Error enviando notificación a Telegram:", error);
   }
   
-  return { 
+    return { 
     success: true, 
-    requestId: requestRef.id, 
-    uid: clientUid,
-    message: 'Solicitud enviada al administrador' 
+    requestId: requestRef.id,
+    message: 'Solicitud enviada al administrador. Recibirás tu código por WhatsApp cuando sea aprobada.' 
   };
 });
 
@@ -660,7 +660,7 @@ exports.addCredits = onCall(async (request) => {
     createdAt: new Date().toISOString()
   });
   
-  // Actualizar solicitud si existe
+    // Actualizar solicitud si existe
   if (requestId) {
     await db.collection('withdrawal_requests').doc(requestId).update({
       status: 'completed',
@@ -668,7 +668,20 @@ exports.addCredits = onCall(async (request) => {
     });
   }
   
-  return { success: true, newBalance: newBalance, message: `${amount} créditos agregados exitosamente` };
+  // 🔒 Obtener UID del cliente para enviar por WhatsApp
+  const uidQuery = await db.collection('client_uids')
+    .where('phone', '==', phoneNormalized)
+    .limit(1)
+    .get();
+  
+  const clientUid = uidQuery.empty ? null : uidQuery.docs[0].data().uid;
+  
+  return { 
+    success: true, 
+    newBalance: newBalance, 
+    clientUid: clientUid,
+    message: `${amount} créditos agregados exitosamente` 
+  };
 });
 
 /**
@@ -832,7 +845,7 @@ exports.processWithdrawal = onCall(async (request) => {
       processedAt: new Date().toISOString()
     });
     
-    return { success: true, message: 'Retiro aprobado y procesado' };
+    return { success: true, newBalance: newBalance, message: 'Retiro aprobado y procesado' };
   } else {
     // Rechazar retiro
     await requestRef.update({
