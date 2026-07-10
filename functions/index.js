@@ -1284,3 +1284,276 @@ Reglas:
     throw new HttpsError('internal', `Error al generar preguntas: ${error.message}`);
   }
 });
+
+/**
+ * Función: Enviar respuesta a pregunta de trivia
+ * Registra la respuesta con timestamp para calcular tiempo
+ */
+exports.submitTriviaAnswer = onCall(async (request) => {
+  const { gameId, phone, uid, questionIndex, selectedOption } = request.data;
+  
+  // Validaciones básicas
+  if (!gameId || !phone || !uid) {
+    throw new HttpsError('invalid-argument', 'ID del juego, teléfono y UID son requeridos');
+  }
+  
+  if (questionIndex === undefined || questionIndex < 0 || questionIndex > 9) {
+    throw new HttpsError('invalid-argument', 'Índice de pregunta inválido (debe ser 0-9)');
+  }
+  
+  if (selectedOption === undefined || selectedOption < 0 || selectedOption > 3) {
+    throw new HttpsError('invalid-argument', 'Opción seleccionada inválida (debe ser 0-3)');
+  }
+  
+  // Verificar UID del jugador
+  const playerPhone = await verifyClientUid(phone, uid);
+  
+  const gameRef = db.collection('trivia_games').doc(gameId);
+  const gameDoc = await gameRef.get();
+  
+  if (!gameDoc.exists) {
+    throw new HttpsError('not-found', 'Juego no encontrado');
+  }
+  
+  const gameData = gameDoc.data();
+  
+  // Validar estado del juego
+  if (gameData.status !== 'active') {
+    throw new HttpsError('failed-precondition', 'El juego no está activo');
+  }
+  
+  // Verificar que el jugador participa en el juego (retador o invitado aceptado)
+  const isCreator = gameData.creatorPhone === playerPhone;
+  const invitedPlayer = gameData.invitedPlayers.find(p => p.phone === playerPhone);
+  const isAcceptedInvited = invitedPlayer && invitedPlayer.status === 'accepted';
+  
+  if (!isCreator && !isAcceptedInvited) {
+    throw new HttpsError('permission-denied', 'No estás participando en este juego');
+  }
+  
+  // Verificar que no haya respondido ya esta pregunta
+  const currentAnswers = gameData.answers || {};
+  const playerAnswers = currentAnswers[playerPhone] || {};
+  
+  if (playerAnswers[questionIndex]) {
+    throw new HttpsError('already-exists', 'Ya respondiste esta pregunta');
+  }
+  
+  // Registrar respuesta con timestamp
+  const newAnswers = {
+    ...currentAnswers,
+    [playerPhone]: {
+      ...playerAnswers,
+      [questionIndex]: {
+        selected: selectedOption,
+        timestamp: new Date().toISOString()
+      }
+    }
+  };
+  
+  await gameRef.update({
+    answers: newAnswers
+  });
+  
+  return {
+    success: true,
+    message: 'Respuesta registrada'
+  };
+});
+
+/**
+ * Función: Finalizar juego de trivia
+ * Calcula ganador y distribuye créditos
+ * Solo puede ser llamada por el creador del juego
+ */
+exports.finishTriviaGame = onCall(async (request) => {
+  const { gameId, phone, uid } = request.data;
+  
+  if (!gameId || !phone || !uid) {
+    throw new HttpsError('invalid-argument', 'ID del juego, teléfono y UID son requeridos');
+  }
+  
+  // Verificar UID del creador
+  const creatorPhone = await verifyClientUid(phone, uid);
+  
+  const gameRef = db.collection('trivia_games').doc(gameId);
+  const gameDoc = await gameRef.get();
+  
+  if (!gameDoc.exists) {
+    throw new HttpsError('not-found', 'Juego no encontrado');
+  }
+  
+  const gameData = gameDoc.data();
+  
+  // Solo el creador puede finalizar
+  if (gameData.creatorPhone !== creatorPhone) {
+    throw new HttpsError('permission-denied', 'Solo el creador puede finalizar el juego');
+  }
+  
+  // Validar estado
+  if (gameData.status !== 'active') {
+    throw new HttpsError('failed-precondition', 'El juego no está activo');
+  }
+  
+  // Obtener jugadores activos (creador + invitados aceptados)
+  const activePlayers = [
+    gameData.creatorPhone,
+    ...gameData.invitedPlayers
+      .filter(p => p.status === 'accepted')
+      .map(p => p.phone)
+  ];
+  
+  if (activePlayers.length < 2) {
+    throw new HttpsError('failed-precondition', 'Se necesitan al menos 2 jugadores para finalizar');
+  }
+  
+  // Verificar que todos hayan respondido todas las preguntas
+  const totalQuestions = gameData.questions.length;
+  const answers = gameData.answers || {};
+  
+  for (const playerPhone of activePlayers) {
+    const playerAnswers = answers[playerPhone] || {};
+    const answeredCount = Object.keys(playerAnswers).length;
+    
+    if (answeredCount < totalQuestions) {
+      throw new HttpsError('failed-precondition', 
+        `El jugador ${playerPhone} aún no ha respondido todas las preguntas (${answeredCount}/${totalQuestions})`);
+    }
+  }
+  
+  // Calcular puntaje de cada jugador
+  const scores = {};
+  const times = {};
+  
+  for (const playerPhone of activePlayers) {
+    let correctCount = 0;
+    let totalTime = 0;
+    
+    for (let i = 0; i < totalQuestions; i++) {
+      const answer = answers[playerPhone][i];
+      const correctAnswer = gameData.questions[i].correctAnswer;
+      
+      if (answer.selected === correctAnswer) {
+        correctCount++;
+      }
+      
+      // Calcular tiempo desde el inicio del juego
+      const answerTime = new Date(answer.timestamp).getTime();
+      const startTime = new Date(gameData.startedAt).getTime();
+      totalTime += (answerTime - startTime);
+    }
+    
+    scores[playerPhone] = correctCount;
+    times[playerPhone] = totalTime;
+  }
+  
+  // Determinar ganador(es)
+  const maxScore = Math.max(...Object.values(scores));
+  const winners = activePlayers.filter(p => scores[p] === maxScore);
+  
+  // Si hay empate, gana quien tenga menor tiempo total
+  let finalWinners = winners;
+  if (winners.length > 1) {
+    const minTime = Math.min(...winners.map(p => times[p]));
+    finalWinners = winners.filter(p => times[p] === minTime);
+  }
+  
+  // Si aún hay empate, se dividen los créditos
+  const totalPool = gameData.betAmount * activePlayers.length;
+  const prizePerWinner = Math.floor(totalPool / finalWinners.length);
+  
+  // Transacción para distribuir créditos
+  await db.runTransaction(async (transaction) => {
+    // Descongelar y ajustar créditos de cada jugador activo
+    for (const playerPhone of activePlayers) {
+      const balanceRef = db.collection('client_balances').doc(playerPhone);
+      const balanceDoc = await transaction.get(balanceRef);
+      
+      const currentBalance = balanceDoc.exists ? (balanceDoc.data().balance || 0) : 0;
+      const currentFrozen = balanceDoc.exists ? (balanceDoc.data().frozenBalance || 0) : 0;
+      
+      const isWinner = finalWinners.includes(playerPhone);
+      
+      // Descongelar la apuesta
+      let newFrozen = currentFrozen - gameData.betAmount;
+      let newBalance = currentBalance;
+      
+      if (isWinner) {
+        // Ganador recibe el premio
+        newBalance = currentBalance + prizePerWinner;
+      }
+      // Los no ganadores ya tenían el monto congelado, solo se descongela (se resta de frozen)
+      // El balance total no cambia para los perdedores, solo se descongela
+      
+      transaction.update(balanceRef, {
+        balance: newBalance,
+        frozenBalance: Math.max(0, newFrozen),
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Registrar transacción
+      const transactionRef = db.collection('transactions').doc();
+      transaction.set(transactionRef, {
+        phone: playerPhone,
+        type: isWinner ? 'trivia_win' : 'trivia_loss',
+        amount: isWinner ? prizePerWinner : 0,
+        betAmount: gameData.betAmount,
+        description: isWinner 
+          ? `Ganó trivia - ${scores[playerPhone]}/${totalQuestions} correctas`
+          : `Perdió trivia - ${scores[playerPhone]}/${totalQuestions} correctas`,
+        gameId: gameId,
+        balanceBefore: currentBalance,
+        balanceAfter: newBalance,
+        createdAt: new Date().toISOString()
+      });
+    }
+    
+    // Actualizar estado del juego
+    transaction.update(gameRef, {
+      status: 'finished',
+      finishedAt: new Date().toISOString(),
+      winners: finalWinners,
+      scores: scores,
+      times: times,
+      totalPool: totalPool,
+      prizePerWinner: prizePerWinner
+    });
+  });
+  
+  // Notificación Telegram
+  const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
+  const telegramChatId = "6567201196";
+  
+  const winnersText = finalWinners.map(w => `${w} (${scores[w]}/${totalQuestions})`).join(', ');
+  
+  const telegramMessage = `🏆 *TRIVIA FINALIZADA* 🏆\n\n` +
+    `📋 *ID:* ${gameId}\n` +
+    `💰 *Pozo total:* ${totalPool} créditos\n` +
+    `👑 *Ganador(es):* ${winnersText}\n` +
+    `💵 *Premio:* ${prizePerWinner} créditos c/u\n\n` +
+    `📊 *Resultados:*\n` +
+    activePlayers.map(p => `• ${p}: ${scores[p]}/${totalQuestions}`).join('\n');
+  
+  try {
+    await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: telegramChatId,
+        text: telegramMessage,
+        parse_mode: "Markdown"
+      })
+    });
+  } catch (error) {
+    console.error("Error enviando notificación a Telegram:", error);
+  }
+  
+  return {
+    success: true,
+    winners: finalWinners,
+    scores: scores,
+    totalPool: totalPool,
+    prizePerWinner: prizePerWinner,
+    message: `Juego finalizado. Ganador(es): ${finalWinners.join(', ')}`
+  };
+});
