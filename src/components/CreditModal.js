@@ -3,7 +3,7 @@ import { DollarSign, TrendingUp, AlertCircle, CheckCircle, Wallet, Lock } from '
 import { getBalance, requestCreditPurchase, requestWithdrawal } from '../services/cloudFunctions';
 
 const CreditModal = ({ phone, onClose }) => {
-  const [activeTab, setActiveTab] = useState('deposit'); // deposit, withdraw
+  const [activeTab, setActiveTab] = useState('deposit');
   const [balance, setBalance] = useState(null);
   const [uid, setUid] = useState('');
   const [uidVerified, setUidVerified] = useState(false);
@@ -64,7 +64,7 @@ const CreditModal = ({ phone, onClose }) => {
       const result = await requestCreditPurchase(phone, depositAmount, depositMethod);
       
       // 🔒 Si se generó un UID nuevo, mostrarlo al usuario
-      if (result.uid) {
+      if (result.uid && !uidVerified) {
         setGeneratedUid(result.uid);
         setUid(result.uid);
         setSuccess(`✅ Solicitud enviada. Tu código UID es: ${result.uid}. GUÁRDALO para futuras operaciones.`);
@@ -105,7 +105,7 @@ const CreditModal = ({ phone, onClose }) => {
       setSuccess(`✅ Solicitud de retiro enviada. ID: ${result.requestId}`);
       setWithdrawAmount(5000);
       setAccountNumber('');
-      loadBalance(); // Recargar saldo
+      loadBalance();
     } catch (err) {
       setError('❌ Error: ' + err.message);
     } finally {
@@ -140,7 +140,7 @@ const CreditModal = ({ phone, onClose }) => {
           </div>
 
           {/* 🔒 Pantalla de validación UID */}
-          {!uidVerified && !generatedUid && (
+          {!uidVerified && !generatedUid && activeTab !== 'deposit' && (
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-purple-600 to-purple-800 rounded-xl p-4 mb-4">
                 <div className="flex items-center gap-3">
@@ -186,7 +186,7 @@ const CreditModal = ({ phone, onClose }) => {
               </div>
 
               <button
-                onClick={() => setActiveTab('deposit')}
+                onClick={() => { setActiveTab('deposit'); setError(''); setSuccess(''); }}
                 className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 rounded-lg transition-colors text-sm"
               >
                 💰 Ir a Recargar (sin código)
@@ -222,7 +222,96 @@ const CreditModal = ({ phone, onClose }) => {
             </div>
           )}
 
-          {/* ✅ Contenido solo si está verificado */}
+          {/* 💰 Formulario de recarga (disponible sin UID) */}
+          {!uidVerified && activeTab === 'deposit' && !generatedUid && (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/20 p-3 rounded-full">
+                    <TrendingUp className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-white font-bold">Solicitar Recarga</p>
+                    <p className="text-green-200 text-sm">Se te asignará un código UID único</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mensajes */}
+              {error && (
+                <div className="bg-red-900/50 border border-red-700 rounded-lg p-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-400" />
+                  <span className="text-red-300 text-sm">{error}</span>
+                </div>
+              )}
+              
+              {success && (
+                <div className="bg-green-900/50 border border-green-700 rounded-lg p-3 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span className="text-green-300 text-sm">{success}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="text-gray-300 text-sm font-medium mb-2 block">
+                  Cantidad de créditos
+                </label>
+                <input
+                  type="number"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(parseInt(e.target.value) || 0)}
+                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
+                  min="500"
+                  step="100"
+                />
+                <p className="text-gray-400 text-xs mt-1">
+                  Mínimo: 500 créditos ({formatCOP(500)})
+                </p>
+                <p className="text-green-400 text-sm mt-1">
+                  Equivalente: {formatCOP(depositAmount)}
+                </p>
+              </div>
+
+              <div>
+                <label className="text-gray-300 text-sm font-medium mb-2 block">
+                  Método de pago
+                </label>
+                <select
+                  value={depositMethod}
+                  onChange={(e) => setDepositMethod(e.target.value)}
+                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-600"
+                >
+                  <option value="nequi">Nequi</option>
+                  <option value="daviplata">Daviplata</option>
+                  <option value="bancolombia">Bancolombia</option>
+                  <option value="transferencia">Transferencia</option>
+                </select>
+              </div>
+
+              <button
+                onClick={handleDeposit}
+                disabled={loading}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Enviando...' : 'Solicitar Recarga'}
+              </button>
+
+              <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-3">
+                <p className="text-blue-300 text-xs">
+                  ℹ️ Después de solicitar, el administrador verificará tu pago y acreditará los créditos.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setActiveTab('verify')}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 rounded-lg transition-colors text-sm"
+              >
+                🔐 Ya tengo mi código UID
+              </button>
+            </div>
+          )}
+
+          {/* ✅ Panel completo (solo si está verificado) */}
           {uidVerified && (
             <>
               {/* Saldo actual */}
@@ -282,7 +371,7 @@ const CreditModal = ({ phone, onClose }) => {
                 </div>
               )}
 
-              {/* Contenido de tabs */}
+              {/* Formulario de recarga */}
               {activeTab === 'deposit' && (
                 <div className="space-y-4">
                   <div>
@@ -337,6 +426,7 @@ const CreditModal = ({ phone, onClose }) => {
                 </div>
               )}
 
+              {/* Formulario de retiro */}
               {activeTab === 'withdraw' && (
                 <div className="space-y-4">
                   <div>
