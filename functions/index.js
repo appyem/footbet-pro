@@ -901,3 +901,288 @@ exports.getBalance = onCall(async (request) => {
     updatedAt: balanceData.updatedAt
   };
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// 🎮 JUEGO DE TRIVIA - Sistema de retos entre amigos
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Función auxiliar: Verificar que el UID sea válido para el teléfono
+ */
+const verifyClientUid = async (phone, uid) => {
+  const phoneNormalized = phone.replace(/\D/g, '');
+  const phoneWithCountry = phoneNormalized.startsWith('57') ? phoneNormalized : '57' + phoneNormalized;
+  const uidNormalized = uid.toString().trim();
+  
+  const uidQuery = await db.collection('client_uids')
+    .where('phone', '==', phoneWithCountry)
+    .where('uid', '==', uidNormalized)
+    .limit(1)
+    .get();
+  
+  if (uidQuery.empty) {
+    throw new HttpsError('permission-denied', 'Código UID incorrecto o no registrado');
+  }
+  
+  return phoneWithCountry;
+};
+
+/**
+ * Función: Crear reto de trivia
+ * El retador congela créditos y envía invitaciones
+ */
+exports.createTriviaGame = onCall(async (request) => {
+  const { phone, uid, betAmount, invitedPlayers } = request.data;
+  
+  // Validaciones básicas
+  if (!phone || !uid) {
+    throw new HttpsError('invalid-argument', 'Teléfono y UID son requeridos');
+  }
+  
+  if (!betAmount || betAmount < 100) {
+    throw new HttpsError('invalid-argument', 'La apuesta mínima es 100 créditos');
+  }
+  
+  if (!invitedPlayers || !Array.isArray(invitedPlayers) || invitedPlayers.length === 0) {
+    throw new HttpsError('invalid-argument', 'Debes invitar al menos a un amigo');
+  }
+  
+  // Verificar UID del retador
+  const creatorPhone = await verifyClientUid(phone, uid);
+  
+  // Verificar saldo disponible (balance - frozen)
+  const balanceRef = db.collection('client_balances').doc(creatorPhone);
+  const balanceDoc = await balanceRef.get();
+  
+  const currentBalance = balanceDoc.exists ? (balanceDoc.data().balance || 0) : 0;
+  const currentFrozen = balanceDoc.exists ? (balanceDoc.data().frozenBalance || 0) : 0;
+  const availableBalance = currentBalance - currentFrozen;
+  
+  if (availableBalance < betAmount) {
+    throw new HttpsError('failed-precondition', 
+      `Saldo insuficiente. Disponible: ${availableBalance} créditos. Necesitas: ${betAmount} créditos. Recarga más créditos para crear el reto.`);
+  }
+  
+  // Normalizar teléfonos de invitados
+  const normalizedInvited = invitedPlayers.map(p => {
+    const phoneDigits = p.replace(/\D/g, '');
+    return phoneDigits.startsWith('57') ? phoneDigits : '57' + phoneDigits;
+  });
+  
+  // Verificar que el retador no se invite a sí mismo
+  if (normalizedInvited.includes(creatorPhone)) {
+    throw new HttpsError('invalid-argument', 'No puedes invitarte a ti mismo');
+  }
+  
+  // Crear el juego usando transacción para congelar créditos atómicamente
+  const gameRef = db.collection('trivia_games').doc();
+  
+  await db.runTransaction(async (transaction) => {
+    // Congelar créditos del retador
+    transaction.update(balanceRef, {
+      frozenBalance: currentFrozen + betAmount,
+      updatedAt: new Date().toISOString()
+    });
+    
+    // Crear documento del juego
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // 24 horas para aceptar
+    
+    transaction.set(gameRef, {
+      creatorPhone: creatorPhone,
+      creatorUid: uid,
+      betAmount: betAmount,
+      invitedPlayers: normalizedInvited.map(phone => ({
+        phone: phone,
+        status: 'pending', // pending, accepted, rejected
+        uid: null,
+        acceptedAt: null
+      })),
+      status: 'waiting', // waiting, active, finished, expired
+      totalPlayers: 1 + normalizedInvited.length, // retador + invitados
+      questions: [],
+      answers: {},
+      winner: null,
+      createdAt: new Date().toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      startedAt: null,
+      finishedAt: null
+    });
+  });
+  
+  // Enviar notificaciones por Telegram al admin
+  const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
+  const telegramChatId = "6567201196";
+  
+  const telegramMessage = `🎮 *NUEVO RETO DE TRIVIA* 🎮\n\n` +
+    `👤 *Retador:* ${creatorPhone}\n` +
+    `💰 *Apuesta:* ${betAmount} créditos\n` +
+    `👥 *Invitados:* ${normalizedInvited.length}\n` +
+    `📋 *ID:* ${gameRef.id}\n\n` +
+    `⏳ Esperando aceptación (24h)`;
+  
+  try {
+    await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: telegramChatId,
+        text: telegramMessage,
+        parse_mode: "Markdown"
+      })
+    });
+  } catch (error) {
+    console.error("Error enviando notificación a Telegram:", error);
+  }
+  
+  return { 
+    success: true, 
+    gameId: gameRef.id,
+    message: `Reto creado exitosamente. Se congelaron ${betAmount} créditos. Invita a tus amigos por WhatsApp.`
+  };
+});
+
+/**
+ * Función: Aceptar reto de trivia
+ * El retado debe congelar el mismo monto que el retador
+ */
+exports.acceptTriviaGame = onCall(async (request) => {
+  const { gameId, phone, uid } = request.data;
+  
+  if (!gameId || !phone || !uid) {
+    throw new HttpsError('invalid-argument', 'ID del juego, teléfono y UID son requeridos');
+  }
+  
+  // Verificar UID del retado
+  const playerPhone = await verifyClientUid(phone, uid);
+  
+  const gameRef = db.collection('trivia_games').doc(gameId);
+  const gameDoc = await gameRef.get();
+  
+  if (!gameDoc.exists) {
+    throw new HttpsError('not-found', 'Juego no encontrado');
+  }
+  
+  const gameData = gameDoc.data();
+  
+  // Validar estado del juego
+  if (gameData.status !== 'waiting') {
+    throw new HttpsError('failed-precondition', 'El juego ya no está esperando jugadores');
+  }
+  
+  // Validar expiración
+  const now = new Date();
+  const expiresAt = new Date(gameData.expiresAt);
+  if (now > expiresAt) {
+    throw new HttpsError('failed-precondition', 'El tiempo para aceptar ha expirado');
+  }
+  
+  // Verificar que el jugador fue invitado
+  const playerIndex = gameData.invitedPlayers.findIndex(p => p.phone === playerPhone);
+  if (playerIndex === -1) {
+    throw new HttpsError('permission-denied', 'No fuiste invitado a este juego');
+  }
+  
+  // Verificar que no haya aceptado ya
+  if (gameData.invitedPlayers[playerIndex].status === 'accepted') {
+    throw new HttpsError('already-exists', 'Ya aceptaste este reto');
+  }
+  
+  const betAmount = gameData.betAmount;
+  
+  // Verificar saldo disponible del retado
+  const balanceRef = db.collection('client_balances').doc(playerPhone);
+  const balanceDoc = await balanceRef.get();
+  
+  const currentBalance = balanceDoc.exists ? (balanceDoc.data().balance || 0) : 0;
+  const currentFrozen = balanceDoc.exists ? (balanceDoc.data().frozenBalance || 0) : 0;
+  const availableBalance = currentBalance - currentFrozen;
+  
+  if (availableBalance < betAmount) {
+    throw new HttpsError('failed-precondition', 
+      `SALDO_INSUFFICIENT|${betAmount}|${availableBalance}|No tienes suficientes créditos para aceptar. Necesitas ${betAmount} créditos. Recarga para aceptar el reto.`);
+  }
+  
+  // Actualizar estado del juego y congelar créditos del retado
+  await db.runTransaction(async (transaction) => {
+    // Congelar créditos del retado
+    transaction.update(balanceRef, {
+      frozenBalance: currentFrozen + betAmount,
+      updatedAt: new Date().toISOString()
+    });
+    
+    // Actualizar estado del jugador en el juego
+    const updatedInvited = [...gameData.invitedPlayers];
+    updatedInvited[playerIndex] = {
+      ...updatedInvited[playerIndex],
+      status: 'accepted',
+      uid: uid,
+      acceptedAt: new Date().toISOString()
+    };
+    
+    // Verificar si todos los invitados han aceptado
+    const allAccepted = updatedInvited.every(p => p.status === 'accepted');
+    
+    transaction.update(gameRef, {
+      invitedPlayers: updatedInvited,
+      status: allAccepted ? 'active' : 'waiting',
+      ...(allAccepted ? { startedAt: new Date().toISOString() } : {})
+    });
+  });
+  
+  return { 
+    success: true, 
+    message: `Reto aceptado. Se congelaron ${betAmount} créditos. Esperando a los demás jugadores...`
+  };
+});
+
+/**
+ * Función: Rechazar reto de trivia
+ */
+exports.rejectTriviaGame = onCall(async (request) => {
+  const { gameId, phone, uid } = request.data;
+  
+  if (!gameId || !phone || !uid) {
+    throw new HttpsError('invalid-argument', 'ID del juego, teléfono y UID son requeridos');
+  }
+  
+  // Verificar UID del retado
+  const playerPhone = await verifyClientUid(phone, uid);
+  
+  const gameRef = db.collection('trivia_games').doc(gameId);
+  const gameDoc = await gameRef.get();
+  
+  if (!gameDoc.exists) {
+    throw new HttpsError('not-found', 'Juego no encontrado');
+  }
+  
+  const gameData = gameDoc.data();
+  
+  // Validar estado del juego
+  if (gameData.status !== 'waiting') {
+    throw new HttpsError('failed-precondition', 'El juego ya no está esperando jugadores');
+  }
+  
+  // Verificar que el jugador fue invitado
+  const playerIndex = gameData.invitedPlayers.findIndex(p => p.phone === playerPhone);
+  if (playerIndex === -1) {
+    throw new HttpsError('permission-denied', 'No fuiste invitado a este juego');
+  }
+  
+  // Actualizar estado del jugador (no se congelan créditos porque no aceptó)
+  const updatedInvited = [...gameData.invitedPlayers];
+  updatedInvited[playerIndex] = {
+    ...updatedInvited[playerIndex],
+    status: 'rejected',
+    rejectedAt: new Date().toISOString()
+  };
+  
+  await gameRef.update({
+    invitedPlayers: updatedInvited
+  });
+  
+  return { 
+    success: true, 
+    message: 'Reto rechazado'
+  };
+});
