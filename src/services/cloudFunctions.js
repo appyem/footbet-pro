@@ -237,3 +237,8 @@ export const submitTriviaAnswer = async (gameId, phone, uid, questionIndex, sele
 export const finishTriviaGame = async (gameId, phone, uid) => {
   return callPublicFunction('finishTriviaGame', { gameId, phone, uid });
 };
+
+export const assignTriviaQuestions = async (gameId) => {
+  return callPublicFunction('assignTriviaQuestions', { gameId });
+};
+

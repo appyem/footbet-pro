@@ -1,6 +1,7 @@
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const admin = require('firebase-admin');
 
 // Inicializar Firebase Admin (acceso privilegiado al servidor)
 initializeApp();
@@ -1570,5 +1571,159 @@ exports.finishTriviaGame = onCall(async (request) => {
     totalPool: totalPool,
     prizePerWinner: prizePerWinner,
     message: `Juego finalizado. Ganador(es): ${finalWinners.join(', ')}`
+  };
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// 🆕 FUNCIÓN HÍBRIDA: Asignar preguntas (Groq + Banco fallback)
+// ═══════════════════════════════════════════════════════════════
+exports.assignTriviaQuestions = onCall(async (request) => {
+  const { gameId } = request.data;
+  
+  if (!gameId) {
+    throw new HttpsError('invalid-argument', 'gameId es requerido');
+  }
+  
+  const gameRef = db.collection('trivia_games').doc(gameId);
+  const gameDoc = await gameRef.get();
+  
+  if (!gameDoc.exists) {
+    throw new HttpsError('not-found', 'Juego no encontrado');
+  }
+  
+  const gameData = gameDoc.data();
+  
+  // Verificar si ya tiene preguntas
+  if (gameData.questions && gameData.questions.length > 0) {
+    return {
+      success: true,
+      source: 'already_exists',
+      questions: gameData.questions
+    };
+  }
+  
+  // Intentar Groq primero
+  const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+  const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+  
+  const prompt = `Genera exactamente 10 preguntas de trivia sobre fútbol en español.
+  
+Categoría: mezcla de fútbol mundial y colombiano
+Dificultad: variada (fáciles, medias y difíciles)
+
+Formato requerido (JSON válido):
+{
+  "questions": [
+    {
+      "question": "Texto de la pregunta",
+      "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
+      "correctAnswer": 0,
+      "category": "mundial o colombiano",
+      "difficulty": 1-3
+    }
+  ]
+}
+
+Reglas:
+- correctAnswer es el índice (0-3) de la opción correcta
+- Las preguntas deben ser variadas y entretenidas
+- Incluye preguntas sobre: historia, jugadores famosos, mundiales, equipos, reglas, récords
+- NO incluyas explicaciones, solo el JSON puro`;
+
+  let questions = null;
+  let source = 'bank';
+  
+  try {
+    const response = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          {
+            role: 'system',
+            content: 'Eres un experto en fútbol que genera preguntas de trivia. Respondes SOLO con JSON válido.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.8,
+        max_tokens: 4000
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const textResponse = data.choices[0].message.content;
+      
+      const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsedResponse = JSON.parse(jsonMatch[0]);
+        
+        if (parsedResponse.questions && parsedResponse.questions.length === 10) {
+          let valid = true;
+          for (const q of parsedResponse.questions) {
+            if (!q.question || !q.options || q.options.length !== 4 || 
+                q.correctAnswer === undefined || q.correctAnswer < 0 || q.correctAnswer > 3) {
+              valid = false;
+              break;
+            }
+          }
+          
+          if (valid) {
+            questions = parsedResponse.questions;
+            source = 'groq';
+            console.log('✅ Preguntas generadas con Groq');
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.log('⚠️ Groq falló, usando banco de preguntas:', error.message);
+  }
+  
+  // Si Groq falló, usar banco de preguntas
+  if (!questions) {
+    console.log('📚 Usando banco de preguntas aleatorias');
+    
+    // Obtener 10 preguntas aleatorias del banco
+    const allQuestionsSnapshot = await db.collection('trivia_questions').get();
+    const allQuestions = [];
+    
+    allQuestionsSnapshot.forEach(doc => {
+      allQuestions.push(doc.data());
+    });
+    
+    // Mezclar y tomar 10
+    const shuffled = allQuestions.sort(() => 0.5 - Math.random());
+    questions = shuffled.slice(0, 10).map(q => ({
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.correctAnswer,
+      category: q.category,
+      difficulty: q.difficulty
+    }));
+  }
+  
+  // Guardar en el documento del juego
+  await gameRef.update({
+    questions: questions,
+    status: 'active',
+    startedAt: admin.firestore.FieldValue.serverTimestamp(),
+    questionSource: source
+  });
+  
+  console.log(`✅ Preguntas asignadas al juego ${gameId} desde ${source}`);
+  
+  return {
+    success: true,
+    source: source,
+    questions: questions
   };
 });

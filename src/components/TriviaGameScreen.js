@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, CheckCircle, Clock, Trophy, AlertCircle } from 'lucide-react';
 import { db } from '../services/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { generateTriviaQuestions, submitTriviaAnswer, finishTriviaGame } from '../services/cloudFunctions';
+import { assignTriviaQuestions, submitTriviaAnswer, finishTriviaGame } from '../services/cloudFunctions';
 
 const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   const [game, setGame] = useState(null);
@@ -16,6 +16,9 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   const [results, setResults] = useState(null);
   const [myAnswers, setMyAnswers] = useState({});
   
+  // 🔒 Prevenir múltiples llamadas simultáneas
+  const isGeneratingRef = useRef(false);
+  const hasGeneratedRef = useRef(false);
 
   // 🔒 SEGURIDAD: Validar que el jugador puede participar
   const validatePlayerAccess = useCallback(() => {
@@ -58,39 +61,56 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     return () => unsubscribe();
   }, [gameId]);
 
-      // Generar preguntas cuando todos aceptan (solo una vez)
+    // Generar preguntas cuando todos aceptan (solo una vez)
   useEffect(() => {
     if (!game || !gameId) return;
+    if (hasGeneratedRef.current) return;
 
     const allAccepted = game.invitedPlayers?.every(p => p.status === 'accepted');
     const hasQuestions = game.questions && game.questions.length > 0;
     
     console.log('🔍 useEffect generate: allAccepted=', allAccepted, 'hasQuestions=', hasQuestions, 'status=', game.status);
     
-    // Generar preguntas si todos aceptaron Y no hay preguntas aún (sin importar el status)
-    if (allAccepted && !hasQuestions) {
-      console.log('✅ Todos aceptaron, generando preguntas...');
+    // Si ya hay preguntas, marcar como generado
+    if (hasQuestions) {
+      hasGeneratedRef.current = true;
+      setGameStarted(true);
+      return;
+    }
+    
+    // Generar preguntas si todos aceptaron Y no hay preguntas aún
+    if (allAccepted && !hasQuestions && !isGeneratingRef.current) {
+      console.log('✅ Todos aceptaron, asignando preguntas...');
+      isGeneratingRef.current = true;
       
-      const generateQuestions = async () => {
+      const assignQuestionsWithRetry = async (retryCount = 0) => {
         try {
           setLoading(true);
-          const result = await generateTriviaQuestions(gameId, 'general', 'medio');
+          const result = await assignTriviaQuestions(gameId);
           
           if (result.success) {
-            console.log('✅ Preguntas generadas exitosamente');
+            console.log('✅ Preguntas asignadas exitosamente desde:', result.source);
+            hasGeneratedRef.current = true;
             setGameStarted(true);
           }
         } catch (err) {
-          console.error('Error generando preguntas:', err);
-          setError('Error al generar preguntas: ' + err.message);
+          console.error('Error asignando preguntas:', err);
+          
+          if (retryCount < 3) {
+            console.log(`⏳ Reintentando en 3 segundos... (intento ${retryCount + 1}/3)`);
+            setTimeout(() => {
+              assignQuestionsWithRetry(retryCount + 1);
+            }, 3000);
+          } else {
+            setError('Error al asignar preguntas: ' + err.message);
+            isGeneratingRef.current = false;
+          }
         } finally {
           setLoading(false);
         }
       };
 
-      generateQuestions();
-    } else if (hasQuestions && game.status === 'active') {
-      setGameStarted(true);
+      assignQuestionsWithRetry();
     }
   }, [game, gameId]);
 
@@ -133,7 +153,6 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
       // Guardar respuesta localmente
       setMyAnswers(prev => ({ ...prev, [currentQuestion]: selectedAnswer }));
       
-      
       setSelectedAnswer(null);
       handleNextQuestion();
     } catch (err) {
@@ -146,7 +165,6 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   // Pasar a siguiente pregunta
   const handleNextQuestion = () => {
     if (currentQuestion >= 9) {
-      // Última pregunta respondida
       setTimeLeft(15);
       return;
     }

@@ -21,3 +21,9 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+
+# Secrets
+functions/serviceAccountKey.json
+.env
+.env.local
