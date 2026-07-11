@@ -58,15 +58,17 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     return () => unsubscribe();
   }, [gameId]);
 
-  // Generar preguntas cuando todos aceptan (solo una vez)
+      // Generar preguntas cuando todos aceptan (solo una vez)
   useEffect(() => {
     if (!game || !gameId) return;
 
     const allAccepted = game.invitedPlayers?.every(p => p.status === 'accepted');
     const hasQuestions = game.questions && game.questions.length > 0;
     
-    // Solo generar si todos aceptaron Y no hay preguntas aún
-    if (allAccepted && !hasQuestions && game.status === 'waiting') {
+    console.log('🔍 useEffect generate: allAccepted=', allAccepted, 'hasQuestions=', hasQuestions, 'status=', game.status);
+    
+    // Generar preguntas si todos aceptaron Y no hay preguntas aún (sin importar el status)
+    if (allAccepted && !hasQuestions) {
       console.log('✅ Todos aceptaron, generando preguntas...');
       
       const generateQuestions = async () => {

@@ -1201,7 +1201,7 @@ exports.generateTriviaQuestions = onCall(async (request) => {
   
   // Configuración de Gemini API
   const GEMINI_API_KEY = 'AIzaSyC_ddOzNgFyz9cPZgX_EXXGQhJFynPFxYI';
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
   
   // Prompt para generar preguntas
   const prompt = `Genera exactamente 10 preguntas de trivia sobre fútbol en español.
