@@ -9,6 +9,8 @@ import { getCountryFlag, getCountryOptions } from './services/countryFlags';
 import PublicDashboard from './components/PublicDashboard';
 import PendingBetsView from './components/PendingBetsView';
 import ClientResults from './components/ClientResults';
+import TriviaLobby from './components/TriviaLobby';
+import TriviaAcceptScreen from './components/TriviaAcceptScreen';
 import CreditModal from './components/CreditModal';
 import AdminCreditPanel from './components/AdminCreditPanel';
 
@@ -1746,12 +1748,17 @@ useEffect(() => {
     const hash = window.location.hash;
     console.log('🔍 Hash al cargar:', hash);
     
-  if (hash.includes('public-dashboard') || hash.includes('public-bet')) {
+    if (hash.includes('public-dashboard') || hash.includes('public-bet')) {
       setCurrentView('public-dashboard');
       console.log('✅ Vista cambiada a public-dashboard');
     } else if (hash.includes('mis-resultados')) {
       setCurrentView('mis-resultados');
       console.log('✅ Vista cambiada a mis-resultados');
+    } else if (hash.includes('trivia-accept/')) {
+      const gameId = hash.split('trivia-accept/')[1];
+      setTriviaGameId(gameId);
+      setCurrentView('trivia-accept');
+      console.log('✅ Vista cambiada a trivia-accept, gameId:', gameId);
     } else {
       setCurrentView('login');
       console.log('✅ Vista cambiada a login');
@@ -1790,6 +1797,7 @@ useEffect(() => {
     // 💰 Estados para modal de créditos
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [creditModalPhone, setCreditModalPhone] = useState('');
+  const [triviaGameId, setTriviaGameId] = useState(null);
   const [adminTab, setAdminTab] = useState('dashboard');
 
     // Función para abrir modal de créditos
@@ -2953,6 +2961,15 @@ useEffect(() => {
 
       case 'mis-resultados':
         return <ClientResults bgMusicRef={bgMusicRef} audioEnabled={audioEnabled} openCreditModal={openCreditModal} />;
+
+      case 'game-selection':
+        return GameSelectionScreen();  
+
+      case 'trivia-lobby':
+        return <TriviaLobby />; 
+        
+      case 'trivia-accept':
+        return <TriviaAcceptScreen gameId={triviaGameId} onBack={() => setCurrentView('login')} />; 
       
       case 'admin-dashboard':
         return AdminDashboard();
@@ -2989,6 +3006,87 @@ useEffect(() => {
         return LoginScreen();
     }
   };
+
+   // Game Selection Screen Component
+  const GameSelectionScreen = useCallback(() => (
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4 relative overflow-hidden">
+      
+      {/* 🎬 VIDEO DE FONDO */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed inset-0 w-full h-full object-cover z-0"
+        poster="https://raw.githubusercontent.com/appyem/imagenesappy/refs/heads/main/Trofe%CC%81os%20dorados%20en%20un%20estadio%20vibrante.png"
+      >
+        <source src="/video/estadio.mp4" type="video/mp4" />
+      </video>
+      <div className="fixed inset-0 bg-black/60 z-0"></div>
+
+      <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-8 w-full max-w-md shadow-2xl border border-gray-500/30 relative z-10">
+        
+        {/* 🔹 LOGO PRINCIPAL */}
+        <div className="text-center mb-8">
+          <div className="w-32 h-32 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl border-4 border-purple-400/30">
+            <span className="text-6xl">🎮</span>
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">Juegos</h1>
+          <p className="text-purple-300 text-sm">¡Reta a tus amigos y gana!</p>
+        </div>
+
+        {/* 🔹 JUEGO 1: LA JUGADA 7 */}
+        <button
+          onClick={() => {
+            initializeAudio();
+            setCurrentView('bet-selection');
+          }}
+          className="w-full bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-green-500/50 flex items-center justify-center gap-3 mb-4"
+        >
+          <span className="text-3xl">⚽</span>
+          <div className="text-left flex-1">
+            <div className="text-lg">La Jugada 7</div>
+            <div className="text-xs text-green-200 font-normal">Acierta 7 partidos y gana $1.000.000</div>
+          </div>
+        </button>
+
+        {/* 🔹 JUEGO 2: TRIVIA DE FÚTBOL */}
+        <button
+          onClick={() => {
+            initializeAudio();
+            setCurrentView('trivia-lobby');
+          }}
+          className="w-full bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-400 hover:to-blue-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-blue-500/50 flex items-center justify-center gap-3 mb-6"
+        >
+          <span className="text-3xl">🧠</span>
+          <div className="text-left flex-1">
+            <div className="text-lg">Trivia de Fútbol</div>
+            <div className="text-xs text-blue-200 font-normal">Reta a tus amigos con preguntas de fútbol</div>
+          </div>
+        </button>
+
+        {/* 🔹 BOTÓN VOLVER */}
+        <button
+          onClick={() => setCurrentView('login')}
+          className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+        >
+          <span>←</span>
+          Volver al inicio
+        </button>
+
+        {/* 🔹 FOOTER */}
+        <div className="mt-6 pt-4 border-t border-gray-700 text-center">
+          <p className="text-gray-500 text-xs">
+            🎮 ¡Diviértete y gana con tus amigos!
+          </p>
+        </div>
+      </div>
+    </div>
+  ), [setCurrentView, initializeAudio]);
+
+
+
+
   // Login Screen Component
   const LoginScreen = useCallback(() => (
   <div className="min-h-screen bg-gradient-to-br from-green-900 via-gray-900 to-green-800 flex items-center justify-center p-4 relative overflow-hidden">
@@ -3067,6 +3165,22 @@ useEffect(() => {
         <div className="text-left">
           <div className="text-lg">COMPRAR CRÉDITOS</div>
           <div className="text-xs text-yellow-200 font-normal">Recarga y juega con tus amigos</div>
+        </div>
+      </button>
+
+
+            {/* 🎮 BOTÓN JUEGOS */}
+      <button
+        onClick={() => {
+          if (!audioEnabled) initializeAudio();
+          setCurrentView('game-selection');
+        }}
+        className="w-full bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-400 hover:to-purple-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-purple-500/50 flex items-center justify-center gap-3 mb-6"
+      >
+        <span className="text-2xl">🎮</span>
+        <div className="text-left">
+          <div className="text-lg">JUEGOS</div>
+          <div className="text-xs text-purple-200 font-normal">Reta a tus amigos y gana</div>
         </div>
       </button>
 
@@ -3149,7 +3263,7 @@ useEffect(() => {
     <div className="min-h-screen bg-gray-900 text-white">
       {renderCurrentView()}
 
-    {currentView !== 'login' && currentView !== 'public-dashboard' && currentView !== 'mis-resultados' && (
+    {currentView !== 'login' && currentView !== 'public-dashboard' && currentView !== 'mis-resultados' && currentView !== 'game-selection' && currentView !== 'trivia-lobby' && (
       <NavigationBar 
        currentView={currentView}
        setCurrentView={setCurrentView}
