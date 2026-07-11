@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Trophy, Users, Wallet, Plus, Clock, CheckCircle, XCircle, Gamepad2 } from 'lucide-react';
 import { db } from '../services/firebase';
 import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
+import { acceptTriviaGame, rejectTriviaGame } from '../services/cloudFunctions';
 import TriviaChallengeModal from './TriviaChallengeModal';
 
 const TriviaLobby = ({ onBack }) => {
@@ -14,6 +15,7 @@ const TriviaLobby = ({ onBack }) => {
   const [error, setError] = useState('');
   
   const [pendingInvitations, setPendingInvitations] = useState([]);
+  const [myCreatedGames, setMyCreatedGames] = useState([]);
   const [myActiveGames, setMyActiveGames] = useState([]);
   const [myFinishedGames, setMyFinishedGames] = useState([]);
   
@@ -39,7 +41,6 @@ const TriviaLobby = ({ onBack }) => {
       const phoneWithCountry = phoneNormalized.startsWith('57') ? phoneNormalized : '57' + phoneNormalized;
       const uidNormalized = uid.toString().trim();
       
-      // Verificar UID
       const uidQuery = query(
         collection(db, 'client_uids'),
         where('phone', '==', phoneWithCountry),
@@ -53,7 +54,6 @@ const TriviaLobby = ({ onBack }) => {
         return;
       }
       
-            // Cargar saldo
       const balanceRef = doc(db, 'client_balances', phoneWithCountry);
       const balanceDoc = await getDoc(balanceRef);
       
@@ -76,8 +76,7 @@ const TriviaLobby = ({ onBack }) => {
   // Listener para retos pendientes (donde fui invitado)
   useEffect(() => {
     if (!validated || !phone) return;
-    
-    // Buscar juegos donde este teléfono está en invitedPlayers
+
     const q = query(
       collection(db, 'trivia_games'),
       where('status', '==', 'waiting')
@@ -86,13 +85,13 @@ const TriviaLobby = ({ onBack }) => {
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const invitations = [];
       
-      for (const doc of snapshot.docs) {
-        const data = doc.data();
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
         const invitedPlayer = data.invitedPlayers?.find(p => p.phone === phone);
         
         if (invitedPlayer && invitedPlayer.status === 'pending') {
           invitations.push({
-            id: doc.id,
+            id: docSnap.id,
             ...data
           });
         }
@@ -104,10 +103,37 @@ const TriviaLobby = ({ onBack }) => {
     return () => unsubscribe();
   }, [validated, phone]);
 
-  // Listener para juegos activos donde participo
+  // Listener para juegos que YO creé
   useEffect(() => {
     if (!validated || !phone) return;
+
+    const q = query(
+      collection(db, 'trivia_games'),
+      where('creatorPhone', '==', phone),
+      where('status', '==', 'waiting')
+    );
     
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const createdGames = [];
+      
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
+        createdGames.push({
+          id: docSnap.id,
+          ...data
+        });
+      }
+      
+      setMyCreatedGames(createdGames);
+    });
+    
+    return () => unsubscribe();
+  }, [validated, phone]);
+
+  // Listener para juegos activos
+  useEffect(() => {
+    if (!validated || !phone) return;
+
     const q = query(
       collection(db, 'trivia_games'),
       where('status', '==', 'active')
@@ -116,10 +142,8 @@ const TriviaLobby = ({ onBack }) => {
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const activeGames = [];
       
-      for (const doc of snapshot.docs) {
-        const data = doc.data();
-        
-        // Verificar si el jugador es el creador o un invitado aceptado
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
         const isCreator = data.creatorPhone === phone;
         const isAcceptedInvited = data.invitedPlayers?.some(
           p => p.phone === phone && p.status === 'accepted'
@@ -127,7 +151,7 @@ const TriviaLobby = ({ onBack }) => {
         
         if (isCreator || isAcceptedInvited) {
           activeGames.push({
-            id: doc.id,
+            id: docSnap.id,
             ...data
           });
         }
@@ -139,10 +163,10 @@ const TriviaLobby = ({ onBack }) => {
     return () => unsubscribe();
   }, [validated, phone]);
 
-  // Listener para juegos finalizados donde participé
+  // Listener para juegos finalizados
   useEffect(() => {
     if (!validated || !phone) return;
-    
+
     const q = query(
       collection(db, 'trivia_games'),
       where('status', '==', 'finished')
@@ -151,9 +175,8 @@ const TriviaLobby = ({ onBack }) => {
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const finishedGames = [];
       
-      for (const doc of snapshot.docs) {
-        const data = doc.data();
-        
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
         const isCreator = data.creatorPhone === phone;
         const isAcceptedInvited = data.invitedPlayers?.some(
           p => p.phone === phone && p.status === 'accepted'
@@ -161,7 +184,7 @@ const TriviaLobby = ({ onBack }) => {
         
         if (isCreator || isAcceptedInvited) {
           finishedGames.push({
-            id: doc.id,
+            id: docSnap.id,
             ...data
           });
         }
@@ -173,17 +196,43 @@ const TriviaLobby = ({ onBack }) => {
     return () => unsubscribe();
   }, [validated, phone]);
 
+  // Función para ACEPTAR reto
+  const handleAcceptChallenge = async (gameId) => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      await acceptTriviaGame(gameId, phone, uid);
+      alert('✅ ¡Reto aceptado! Esperando a que todos acepten para iniciar el juego.');
+    } catch (err) {
+      console.error('Error aceptando reto:', err);
+      setError('❌ Error: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Función para RECHAZAR reto
+  const handleRejectChallenge = async (gameId) => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      await rejectTriviaGame(gameId, phone, uid);
+      alert('Reto rechazado');
+    } catch (err) {
+      console.error('Error rechazando reto:', err);
+      setError('❌ Error: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Pantalla de validación
   if (!validated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-gray-900 to-blue-800 flex items-center justify-center p-4 relative overflow-hidden">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="fixed inset-0 w-full h-full object-cover z-0"
-        >
+        <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
           <source src="/video/estadio.mp4" type="video/mp4" />
         </video>
         <div className="fixed inset-0 bg-black/60 z-0"></div>
@@ -205,9 +254,7 @@ const TriviaLobby = ({ onBack }) => {
 
           <div className="space-y-4">
             <div>
-              <label className="text-white text-sm font-medium mb-2 block">
-                📱 Número de teléfono
-              </label>
+              <label className="text-white text-sm font-medium mb-2 block">📱 Número de teléfono</label>
               <input
                 type="tel"
                 value={phone}
@@ -218,9 +265,7 @@ const TriviaLobby = ({ onBack }) => {
             </div>
 
             <div>
-              <label className="text-white text-sm font-medium mb-2 block">
-                🔐 Código de acceso (6 dígitos)
-              </label>
+              <label className="text-white text-sm font-medium mb-2 block">🔐 Código de acceso (6 dígitos)</label>
               <input
                 type="text"
                 value={uid}
@@ -229,9 +274,6 @@ const TriviaLobby = ({ onBack }) => {
                 maxLength={6}
                 className="w-full bg-white/10 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 border border-white/20 font-mono text-center text-lg tracking-widest"
               />
-              <p className="text-gray-400 text-xs mt-1">
-                Este código te lo enviamos por WhatsApp al aprobar tu primera recarga
-              </p>
             </div>
 
             <button
@@ -268,19 +310,12 @@ const TriviaLobby = ({ onBack }) => {
   // Lobby principal
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-gray-900 to-blue-800 pb-8 relative overflow-hidden">
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="fixed inset-0 w-full h-full object-cover z-0"
-      >
+      <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
         <source src="/video/estadio.mp4" type="video/mp4" />
       </video>
       <div className="fixed inset-0 bg-black/50 z-0"></div>
 
       <div className="max-w-4xl mx-auto px-4 py-6 relative z-10">
-        {/* Header */}
         <div className="text-center mb-6">
           <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl border-4 border-blue-400/30">
             <Gamepad2 className="w-10 h-10 text-white" />
@@ -289,7 +324,6 @@ const TriviaLobby = ({ onBack }) => {
           <p className="text-blue-300 text-sm">¡Reta a tus amigos!</p>
         </div>
 
-        {/* Saldo */}
         <div className="bg-gradient-to-r from-yellow-600 to-yellow-800 rounded-xl p-4 mb-6 shadow-lg border border-yellow-500/30">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -309,7 +343,6 @@ const TriviaLobby = ({ onBack }) => {
           </div>
         </div>
 
-        {/* Botón Crear Reto */}
         <button
           onClick={() => setShowCreateModal(true)}
           className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl flex items-center justify-center gap-2 mb-6"
@@ -318,7 +351,38 @@ const TriviaLobby = ({ onBack }) => {
           Crear Nuevo Reto
         </button>
 
-        {/* Retos Pendientes (invitaciones) */}
+        {/* Mis Retos Creados */}
+        {myCreatedGames.length > 0 && (
+          <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6 border border-blue-500/30">
+            <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-blue-400" />
+              Mis Retos Creados ({myCreatedGames.length})
+            </h2>
+            <div className="space-y-3">
+              {myCreatedGames.map(game => (
+                <div key={game.id} className="bg-gray-700 rounded-lg p-4 border border-blue-500/50">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="text-white font-medium">👑 Reto creado por ti</p>
+                      <p className="text-blue-400 font-bold text-lg">{game.betAmount} créditos</p>
+                      <p className="text-gray-400 text-xs">
+                        Invitados: {game.invitedPlayers?.length || 0}
+                      </p>
+                      <p className="text-gray-400 text-xs">
+                        Aceptados: {game.invitedPlayers?.filter(p => p.status === 'accepted').length || 0}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-blue-900/30 border border-blue-500/30 rounded p-2 mt-2">
+                    <p className="text-blue-300 text-xs">⏳ Esperando que los invitados acepten...</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Retos Pendientes */}
         {pendingInvitations.length > 0 && (
           <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6 border border-yellow-500/30">
             <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
@@ -339,21 +403,17 @@ const TriviaLobby = ({ onBack }) => {
                   </div>
                   <div className="flex gap-2 mt-3">
                     <button
-                      onClick={() => {
-                        // TODO: Implementar aceptar reto
-                        alert('Función de aceptar reto - Próximamente');
-                      }}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-2 rounded flex items-center justify-center gap-1"
+                      onClick={() => handleAcceptChallenge(game.id)}
+                      disabled={loading}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-2 rounded flex items-center justify-center gap-1 disabled:opacity-50"
                     >
                       <CheckCircle className="w-4 h-4" />
                       Aceptar
                     </button>
                     <button
-                      onClick={() => {
-                        // TODO: Implementar rechazar reto
-                        alert('Función de rechazar reto - Próximamente');
-                      }}
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm px-3 py-2 rounded flex items-center justify-center gap-1"
+                      onClick={() => handleRejectChallenge(game.id)}
+                      disabled={loading}
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm px-3 py-2 rounded flex items-center justify-center gap-1 disabled:opacity-50"
                     >
                       <XCircle className="w-4 h-4" />
                       Rechazar
@@ -386,13 +446,10 @@ const TriviaLobby = ({ onBack }) => {
                       </p>
                     </div>
                   </div>
-                                    <button
+                  <button
                     onClick={() => {
-                      // TODO: Necesitamos pasar phone y uid al componente padre
-                      // Por ahora usamos los del estado
                       window.triviaGamePhone = phone;
                       window.triviaGameUid = uid;
-                      window.triviaGameId = game.id;
                       window.location.hash = `trivia-game/${game.id}`;
                     }}
                     className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-2 rounded flex items-center justify-center gap-1"
@@ -411,7 +468,7 @@ const TriviaLobby = ({ onBack }) => {
           <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6 border border-purple-500/30">
             <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
               <Trophy className="w-5 h-5 text-purple-400" />
-                  Historial ({myFinishedGames.length})
+              Historial ({myFinishedGames.length})
             </h2>
             <div className="space-y-3">
               {myFinishedGames.slice(0, 5).map(game => (
@@ -439,8 +496,7 @@ const TriviaLobby = ({ onBack }) => {
           </div>
         )}
 
-        {/* Mensaje si no hay nada */}
-        {pendingInvitations.length === 0 && myActiveGames.length === 0 && myFinishedGames.length === 0 && (
+        {pendingInvitations.length === 0 && myCreatedGames.length === 0 && myActiveGames.length === 0 && myFinishedGames.length === 0 && (
           <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-8 text-center border border-gray-700">
             <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
             <p className="text-gray-400">No tienes retos pendientes</p>
@@ -448,7 +504,6 @@ const TriviaLobby = ({ onBack }) => {
           </div>
         )}
 
-        {/* Botón Volver */}
         <button
           onClick={onBack}
           className="w-full mt-6 bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
@@ -458,7 +513,6 @@ const TriviaLobby = ({ onBack }) => {
         </button>
       </div>
 
-      {/* Modal de Crear Reto */}
       {showCreateModal && (
         <TriviaChallengeModal
           phone={phone}
