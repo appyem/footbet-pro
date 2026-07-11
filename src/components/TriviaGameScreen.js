@@ -14,6 +14,8 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   const [gameStarted, setGameStarted] = useState(false);
   const [gameFinished, setGameFinished] = useState(false);
   const [results, setResults] = useState(null);
+  const [myAnswers, setMyAnswers] = useState({});
+  
 
   // 🔒 SEGURIDAD: Validar que el jugador puede participar
   const validatePlayerAccess = useCallback(() => {
@@ -33,7 +35,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
 
     const gameRef = doc(db, 'trivia_games', gameId);
     
-    const unsubscribe = onSnapshot(gameRef, async (docSnap) => {
+    const unsubscribe = onSnapshot(gameRef, (docSnap) => {
       if (!docSnap.exists()) {
         setError('Juego no encontrado');
         return;
@@ -41,11 +43,6 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
 
       const gameData = { id: docSnap.id, ...docSnap.data() };
       setGame(gameData);
-
-      // Si el juego está activo y tiene preguntas, iniciar juego
-      if (gameData.status === 'active' && gameData.questions?.length > 0) {
-        setGameStarted(true);
-      }
 
       // Si el juego terminó, mostrar resultados
       if (gameData.status === 'finished') {
@@ -61,7 +58,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     return () => unsubscribe();
   }, [gameId]);
 
-    // Generar preguntas cuando todos aceptan
+  // Generar preguntas cuando todos aceptan (solo una vez)
   useEffect(() => {
     if (!game || !gameId) return;
 
@@ -79,6 +76,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
           
           if (result.success) {
             console.log('✅ Preguntas generadas exitosamente');
+            setGameStarted(true);
           }
         } catch (err) {
           console.error('Error generando preguntas:', err);
@@ -89,6 +87,8 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
       };
 
       generateQuestions();
+    } else if (hasQuestions && game.status === 'active') {
+      setGameStarted(true);
     }
   }, [game, gameId]);
 
@@ -99,7 +99,6 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          // Tiempo agotado, pasar a siguiente pregunta
           handleNextQuestion();
           return 15;
         }
@@ -111,17 +110,6 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameStarted, gameFinished, currentQuestion]);
 
-  // Pasar a siguiente pregunta
-  const handleNextQuestion = () => {
-    if (currentQuestion >= 9) {
-      setTimeLeft(15);
-      return;
-    }
-    setCurrentQuestion((prev) => prev + 1);
-    setSelectedAnswer(null);
-    setTimeLeft(15);
-  };
-
   // Enviar respuesta
   const handleSubmitAnswer = async () => {
     if (selectedAnswer === null) {
@@ -129,7 +117,6 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
       return;
     }
 
-    // 🔒 SEGURIDAD: Validar acceso
     if (!validatePlayerAccess()) {
       setError('No tienes permiso para jugar');
       return;
@@ -140,6 +127,11 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
 
     try {
       await submitTriviaAnswer(gameId, phone, uid, currentQuestion, selectedAnswer);
+      
+      // Guardar respuesta localmente
+      setMyAnswers(prev => ({ ...prev, [currentQuestion]: selectedAnswer }));
+      
+      
       setSelectedAnswer(null);
       handleNextQuestion();
     } catch (err) {
@@ -149,14 +141,20 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     }
   };
 
-  // Finalizar juego (solo creador)
-  const handleFinishGame = async () => {
-    // 🔒 SEGURIDAD: Solo el creador puede finalizar
-    if (game.creatorPhone !== phone) {
-      setError('Solo el creador puede finalizar el juego');
+  // Pasar a siguiente pregunta
+  const handleNextQuestion = () => {
+    if (currentQuestion >= 9) {
+      // Última pregunta respondida
+      setTimeLeft(15);
       return;
     }
+    setCurrentQuestion((prev) => prev + 1);
+    setSelectedAnswer(null);
+    setTimeLeft(15);
+  };
 
+  // Finalizar juego (cualquier jugador puede finalizar cuando todos hayan jugado)
+  const handleFinishGame = async () => {
     setLoading(true);
     setError('');
 
@@ -178,10 +176,16 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   // Pantalla de carga
   if (!game || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Cargando juego...</p>
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4 relative overflow-hidden">
+        <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
+          <source src="/video/estadio.mp4" type="video/mp4" />
+        </video>
+        <div className="fixed inset-0 bg-black/60 z-0"></div>
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-purple-500/30 shadow-2xl relative z-10">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-white text-lg">Cargando juego...</p>
+          </div>
         </div>
       </div>
     );
@@ -190,8 +194,12 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   // Pantalla de error
   if (error && !gameStarted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4">
-        <div className="bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-red-500/30">
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4 relative overflow-hidden">
+        <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
+          <source src="/video/estadio.mp4" type="video/mp4" />
+        </video>
+        <div className="fixed inset-0 bg-black/60 z-0"></div>
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-red-500/30 shadow-2xl relative z-10">
           <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
           <p className="text-red-200 text-center mb-4">{error}</p>
           <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">
@@ -207,8 +215,12 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     const pendingCount = game.invitedPlayers?.filter(p => p.status === 'pending').length || 0;
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4">
-        <div className="bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-purple-500/30">
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4 relative overflow-hidden">
+        <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
+          <source src="/video/estadio.mp4" type="video/mp4" />
+        </video>
+        <div className="fixed inset-0 bg-black/60 z-0"></div>
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-purple-500/30 shadow-2xl relative z-10">
           <Clock className="w-16 h-16 text-purple-400 mx-auto mb-4 animate-pulse" />
           <h2 className="text-white text-xl font-bold text-center mb-4">Esperando jugadores...</h2>
           <p className="text-gray-300 text-center mb-4">
@@ -230,8 +242,12 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     const isWinner = results.winners.includes(phone);
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4">
-        <div className="bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-purple-500/30">
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4 relative overflow-hidden">
+        <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
+          <source src="/video/estadio.mp4" type="video/mp4" />
+        </video>
+        <div className="fixed inset-0 bg-black/60 z-0"></div>
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-purple-500/30 shadow-2xl relative z-10">
           <Trophy className={`w-16 h-16 mx-auto mb-4 ${isWinner ? 'text-yellow-400' : 'text-gray-400'}`} />
           <h2 className="text-white text-2xl font-bold text-center mb-4">
             {isWinner ? '🏆 ¡GANASTE!' : 'Juego Terminado'}
@@ -263,14 +279,28 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     );
   }
 
+  // Verificar si ya respondí todas las preguntas
+  const myAnswerCount = Object.keys(myAnswers).length;
+  const allAnswered = myAnswerCount >= 10;
+
+  // Verificar si todos los jugadores ya respondieron
+  const totalPlayers = game.invitedPlayers?.length + 1 || 1;
+  const playersWhoFinished = (game.answers ? Object.keys(game.answers).length : 0);
+  const allPlayersFinished = playersWhoFinished >= totalPlayers;
+
   // Pantalla de juego (preguntas)
   const question = game.questions[currentQuestion];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 p-4">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 p-4 relative overflow-hidden">
+      <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
+        <source src="/video/estadio.mp4" type="video/mp4" />
+      </video>
+      <div className="fixed inset-0 bg-black/60 z-0"></div>
+      
+      <div className="max-w-2xl mx-auto relative z-10">
         {/* Header con timer y progreso */}
-        <div className="bg-gray-800 rounded-xl p-4 mb-4 border border-purple-500/30">
+        <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 mb-4 border border-purple-500/30">
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-2">
               <Clock className={`w-6 h-6 ${timeLeft <= 5 ? 'text-red-400 animate-pulse' : 'text-purple-400'}`} />
@@ -283,7 +313,6 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
             </div>
           </div>
           
-          {/* Barra de progreso */}
           <div className="w-full bg-gray-700 rounded-full h-2">
             <div 
               className="bg-purple-500 h-2 rounded-full transition-all duration-300"
@@ -293,7 +322,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
         </div>
 
         {/* Pregunta */}
-        <div className="bg-gray-800 rounded-xl p-6 mb-4 border border-purple-500/30">
+        <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-4 border border-purple-500/30">
           <h2 className="text-white text-xl font-bold mb-6">{question.question}</h2>
           
           <div className="space-y-3">
@@ -332,8 +361,8 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
             {loading ? 'Enviando...' : <><CheckCircle className="w-5 h-5" /> Enviar Respuesta</>}
           </button>
 
-          {/* Botón finalizar (solo creador y después de responder todas) */}
-          {game.creatorPhone === phone && currentQuestion === 9 && selectedAnswer !== null && (
+          {/* Botón finalizar (cuando todos hayan jugado) */}
+          {allAnswered && allPlayersFinished && (
             <button
               onClick={handleFinishGame}
               disabled={loading}
@@ -341,6 +370,15 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
             >
               {loading ? 'Finalizando...' : <><Trophy className="w-5 h-5" /> Finalizar Juego</>}
             </button>
+          )}
+
+          {allAnswered && !allPlayersFinished && (
+            <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-3 text-center">
+              <p className="text-blue-300 text-sm">✅ Ya respondiste todas las preguntas</p>
+              <p className="text-blue-200 text-xs mt-1">
+                Esperando a que los demás jugadores terminen ({playersWhoFinished}/{totalPlayers})
+              </p>
+            </div>
           )}
 
           <button

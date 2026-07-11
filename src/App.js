@@ -1960,7 +1960,7 @@ useEffect(() => {
   useEffect(() => {
         const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       // 🔒 SEGURIDAD: No restaurar sesión en vistas públicas
-      const publicViews = ['login', 'trivia-accept', 'game-selection', 'trivia-lobby', 'public-dashboard', 'mis-resultados'];
+      const publicViews = ['login', 'trivia-accept', 'trivia-game', 'game-selection', 'trivia-lobby', 'public-dashboard', 'mis-resultados'];
       if (publicViews.includes(currentView)) {
         console.log('🔒 Vista pública detectada, no restaurando sesión de admin/vendedor');
         return;
@@ -3290,7 +3290,7 @@ useEffect(() => {
     <div className="min-h-screen bg-gray-900 text-white">
       {renderCurrentView()}
 
-    {currentView !== 'login' && currentView !== 'public-dashboard' && currentView !== 'mis-resultados' && currentView !== 'game-selection' && currentView !== 'trivia-lobby' && currentView !== 'trivia-accept' && (
+    {currentView !== 'login' && currentView !== 'public-dashboard' && currentView !== 'mis-resultados' && currentView !== 'game-selection' && currentView !== 'trivia-lobby' && currentView !== 'trivia-accept' && currentView !== 'trivia-game' && (
       <NavigationBar 
        currentView={currentView}
        setCurrentView={setCurrentView}
