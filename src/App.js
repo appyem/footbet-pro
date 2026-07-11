@@ -11,6 +11,7 @@ import PendingBetsView from './components/PendingBetsView';
 import ClientResults from './components/ClientResults';
 import TriviaLobby from './components/TriviaLobby';
 import TriviaAcceptScreen from './components/TriviaAcceptScreen';
+import TriviaGameScreen from './components/TriviaGameScreen';
 import CreditModal from './components/CreditModal';
 import AdminCreditPanel from './components/AdminCreditPanel';
 
@@ -1754,11 +1755,18 @@ useEffect(() => {
     } else if (hash.includes('mis-resultados')) {
       setCurrentView('mis-resultados');
       console.log('✅ Vista cambiada a mis-resultados');
-    } else if (hash.includes('trivia-accept/')) {
+        } else if (hash.includes('trivia-accept/')) {
       const gameId = hash.split('trivia-accept/')[1];
       setTriviaGameId(gameId);
       setCurrentView('trivia-accept');
       console.log('✅ Vista cambiada a trivia-accept, gameId:', gameId);
+    } else if (hash.includes('trivia-game/')) {
+      const gameId = hash.split('trivia-game/')[1];
+      setTriviaGameId(gameId);
+      setTriviaGamePhone(window.triviaGamePhone);
+      setTriviaGameUid(window.triviaGameUid);
+      setCurrentView('trivia-game');
+      console.log('✅ Vista cambiada a trivia-game, gameId:', gameId);
     } else {
       setCurrentView('login');
       console.log('✅ Vista cambiada a login');
@@ -1798,6 +1806,8 @@ useEffect(() => {
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [creditModalPhone, setCreditModalPhone] = useState('');
   const [triviaGameId, setTriviaGameId] = useState(null);
+  const [triviaGamePhone, setTriviaGamePhone] = useState(null);
+  const [triviaGameUid, setTriviaGameUid] = useState(null);
   const [adminTab, setAdminTab] = useState('dashboard');
 
     // Función para abrir modal de créditos
@@ -2978,6 +2988,15 @@ useEffect(() => {
         
       case 'trivia-accept':
         return <TriviaAcceptScreen gameId={triviaGameId} onBack={() => setCurrentView('login')} />; 
+
+      case 'trivia-game':
+        return <TriviaGameScreen 
+          gameId={triviaGameId} 
+          phone={triviaGamePhone} 
+          uid={triviaGameUid}
+          onBack={() => setCurrentView('trivia-lobby')} 
+        />;
+
       
       case 'admin-dashboard':
         return AdminDashboard();

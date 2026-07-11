@@ -386,10 +386,14 @@ const TriviaLobby = ({ onBack }) => {
                       </p>
                     </div>
                   </div>
-                  <button
+                                    <button
                     onClick={() => {
-                      // TODO: Implementar entrar al juego
-                      alert('Función de jugar - Próximamente');
+                      // TODO: Necesitamos pasar phone y uid al componente padre
+                      // Por ahora usamos los del estado
+                      window.triviaGamePhone = phone;
+                      window.triviaGameUid = uid;
+                      window.triviaGameId = game.id;
+                      window.location.hash = `trivia-game/${game.id}`;
                     }}
                     className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-2 rounded flex items-center justify-center gap-1"
                   >
