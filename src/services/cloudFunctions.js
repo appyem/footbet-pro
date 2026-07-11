@@ -16,11 +16,12 @@ const FUNCTIONS = {
   requestWithdrawal: 'https://requestwithdrawal-wxcqdudneq-uc.a.run.app',
   processWithdrawal: 'https://processwithdrawal-wxcqdudneq-uc.a.run.app',
   getBalance: 'https://getbalance-wxcqdudneq-uc.a.run.app',
-      // 🎮 Juego de Trivia
+  // 🎮 Juego de Trivia
   createTriviaGame: 'https://createtriviagame-wxcqdudneq-uc.a.run.app',
   acceptTriviaGame: 'https://accepttriviagame-wxcqdudneq-uc.a.run.app',
   rejectTriviaGame: 'https://rejecttriviagame-wxcqdudneq-uc.a.run.app',
   generateTriviaQuestions: 'https://generatetriviaquestions-wxcqdudneq-uc.a.run.app',
+  assignTriviaQuestions: 'https://assigntriviaquestions-wxcqdudneq-uc.a.run.app',
   submitTriviaAnswer: 'https://submittriviaanswer-wxcqdudneq-uc.a.run.app',
   finishTriviaGame: 'https://finishtriviagame-wxcqdudneq-uc.a.run.app'
 };
