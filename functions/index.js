@@ -1192,7 +1192,12 @@ exports.rejectTriviaGame = onCall(async (request) => {
  * Genera 10 preguntas de fútbol con 4 opciones cada una
  */
 exports.generateTriviaQuestions = onCall(async (request) => {
-  const { category, difficulty } = request.data;
+  const { gameId, category, difficulty } = request.data;
+  
+  // 🔒 SEGURIDAD: Validar que gameId existe
+  if (!gameId) {
+    throw new HttpsError('invalid-argument', 'gameId es requerido');
+  }
   
   // Configuración de Gemini API
   const GEMINI_API_KEY = 'AIzaSyC_ddOzNgFyz9cPZgX_EXXGQhJFynPFxYI';
@@ -1273,6 +1278,16 @@ Reglas:
         throw new Error('Estructura de pregunta inválida');
       }
     }
+    
+    // 🔥 IMPORTANTE: Guardar preguntas en Firestore y cambiar status a 'active'
+    const gameRef = db.collection('trivia_games').doc(gameId);
+        await gameRef.update({
+      questions: parsedResponse.questions,
+      status: 'active',
+      startedAt: new Date().toISOString()
+    });
+    
+    console.log(`✅ Preguntas generadas y guardadas para juego ${gameId}`);
     
     return {
       success: true,

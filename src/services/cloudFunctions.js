@@ -219,8 +219,8 @@ export const rejectTriviaGame = async (gameId, phone, uid) => {
 /**
  * Generar preguntas de trivia con Gemini AI (público)
  */
-export const generateTriviaQuestions = async (category, difficulty) => {
-  return callPublicFunction('generateTriviaQuestions', { category, difficulty });
+export const generateTriviaQuestions = async (gameId, category, difficulty) => {
+  return callPublicFunction('generateTriviaQuestions', { gameId, category, difficulty });
 };
 
 /**

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, CheckCircle, Clock, Trophy, AlertCircle } from 'lucide-react';
 import { db } from '../services/firebase';
-import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { generateTriviaQuestions, submitTriviaAnswer, finishTriviaGame } from '../services/cloudFunctions';
 
 const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
@@ -61,29 +61,28 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     return () => unsubscribe();
   }, [gameId]);
 
-  // Generar preguntas cuando todos aceptan
+    // Generar preguntas cuando todos aceptan
   useEffect(() => {
-    if (!game) return;
+    if (!game || !gameId) return;
 
     const allAccepted = game.invitedPlayers?.every(p => p.status === 'accepted');
+    const hasQuestions = game.questions && game.questions.length > 0;
     
-    if (allAccepted && game.status === 'waiting' && !game.questions) {
+    // Solo generar si todos aceptaron Y no hay preguntas aún
+    if (allAccepted && !hasQuestions && game.status === 'waiting') {
+      console.log('✅ Todos aceptaron, generando preguntas...');
+      
       const generateQuestions = async () => {
         try {
           setLoading(true);
-          const result = await generateTriviaQuestions('general', 'medio');
+          const result = await generateTriviaQuestions(gameId, 'general', 'medio');
           
           if (result.success) {
-            const gameRef = doc(db, 'trivia_games', gameId);
-            await updateDoc(gameRef, {
-              questions: result.questions,
-              status: 'active',
-              startedAt: new Date().toISOString()
-            });
+            console.log('✅ Preguntas generadas exitosamente');
           }
         } catch (err) {
           console.error('Error generando preguntas:', err);
-          setError('Error al generar preguntas');
+          setError('Error al generar preguntas: ' + err.message);
         } finally {
           setLoading(false);
         }
