@@ -3271,7 +3271,7 @@ useEffect(() => {
     <div className="min-h-screen bg-gray-900 text-white">
       {renderCurrentView()}
 
-    {currentView !== 'login' && currentView !== 'public-dashboard' && currentView !== 'mis-resultados' && currentView !== 'game-selection' && currentView !== 'trivia-lobby' && (
+    {currentView !== 'login' && currentView !== 'public-dashboard' && currentView !== 'mis-resultados' && currentView !== 'game-selection' && currentView !== 'trivia-lobby' && currentView !== 'trivia-accept' && (
       <NavigationBar 
        currentView={currentView}
        setCurrentView={setCurrentView}
