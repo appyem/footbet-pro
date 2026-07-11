@@ -1948,7 +1948,14 @@ useEffect(() => {
 
   // 🔁 LISTENER DE AUTENTICACIÓN - Persistencia de sesión
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+        const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      // 🔒 SEGURIDAD: No restaurar sesión en vistas públicas
+      const publicViews = ['login', 'trivia-accept', 'game-selection', 'trivia-lobby', 'public-dashboard', 'mis-resultados'];
+      if (publicViews.includes(currentView)) {
+        console.log('🔒 Vista pública detectada, no restaurando sesión de admin/vendedor');
+        return;
+      }
+
       if (user) {
         console.log('🔍 Usuario autenticado detectado:', user.email);
         
@@ -1993,6 +2000,7 @@ useEffect(() => {
     });
 
     return () => unsubscribeAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 
