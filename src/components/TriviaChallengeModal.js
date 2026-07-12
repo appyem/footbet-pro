@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Send, Trophy, CheckCircle, Copy } from 'lucide-react';
+import { X, Send, Trophy, CheckCircle, Copy, Users } from 'lucide-react';
 import { db } from '../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { createTriviaGame } from '../services/cloudFunctions';
 
 const TriviaChallengeModal = ({ phone, uid, onClose }) => {
   const [betAmount, setBetAmount] = useState(100);
+  const [maxPlayers, setMaxPlayers] = useState(2);
   const [availableBalance, setAvailableBalance] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,21 +37,21 @@ const TriviaChallengeModal = ({ phone, uid, onClose }) => {
     setError(''); setSuccess('');
     if (betAmount < 100) { setError('La apuesta mínima es 100 créditos'); return; }
     if (betAmount > availableBalance) { setError(`Saldo insuficiente. Disponible: ${availableBalance}`); return; }
+    if (maxPlayers < 2 || maxPlayers > 10) { setError('El número de jugadores debe ser entre 2 y 10'); return; }
     
     setLoading(true);
     try {
-      // Crear reto abierto (sin invitados específicos)
-      const result = await createTriviaGame(phone, uid, betAmount, []);
+      const result = await createTriviaGame(phone, uid, betAmount, [], maxPlayers);
       const gameLink = `https://footbet-pro-rvdy.vercel.app/#trivia-accept/${result.gameId}`;
       
       setGameCreated({ 
         gameId: result.gameId, 
         gameLink: gameLink,
-        betAmount 
+        betAmount,
+        maxPlayers
       });
       setSuccess('¡Reto creado exitosamente!');
       
-      // Copiar link al portapapeles
       try {
         await navigator.clipboard.writeText(gameLink);
         setCopied(true);
@@ -59,7 +60,6 @@ const TriviaChallengeModal = ({ phone, uid, onClose }) => {
         console.log('No se pudo copiar al portapapeles');
       }
       
-      // Abrir WhatsApp nativo con mensaje pre-llenado
       openWhatsApp(gameLink);
       
     } catch (err) { 
@@ -69,28 +69,16 @@ const TriviaChallengeModal = ({ phone, uid, onClose }) => {
     }
   };
 
-    const openWhatsApp = (gameLink) => {
+  const openWhatsApp = (gameLink) => {
     const message = `🎮 *¡TE RETO A UNA TRIVIA DE FÚTBOL!* 🎮\n\n` +
-      `Hola! Te han invitado a un reto.\n💰 *Apuesta:* ${betAmount} créditos\n\n` +
-      `🎯 *Reglas:* 10 preguntas, 15 seg/pregunta, gana el más rápido.\n` +
+      `Hola! Te han invitado a un reto.\n💰 *Apuesta:* ${betAmount} créditos\n` +
+      `👥 *Máximo jugadores:* ${maxPlayers}\n\n` +
+      `🎯 *Reglas:* 10 preguntas, 15 seg/pregunta\n` +
       `⏳ *Tienes 24 horas para aceptar.*\n\n` +
       `👉 *Acepta el reto aquí:* ${gameLink}\n\n` +
       `¡Buena suerte! 🏆`;
     
-    // Detectar si es móvil
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    
-    if (isMobile) {
-      // En móvil: usar protocolo whatsapp:// para abrir app nativa
-      window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
-    } else {
-      // En desktop: usar wa.me (abrirá WhatsApp Web si no hay nativo)
-      // Si quieres forzar solo nativo en desktop también, comenta esta línea:
-      window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
-      
-      // Y descomenta esta línea para forzar solo nativo (fallará si no está instalado):
-      // window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
-    }
+    window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
   };
 
   const handleCopyLink = async () => {
@@ -115,8 +103,8 @@ const TriviaChallengeModal = ({ phone, uid, onClose }) => {
               <ul className="list-disc pl-4 space-y-1">
                 <li>Retas a amigos con créditos</li>
                 <li>10 preguntas de fútbol (15 seg)</li>
-                <li>Gana el que acierte más rápido</li>
-                <li>El ganador se lleva TODO el pozo</li>
+                <li>Gana el que acierte más</li>
+                <li>El pozo se reparte entre los ganadores</li>
               </ul>
             </div>
             <div className="bg-yellow-900/30 border border-yellow-500/30 p-3 rounded">
@@ -124,8 +112,8 @@ const TriviaChallengeModal = ({ phone, uid, onClose }) => {
               <ul className="list-disc pl-4 space-y-1">
                 <li>Mínimo 100 créditos</li>
                 <li>24h para aceptar</li>
-                <li>Si nadie acepta, se devuelven</li>
-                <li>El primero que acepte juega contigo</li>
+                <li>Si no respondes en 2h, se finaliza con los que jugaron</li>
+                <li>Si no respondes, te devuelven los créditos</li>
               </ul>
             </div>
             <p className="text-center">💰 Tu saldo: <span className="text-green-400 font-bold">{availableBalance}</span></p>
@@ -145,6 +133,7 @@ const TriviaChallengeModal = ({ phone, uid, onClose }) => {
             <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-2" />
             <p className="text-white font-bold">Se congelaron {gameCreated.betAmount} créditos</p>
             <p className="text-gray-400 text-xs mt-1">ID: {gameCreated.gameId}</p>
+            <p className="text-blue-400 text-sm mt-2">👥 Máximo {gameCreated.maxPlayers} jugadores</p>
           </div>
           
           <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-3 mb-4">
@@ -184,6 +173,7 @@ const TriviaChallengeModal = ({ phone, uid, onClose }) => {
         {success && <div className="mb-3 bg-green-900/50 border border-green-500/50 rounded p-2"><p className="text-green-200 text-sm">{success}</p></div>}
         <div className="space-y-4">
           <div className="bg-blue-900/30 border border-blue-500/30 rounded p-3 flex justify-between"><span className="text-blue-300 text-sm">💰 Saldo disponible:</span><span className="text-white font-bold">{availableBalance}</span></div>
+          
           <div>
             <label className="text-white text-sm mb-1 block">Apuesta (mín 100)</label>
             <input 
@@ -196,9 +186,27 @@ const TriviaChallengeModal = ({ phone, uid, onClose }) => {
             />
           </div>
           
+          <div>
+            <label className="text-white text-sm mb-1 block flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Máximo de jugadores (2-10)
+            </label>
+            <input 
+              type="number" 
+              value={maxPlayers} 
+              onChange={e => setMaxPlayers(Number(e.target.value)||2)} 
+              min="2" 
+              max="10" 
+              className="w-full bg-white/10 text-white rounded px-3 py-2 border border-white/20" 
+            />
+            <p className="text-gray-400 text-xs mt-1">
+              El juego se puede finalizar cuando {maxPlayers} jugadores respondan todas las preguntas, o después de 2 horas.
+            </p>
+          </div>
+          
           <div className="bg-green-900/30 border border-green-500/30 rounded p-3">
             <p className="text-green-300 text-sm">
-              📱 Se abrirá WhatsApp para que selecciones a quién invitar. El primero que acepte jugará contigo.
+              📱 Se abrirá WhatsApp para que selecciones a quién invitar. Los primeros que acepten hasta {maxPlayers} jugarán.
             </p>
           </div>
           

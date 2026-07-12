@@ -933,7 +933,7 @@ const verifyClientUid = async (phone, uid) => {
  * El retador congela créditos y envía invitaciones
  */
 exports.createTriviaGame = onCall(async (request) => {
-  const { phone, uid, betAmount, invitedPlayers } = request.data;
+  const { phone, uid, betAmount, invitedPlayers, maxPlayers } = request.data;
   
   // Validaciones básicas
   if (!phone || !uid) {
@@ -944,7 +944,10 @@ exports.createTriviaGame = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'La apuesta mínima es 100 créditos');
   }
   
-    // Permitir retos abiertos (sin invitados específicos)
+  // Validar maxPlayers (mínimo 2, máximo 10)
+  const maxPlayersValid = maxPlayers && maxPlayers >= 2 && maxPlayers <= 10 ? maxPlayers : 2;
+  
+  // Permitir retos abiertos (sin invitados específicos)
   const hasInvitedPlayers = invitedPlayers && Array.isArray(invitedPlayers) && invitedPlayers.length > 0;
   
   // Verificar UID del retador
@@ -963,7 +966,7 @@ exports.createTriviaGame = onCall(async (request) => {
       `Saldo insuficiente. Disponible: ${availableBalance} créditos. Necesitas: ${betAmount} créditos. Recarga más créditos para crear el reto.`);
   }
   
-    // Normalizar teléfonos de invitados (si existen)
+  // Normalizar teléfonos de invitados (si existen)
   const normalizedInvited = hasInvitedPlayers ? invitedPlayers.map(p => {
     const phoneDigits = p.replace(/\D/g, '');
     return phoneDigits.startsWith('57') ? phoneDigits : '57' + phoneDigits;
@@ -992,14 +995,15 @@ exports.createTriviaGame = onCall(async (request) => {
       creatorPhone: creatorPhone,
       creatorUid: uid,
       betAmount: betAmount,
+      maxPlayers: maxPlayersValid, // 🆕 Máximo de jugadores
       invitedPlayers: normalizedInvited.map(phone => ({
         phone: phone,
-        status: 'pending', // pending, accepted, rejected
+        status: 'pending',
         uid: null,
         acceptedAt: null
       })),
-      status: 'waiting', // waiting, active, finished, expired
-      totalPlayers: 1 + normalizedInvited.length, // retador + invitados
+      status: 'waiting',
+      totalPlayers: 1, // Solo el creador al inicio
       questions: [],
       answers: {},
       winner: null,
@@ -1010,14 +1014,14 @@ exports.createTriviaGame = onCall(async (request) => {
     });
   });
   
-  // Enviar notificaciones por Telegram al admin
+  // Notificación Telegram
   const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
   const telegramChatId = "6567201196";
   
   const telegramMessage = `🎮 *NUEVO RETO DE TRIVIA* 🎮\n\n` +
     `👤 *Retador:* ${creatorPhone}\n` +
     `💰 *Apuesta:* ${betAmount} créditos\n` +
-    `👥 *Invitados:* ${normalizedInvited.length}\n` +
+    `👥 *Máximo jugadores:* ${maxPlayersValid}\n` +
     `📋 *ID:* ${gameRef.id}\n\n` +
     `⏳ Esperando aceptación (24h)`;
   
@@ -1038,7 +1042,7 @@ exports.createTriviaGame = onCall(async (request) => {
   return { 
     success: true, 
     gameId: gameRef.id,
-    message: `Reto creado exitosamente. Se congelaron ${betAmount} créditos. Invita a tus amigos por WhatsApp.`
+    message: `Reto creado exitosamente. Se congelaron ${betAmount} créditos. Máximo ${maxPlayersValid} jugadores.`
   };
 });
 
@@ -1416,7 +1420,6 @@ exports.finishTriviaGame = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'ID del juego, teléfono y UID son requeridos');
   }
   
-  // Verificar UID del creador
   const creatorPhone = await verifyClientUid(phone, uid);
   console.log('✅ Creador verificado:', creatorPhone);
   
@@ -1430,53 +1433,76 @@ exports.finishTriviaGame = onCall(async (request) => {
   const gameData = gameDoc.data();
   console.log('📊 Estado del juego:', gameData.status);
   
-  // Solo el creador puede finalizar
   if (gameData.creatorPhone !== creatorPhone) {
     throw new HttpsError('permission-denied', 'Solo el creador puede finalizar el juego');
   }
   
-  // Validar estado
   if (gameData.status !== 'active') {
     throw new HttpsError('failed-precondition', 'El juego no está activo');
   }
   
-  // Obtener jugadores activos (creador + invitados aceptados)
-  const activePlayers = [
+  // Obtener TODOS los jugadores activos (creador + invitados aceptados)
+  const allActivePlayers = [
     gameData.creatorPhone,
     ...gameData.invitedPlayers
       .filter(p => p.status === 'accepted')
       .map(p => p.phone)
   ];
   
-  console.log('👥 Jugadores activos:', activePlayers);
+  console.log('👥 Todos los jugadores activos:', allActivePlayers);
   
-  if (activePlayers.length < 2) {
+  if (allActivePlayers.length < 2) {
     throw new HttpsError('failed-precondition', 'Se necesitan al menos 2 jugadores para finalizar');
   }
   
-  // Verificar que todos hayan respondido todas las preguntas
   const totalQuestions = gameData.questions.length;
   const answers = gameData.answers || {};
   
-  console.log('❓ Total preguntas:', totalQuestions);
-  console.log('📝 Respuestas recibidas:', Object.keys(answers));
+  // 🆕 VALIDAR: ¿Se puede finalizar?
+  const maxPlayers = gameData.maxPlayers || 2;
+  const playersWithAllAnswers = [];
+  const playersWithPartialAnswers = [];
   
-  for (const playerPhone of activePlayers) {
+  for (const playerPhone of allActivePlayers) {
     const playerAnswers = answers[playerPhone] || {};
     const answeredCount = Object.keys(playerAnswers).length;
     
-    console.log(`📊 ${playerPhone}: ${answeredCount}/${totalQuestions} respuestas`);
-    
-    if (answeredCount < totalQuestions) {
-      throw new HttpsError('failed-precondition', 
-        `El jugador ${playerPhone} aún no ha respondido todas las preguntas (${answeredCount}/${totalQuestions})`);
+    if (answeredCount >= totalQuestions) {
+      playersWithAllAnswers.push(playerPhone);
+    } else {
+      playersWithPartialAnswers.push(playerPhone);
     }
   }
   
-  // Calcular puntaje de cada jugador (SIN calcular tiempos por ahora)
+  console.log('✅ Jugadores con todas las respuestas:', playersWithAllAnswers);
+  console.log('⚠️ Jugadores con respuestas parciales:', playersWithPartialAnswers);
+  
+  // Verificar si se puede finalizar
+  const canFinishByMaxPlayers = playersWithAllAnswers.length >= maxPlayers;
+  const startedAt = gameData.startedAt ? new Date(gameData.startedAt) : null;
+  const hoursSinceStart = startedAt ? (Date.now() - startedAt.getTime()) / (1000 * 60 * 60) : 0;
+  const canFinishByTimeout = hoursSinceStart >= 2;
+  
+  console.log(`🔍 ¿Se alcanzó maxPlayers? ${canFinishByMaxPlayers} (${playersWithAllAnswers.length}/${maxPlayers})`);
+  console.log(`🔍 ¿Pasaron 2 horas? ${canFinishByTimeout} (${hoursSinceStart.toFixed(2)}h)`);
+  
+  if (!canFinishByMaxPlayers && !canFinishByTimeout) {
+    throw new HttpsError('failed-precondition', 
+      `No se puede finalizar aún. Necesitas que ${maxPlayers} jugadores respondan todas las preguntas, o esperar 2 horas. Han pasado ${hoursSinceStart.toFixed(1)} horas.`);
+  }
+  
+  // 🆕 JUGADORES FINALES: Solo los que respondieron todas las preguntas
+  const finalPlayers = playersWithAllAnswers;
+  
+  if (finalPlayers.length < 2) {
+    throw new HttpsError('failed-precondition', 
+      `Se necesitan al menos 2 jugadores que hayan respondido todas las preguntas. Solo ${finalPlayers.length} lo hicieron.`);
+  }
+  
+  // Calcular puntaje solo de los jugadores finales
   const scores = {};
   
-  for (const playerPhone of activePlayers) {
+  for (const playerPhone of finalPlayers) {
     let correctCount = 0;
     const playerAnswers = answers[playerPhone] || {};
     
@@ -1495,30 +1521,28 @@ exports.finishTriviaGame = onCall(async (request) => {
   
   // Determinar ganador(es)
   const maxScore = Math.max(...Object.values(scores));
-  const winners = activePlayers.filter(p => scores[p] === maxScore);
+  const winners = finalPlayers.filter(p => scores[p] === maxScore);
   
   console.log('🏆 Ganadores:', winners, 'con puntaje:', maxScore);
   
-  // Si hay empate, todos ganan (simplificado por ahora)
   const finalWinners = winners;
   
-  // Calcular premio
-  const totalPool = gameData.betAmount * activePlayers.length;
+  // 🆕 Calcular premio SOLO entre jugadores finales
+  const totalPool = gameData.betAmount * finalPlayers.length;
   const prizePerWinner = Math.floor(totalPool / finalWinners.length);
   
   console.log('💰 Pozo total:', totalPool, 'Premio por ganador:', prizePerWinner);
   
-      // Transacción para distribuir créditos (2 fases: lectura y escritura)
+  // Transacción para distribuir créditos
   try {
     await db.runTransaction(async (transaction) => {
       console.log('🔄 Iniciando transacción...');
       
-      // ═══════════════════════════════════════════════════
-      // FASE 1: LEER TODOS los balances ANTES de escribir
-      // ═══════════════════════════════════════════════════
+      // FASE 1: LEER TODOS los balances
       const balances = {};
       
-      for (const playerPhone of activePlayers) {
+      // Solo procesar jugadores finales
+      for (const playerPhone of finalPlayers) {
         console.log(`📖 Leyendo balance de: ${playerPhone}`);
         const balanceRef = db.collection('client_balances').doc(playerPhone);
         const balanceDoc = await transaction.get(balanceRef);
@@ -1529,20 +1553,15 @@ exports.finishTriviaGame = onCall(async (request) => {
           currentBalance: balanceDoc.exists ? (balanceDoc.data().balance || 0) : 0,
           currentFrozen: balanceDoc.exists ? (balanceDoc.data().frozenBalance || 0) : 0
         };
-        
-        console.log(`💰 ${playerPhone}: Balance ${balances[playerPhone].currentBalance}, Frozen ${balances[playerPhone].currentFrozen}`);
       }
       
-      // ═══════════════════════════════════════════════════
-      // FASE 2: ESCRIBIR TODOS los cambios
-      // ═══════════════════════════════════════════════════
+      // FASE 2: ESCRIBIR cambios para jugadores finales
       console.log('💾 Aplicando cambios...');
       
-      for (const playerPhone of activePlayers) {
+      for (const playerPhone of finalPlayers) {
         const { ref, currentBalance, currentFrozen } = balances[playerPhone];
         const isWinner = finalWinners.includes(playerPhone);
         
-        // Descongelar la apuesta
         let newFrozen = currentFrozen - gameData.betAmount;
         let newBalance = currentBalance;
         
@@ -1552,14 +1571,12 @@ exports.finishTriviaGame = onCall(async (request) => {
         
         console.log(`✅ ${playerPhone}: Balance ${currentBalance} -> ${newBalance}, Frozen ${currentFrozen} -> ${newFrozen}, Ganador: ${isWinner}`);
         
-        // Actualizar balance
         transaction.set(ref, {
           balance: newBalance,
           frozenBalance: Math.max(0, newFrozen),
           updatedAt: new Date().toISOString()
         }, { merge: true });
         
-        // Registrar transacción
         const transactionRef = db.collection('transactions').doc();
         transaction.set(transactionRef, {
           phone: playerPhone,
@@ -1576,6 +1593,37 @@ exports.finishTriviaGame = onCall(async (request) => {
         });
       }
       
+      // 🆕 DEVOLVER créditos a los jugadores que NO respondieron
+      for (const playerPhone of playersWithPartialAnswers) {
+        console.log(`💸 Devolviendo créditos a ${playerPhone} (no respondió todas)`);
+        const balanceRef = db.collection('client_balances').doc(playerPhone);
+        const balanceDoc = await transaction.get(balanceRef);
+        
+        const currentBalance = balanceDoc.exists ? (balanceDoc.data().balance || 0) : 0;
+        const currentFrozen = balanceDoc.exists ? (balanceDoc.data().frozenBalance || 0) : 0;
+        
+        const newFrozen = currentFrozen - gameData.betAmount;
+        
+        transaction.set(balanceRef, {
+          balance: currentBalance,
+          frozenBalance: Math.max(0, newFrozen),
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        
+        const transactionRef = db.collection('transactions').doc();
+        transaction.set(transactionRef, {
+          phone: playerPhone,
+          type: 'trivia_refund',
+          amount: 0,
+          betAmount: gameData.betAmount,
+          description: `Devolución - No respondió todas las preguntas`,
+          gameId: gameId,
+          balanceBefore: currentBalance,
+          balanceAfter: currentBalance,
+          createdAt: new Date().toISOString()
+        });
+      }
+      
       // Actualizar estado del juego
       console.log('🎮 Actualizando estado del juego...');
       transaction.update(gameRef, {
@@ -1584,7 +1632,9 @@ exports.finishTriviaGame = onCall(async (request) => {
         winners: finalWinners,
         scores: scores,
         totalPool: totalPool,
-        prizePerWinner: prizePerWinner
+        prizePerWinner: prizePerWinner,
+        finalPlayers: finalPlayers,
+        refundedPlayers: playersWithPartialAnswers
       });
       
       console.log('✅ Transacción completada exitosamente');
@@ -1593,7 +1643,6 @@ exports.finishTriviaGame = onCall(async (request) => {
     console.log('🎉 Juego finalizado exitosamente');
   } catch (txError) {
     console.error('❌ Error en transacción:', txError.message);
-    console.error('❌ Stack trace:', txError.stack);
     throw new HttpsError('internal', 'Error en transacción: ' + txError.message);
   }
   
@@ -1602,14 +1651,18 @@ exports.finishTriviaGame = onCall(async (request) => {
   const telegramChatId = "6567201196";
   
   const winnersText = finalWinners.map(w => `${w} (${scores[w]}/${totalQuestions})`).join(', ');
+  const refundedText = playersWithPartialAnswers.length > 0 
+    ? `\n💸 *Devoluciones:* ${playersWithPartialAnswers.join(', ')}`
+    : '';
   
   const telegramMessage = `🏆 *TRIVIA FINALIZADA* 🏆\n\n` +
     `📋 *ID:* ${gameId}\n` +
     `💰 *Pozo total:* ${totalPool} créditos\n` +
     `👑 *Ganador(es):* ${winnersText}\n` +
-    `💵 *Premio:* ${prizePerWinner} créditos c/u\n\n` +
-    `📊 *Resultados:*\n` +
-    activePlayers.map(p => `• ${p}: ${scores[p]}/${totalQuestions}`).join('\n');
+    `💵 *Premio:* ${prizePerWinner} créditos c/u\n` +
+    refundedText +
+    `\n\n📊 *Resultados:*\n` +
+    finalPlayers.map(p => `• ${p}: ${scores[p]}/${totalQuestions}`).join('\n');
   
   try {
     await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
@@ -1631,6 +1684,8 @@ exports.finishTriviaGame = onCall(async (request) => {
     scores: scores,
     totalPool: totalPool,
     prizePerWinner: prizePerWinner,
+    finalPlayers: finalPlayers,
+    refundedPlayers: playersWithPartialAnswers,
     message: `Juego finalizado. Ganador(es): ${finalWinners.join(', ')}`
   };
 });
