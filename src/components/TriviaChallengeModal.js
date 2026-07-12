@@ -69,7 +69,7 @@ const TriviaChallengeModal = ({ phone, uid, onClose }) => {
     }
   };
 
-  const openWhatsApp = (gameLink) => {
+    const openWhatsApp = (gameLink) => {
     const message = `🎮 *¡TE RETO A UNA TRIVIA DE FÚTBOL!* 🎮\n\n` +
       `Hola! Te han invitado a un reto.\n💰 *Apuesta:* ${betAmount} créditos\n\n` +
       `🎯 *Reglas:* 10 preguntas, 15 seg/pregunta, gana el más rápido.\n` +
@@ -77,8 +77,20 @@ const TriviaChallengeModal = ({ phone, uid, onClose }) => {
       `👉 *Acepta el reto aquí:* ${gameLink}\n\n` +
       `¡Buena suerte! 🏆`;
     
-    // Abrir WhatsApp nativo (sin número específico, usuario selecciona contacto)
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+    // Detectar si es móvil
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // En móvil: usar protocolo whatsapp:// para abrir app nativa
+      window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
+    } else {
+      // En desktop: usar wa.me (abrirá WhatsApp Web si no hay nativo)
+      // Si quieres forzar solo nativo en desktop también, comenta esta línea:
+      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+      
+      // Y descomenta esta línea para forzar solo nativo (fallará si no está instalado):
+      // window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
+    }
   };
 
   const handleCopyLink = async () => {
