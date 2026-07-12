@@ -1483,25 +1483,38 @@ exports.finishTriviaGame = onCall(async (request) => {
   
   console.log('💰 Pozo total:', totalPool, 'Premio por ganador:', prizePerWinner);
   
-    // Transacción para distribuir créditos
+      // Transacción para distribuir créditos (2 fases: lectura y escritura)
   try {
     await db.runTransaction(async (transaction) => {
       console.log('🔄 Iniciando transacción...');
       
-      // Descongelar y ajustar créditos de cada jugador activo
+      // ═══════════════════════════════════════════════════
+      // FASE 1: LEER TODOS los balances ANTES de escribir
+      // ═══════════════════════════════════════════════════
+      const balances = {};
+      
       for (const playerPhone of activePlayers) {
-        console.log(`💳 Procesando jugador: ${playerPhone}`);
-        
+        console.log(`📖 Leyendo balance de: ${playerPhone}`);
         const balanceRef = db.collection('client_balances').doc(playerPhone);
         const balanceDoc = await transaction.get(balanceRef);
         
-        console.log(`📄 balanceDoc.exists: ${balanceDoc.exists}`);
+        balances[playerPhone] = {
+          ref: balanceRef,
+          exists: balanceDoc.exists,
+          currentBalance: balanceDoc.exists ? (balanceDoc.data().balance || 0) : 0,
+          currentFrozen: balanceDoc.exists ? (balanceDoc.data().frozenBalance || 0) : 0
+        };
         
-        const currentBalance = balanceDoc.exists ? (balanceDoc.data().balance || 0) : 0;
-        const currentFrozen = balanceDoc.exists ? (balanceDoc.data().frozenBalance || 0) : 0;
-        
-        console.log(`💰 Balance actual: ${currentBalance}, Frozen: ${currentFrozen}`);
-        
+        console.log(`💰 ${playerPhone}: Balance ${balances[playerPhone].currentBalance}, Frozen ${balances[playerPhone].currentFrozen}`);
+      }
+      
+      // ═══════════════════════════════════════════════════
+      // FASE 2: ESCRIBIR TODOS los cambios
+      // ═══════════════════════════════════════════════════
+      console.log('💾 Aplicando cambios...');
+      
+      for (const playerPhone of activePlayers) {
+        const { ref, currentBalance, currentFrozen } = balances[playerPhone];
         const isWinner = finalWinners.includes(playerPhone);
         
         // Descongelar la apuesta
@@ -1509,20 +1522,17 @@ exports.finishTriviaGame = onCall(async (request) => {
         let newBalance = currentBalance;
         
         if (isWinner) {
-          // Ganador recibe el premio
           newBalance = currentBalance + prizePerWinner;
         }
         
-        console.log(`✅ Nuevo balance: ${newBalance}, Nuevo frozen: ${newFrozen}, Es ganador: ${isWinner}`);
+        console.log(`✅ ${playerPhone}: Balance ${currentBalance} -> ${newBalance}, Frozen ${currentFrozen} -> ${newFrozen}, Ganador: ${isWinner}`);
         
-        // Usar set con merge para crear el documento si no existe
-        transaction.set(balanceRef, {
+        // Actualizar balance
+        transaction.set(ref, {
           balance: newBalance,
           frozenBalance: Math.max(0, newFrozen),
           updatedAt: new Date().toISOString()
         }, { merge: true });
-        
-        console.log(`💾 Actualización de balance programada para ${playerPhone}`);
         
         // Registrar transacción
         const transactionRef = db.collection('transactions').doc();
@@ -1539,8 +1549,6 @@ exports.finishTriviaGame = onCall(async (request) => {
           balanceAfter: newBalance,
           createdAt: new Date().toISOString()
         });
-        
-        console.log(`✅ Transacción registrada para ${playerPhone}`);
       }
       
       // Actualizar estado del juego
@@ -1554,14 +1562,14 @@ exports.finishTriviaGame = onCall(async (request) => {
         prizePerWinner: prizePerWinner
       });
       
-      console.log('✅ Transacción completada');
+      console.log('✅ Transacción completada exitosamente');
     });
     
     console.log('🎉 Juego finalizado exitosamente');
   } catch (txError) {
-    console.error('❌ Error en transacción:', txError);
+    console.error('❌ Error en transacción:', txError.message);
     console.error('❌ Stack trace:', txError.stack);
-    throw new Error('Error en transacción: ' + txError.message);
+    throw new HttpsError('internal', 'Error en transacción: ' + txError.message);
   }
   
   // Notificación Telegram
