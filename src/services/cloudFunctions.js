@@ -20,6 +20,7 @@ const FUNCTIONS = {
   createTriviaGame: 'https://createtriviagame-wxcqdudneq-uc.a.run.app',
   acceptTriviaGame: 'https://accepttriviagame-wxcqdudneq-uc.a.run.app',
   rejectTriviaGame: 'https://rejecttriviagame-wxcqdudneq-uc.a.run.app',
+  cancelTriviaGame: 'https://canceltriviagame-wxcqdudneq-uc.a.run.app',
   generateTriviaQuestions: 'https://generatetriviaquestions-wxcqdudneq-uc.a.run.app',
   assignTriviaQuestions: 'https://assigntriviaquestions-wxcqdudneq-uc.a.run.app',
   submitTriviaAnswer: 'https://submittriviaanswer-wxcqdudneq-uc.a.run.app',
