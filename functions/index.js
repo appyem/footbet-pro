@@ -944,9 +944,8 @@ exports.createTriviaGame = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'La apuesta mínima es 100 créditos');
   }
   
-  if (!invitedPlayers || !Array.isArray(invitedPlayers) || invitedPlayers.length === 0) {
-    throw new HttpsError('invalid-argument', 'Debes invitar al menos a un amigo');
-  }
+    // Permitir retos abiertos (sin invitados específicos)
+  const hasInvitedPlayers = invitedPlayers && Array.isArray(invitedPlayers) && invitedPlayers.length > 0;
   
   // Verificar UID del retador
   const creatorPhone = await verifyClientUid(phone, uid);
@@ -964,14 +963,14 @@ exports.createTriviaGame = onCall(async (request) => {
       `Saldo insuficiente. Disponible: ${availableBalance} créditos. Necesitas: ${betAmount} créditos. Recarga más créditos para crear el reto.`);
   }
   
-  // Normalizar teléfonos de invitados
-  const normalizedInvited = invitedPlayers.map(p => {
+    // Normalizar teléfonos de invitados (si existen)
+  const normalizedInvited = hasInvitedPlayers ? invitedPlayers.map(p => {
     const phoneDigits = p.replace(/\D/g, '');
     return phoneDigits.startsWith('57') ? phoneDigits : '57' + phoneDigits;
-  });
+  }) : [];
   
   // Verificar que el retador no se invite a sí mismo
-  if (normalizedInvited.includes(creatorPhone)) {
+  if (hasInvitedPlayers && normalizedInvited.includes(creatorPhone)) {
     throw new HttpsError('invalid-argument', 'No puedes invitarte a ti mismo');
   }
   
@@ -1053,7 +1052,7 @@ exports.acceptTriviaGame = onCall(async (request) => {
   if (!gameId || !phone || !uid) {
     throw new HttpsError('invalid-argument', 'ID del juego, teléfono y UID son requeridos');
   }
-  
+
   // Verificar UID del retado
   const playerPhone = await verifyClientUid(phone, uid);
   
@@ -1078,14 +1077,26 @@ exports.acceptTriviaGame = onCall(async (request) => {
     throw new HttpsError('failed-precondition', 'El tiempo para aceptar ha expirado');
   }
   
-  // Verificar que el jugador fue invitado
-  const playerIndex = gameData.invitedPlayers.findIndex(p => p.phone === playerPhone);
-  if (playerIndex === -1) {
-    throw new HttpsError('permission-denied', 'No fuiste invitado a este juego');
+  // Verificar que el jugador no sea el creador
+  if (gameData.creatorPhone === playerPhone) {
+    throw new HttpsError('failed-precondition', 'No puedes aceptar tu propio reto');
   }
   
-  // Verificar que no haya aceptado ya
-  if (gameData.invitedPlayers[playerIndex].status === 'accepted') {
+  // Verificar si ya hay 2 jugadores (reto cerrado)
+  const currentPlayers = [
+    gameData.creatorPhone,
+    ...(gameData.invitedPlayers || [])
+      .filter(p => p.status === 'accepted')
+      .map(p => p.phone)
+  ];
+  
+  if (currentPlayers.length >= 2) {
+    throw new HttpsError('failed-precondition', 'El reto ya está completo');
+  }
+  
+  // Verificar si ya aceptó
+  const alreadyAccepted = (gameData.invitedPlayers || []).some(p => p.phone === playerPhone && p.status === 'accepted');
+  if (alreadyAccepted) {
     throw new HttpsError('already-exists', 'Ya aceptaste este reto');
   }
   
@@ -1112,28 +1123,42 @@ exports.acceptTriviaGame = onCall(async (request) => {
       updatedAt: new Date().toISOString()
     });
     
-    // Actualizar estado del jugador en el juego
-    const updatedInvited = [...gameData.invitedPlayers];
-    updatedInvited[playerIndex] = {
-      ...updatedInvited[playerIndex],
-      status: 'accepted',
-      uid: uid,
-      acceptedAt: new Date().toISOString()
-    };
+    // Agregar jugador a la lista de invitados aceptados
+    const updatedInvited = [...(gameData.invitedPlayers || [])];
     
-    // Verificar si todos los invitados han aceptado
-    const allAccepted = updatedInvited.every(p => p.status === 'accepted');
+    // Verificar si ya estaba en la lista (reto cerrado)
+    const existingIndex = updatedInvited.findIndex(p => p.phone === playerPhone);
     
+    if (existingIndex !== -1) {
+      // Actualizar jugador existente
+      updatedInvited[existingIndex] = {
+        ...updatedInvited[existingIndex],
+        status: 'accepted',
+        uid: uid,
+        acceptedAt: new Date().toISOString()
+      };
+    } else {
+      // Agregar nuevo jugador (reto abierto)
+      updatedInvited.push({
+        phone: playerPhone,
+        status: 'accepted',
+        uid: uid,
+        acceptedAt: new Date().toISOString()
+      });
+    }
+    
+    // Actualizar juego
     transaction.update(gameRef, {
       invitedPlayers: updatedInvited,
-      status: allAccepted ? 'active' : 'waiting',
-      ...(allAccepted ? { startedAt: new Date().toISOString() } : {})
+      totalPlayers: 1 + updatedInvited.filter(p => p.status === 'accepted').length,
+      status: 'active',
+      startedAt: new Date().toISOString()
     });
   });
   
   return { 
     success: true, 
-    message: `Reto aceptado. Se congelaron ${betAmount} créditos. Esperando a los demás jugadores...`
+    message: `Reto aceptado. Se congelaron ${betAmount} créditos. ¡A jugar!`
   };
 });
 
