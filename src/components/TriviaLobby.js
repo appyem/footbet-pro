@@ -78,6 +78,23 @@ const TriviaLobby = ({ onBack }) => {
     }
   };
 
+    // Listener para actualizar balance en tiempo real
+  useEffect(() => {
+    if (!validated || !phone) return;
+
+    const balanceRef = doc(db, 'client_balances', phone);
+    
+    const unsubscribe = onSnapshot(balanceRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setBalance(data.balance || 0);
+        setFrozenBalance(data.frozenBalance || 0);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [validated, phone]);
+
   // Listener para retos pendientes (donde fui invitado)
   useEffect(() => {
     if (!validated || !phone) return;
