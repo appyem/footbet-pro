@@ -1483,69 +1483,86 @@ exports.finishTriviaGame = onCall(async (request) => {
   
   console.log('💰 Pozo total:', totalPool, 'Premio por ganador:', prizePerWinner);
   
-  // Transacción para distribuir créditos
-  await db.runTransaction(async (transaction) => {
-    console.log('🔄 Iniciando transacción...');
-    
-    // Descongelar y ajustar créditos de cada jugador activo
-    for (const playerPhone of activePlayers) {
-      const balanceRef = db.collection('client_balances').doc(playerPhone);
-      const balanceDoc = await transaction.get(balanceRef);
+    // Transacción para distribuir créditos
+  try {
+    await db.runTransaction(async (transaction) => {
+      console.log('🔄 Iniciando transacción...');
       
-      const currentBalance = balanceDoc.exists ? (balanceDoc.data().balance || 0) : 0;
-      const currentFrozen = balanceDoc.exists ? (balanceDoc.data().frozenBalance || 0) : 0;
-      
-      const isWinner = finalWinners.includes(playerPhone);
-      
-      // Descongelar la apuesta
-      let newFrozen = currentFrozen - gameData.betAmount;
-      let newBalance = currentBalance;
-      
-      if (isWinner) {
-        // Ganador recibe el premio
-        newBalance = currentBalance + prizePerWinner;
+      // Descongelar y ajustar créditos de cada jugador activo
+      for (const playerPhone of activePlayers) {
+        console.log(`💳 Procesando jugador: ${playerPhone}`);
+        
+        const balanceRef = db.collection('client_balances').doc(playerPhone);
+        const balanceDoc = await transaction.get(balanceRef);
+        
+        console.log(`📄 balanceDoc.exists: ${balanceDoc.exists}`);
+        
+        const currentBalance = balanceDoc.exists ? (balanceDoc.data().balance || 0) : 0;
+        const currentFrozen = balanceDoc.exists ? (balanceDoc.data().frozenBalance || 0) : 0;
+        
+        console.log(`💰 Balance actual: ${currentBalance}, Frozen: ${currentFrozen}`);
+        
+        const isWinner = finalWinners.includes(playerPhone);
+        
+        // Descongelar la apuesta
+        let newFrozen = currentFrozen - gameData.betAmount;
+        let newBalance = currentBalance;
+        
+        if (isWinner) {
+          // Ganador recibe el premio
+          newBalance = currentBalance + prizePerWinner;
+        }
+        
+        console.log(`✅ Nuevo balance: ${newBalance}, Nuevo frozen: ${newFrozen}, Es ganador: ${isWinner}`);
+        
+        // Usar set con merge para crear el documento si no existe
+        transaction.set(balanceRef, {
+          balance: newBalance,
+          frozenBalance: Math.max(0, newFrozen),
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        
+        console.log(`💾 Actualización de balance programada para ${playerPhone}`);
+        
+        // Registrar transacción
+        const transactionRef = db.collection('transactions').doc();
+        transaction.set(transactionRef, {
+          phone: playerPhone,
+          type: isWinner ? 'trivia_win' : 'trivia_loss',
+          amount: isWinner ? prizePerWinner : 0,
+          betAmount: gameData.betAmount,
+          description: isWinner 
+            ? `Ganó trivia - ${scores[playerPhone]}/${totalQuestions} correctas`
+            : `Perdió trivia - ${scores[playerPhone]}/${totalQuestions} correctas`,
+          gameId: gameId,
+          balanceBefore: currentBalance,
+          balanceAfter: newBalance,
+          createdAt: new Date().toISOString()
+        });
+        
+        console.log(`✅ Transacción registrada para ${playerPhone}`);
       }
       
-      console.log(`💳 ${playerPhone}: Balance ${currentBalance} -> ${newBalance}, Frozen ${currentFrozen} -> ${newFrozen}`);
-      
-      // Usar set con merge para crear el documento si no existe
-      transaction.set(balanceRef, {
-        balance: newBalance,
-        frozenBalance: Math.max(0, newFrozen),
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-      
-      // Registrar transacción
-      const transactionRef = db.collection('transactions').doc();
-      transaction.set(transactionRef, {
-        phone: playerPhone,
-        type: isWinner ? 'trivia_win' : 'trivia_loss',
-        amount: isWinner ? prizePerWinner : 0,
-        betAmount: gameData.betAmount,
-        description: isWinner 
-          ? `Ganó trivia - ${scores[playerPhone]}/${totalQuestions} correctas`
-          : `Perdió trivia - ${scores[playerPhone]}/${totalQuestions} correctas`,
-        gameId: gameId,
-        balanceBefore: currentBalance,
-        balanceAfter: newBalance,
-        createdAt: new Date().toISOString()
+      // Actualizar estado del juego
+      console.log('🎮 Actualizando estado del juego...');
+      transaction.update(gameRef, {
+        status: 'finished',
+        finishedAt: new Date().toISOString(),
+        winners: finalWinners,
+        scores: scores,
+        totalPool: totalPool,
+        prizePerWinner: prizePerWinner
       });
-    }
-    
-    // Actualizar estado del juego
-    transaction.update(gameRef, {
-      status: 'finished',
-      finishedAt: new Date().toISOString(),
-      winners: finalWinners,
-      scores: scores,
-      totalPool: totalPool,
-      prizePerWinner: prizePerWinner
+      
+      console.log('✅ Transacción completada');
     });
     
-    console.log('✅ Transacción completada');
-  });
-  
-  console.log('🎉 Juego finalizado exitosamente');
+    console.log('🎉 Juego finalizado exitosamente');
+  } catch (txError) {
+    console.error('❌ Error en transacción:', txError);
+    console.error('❌ Stack trace:', txError.stack);
+    throw new Error('Error en transacción: ' + txError.message);
+  }
   
   // Notificación Telegram
   const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
