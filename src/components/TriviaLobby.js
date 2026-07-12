@@ -6,9 +6,9 @@ import { acceptTriviaGame, rejectTriviaGame } from '../services/cloudFunctions';
 import TriviaChallengeModal from './TriviaChallengeModal';
 
 const TriviaLobby = ({ onBack }) => {
-  const [phone, setPhone] = useState('');
-  const [uid, setUid] = useState('');
-  const [validated, setValidated] = useState(false);
+  const [phone, setPhone] = useState(localStorage.getItem('trivia_phone') || '');
+  const [uid, setUid] = useState(localStorage.getItem('trivia_uid') || '');
+  const [validated, setValidated] = useState(!!localStorage.getItem('trivia_phone'));
   const [balance, setBalance] = useState(0);
   const [frozenBalance, setFrozenBalance] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -65,6 +65,11 @@ const TriviaLobby = ({ onBack }) => {
       
       setPhone(phoneWithCountry);
       setValidated(true);
+
+            // Guardar credenciales en localStorage
+      localStorage.setItem('trivia_phone', phoneWithCountry);
+      localStorage.setItem('trivia_uid', uidNormalized);
+
     } catch (err) {
       console.error('Error validando:', err);
       setError('Error al validar. Intenta de nuevo.');

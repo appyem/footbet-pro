@@ -5,6 +5,12 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { assignTriviaQuestions, submitTriviaAnswer, finishTriviaGame } from '../services/cloudFunctions';
 
 const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
+
+    // Guardar credenciales en localStorage al montar
+  React.useEffect(() => {
+    if (phone) localStorage.setItem('trivia_phone', phone);
+    if (uid) localStorage.setItem('trivia_uid', uid);
+  }, [phone, uid]);  
   const [game, setGame] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
