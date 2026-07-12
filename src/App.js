@@ -2983,18 +2983,24 @@ useEffect(() => {
       case 'game-selection':
         return GameSelectionScreen();  
 
-      case 'trivia-lobby':
-        return <TriviaLobby />; 
+            case 'trivia-lobby':
+        return <TriviaLobby onBack={() => {
+          window.location.hash = '';
+          setCurrentView('game-selection');
+        }} />; 
         
       case 'trivia-accept':
         return <TriviaAcceptScreen gameId={triviaGameId} onBack={() => setCurrentView('login')} />; 
 
-      case 'trivia-game':
+            case 'trivia-game':
         return <TriviaGameScreen 
           gameId={triviaGameId} 
           phone={triviaGamePhone} 
           uid={triviaGameUid}
-          onBack={() => setCurrentView('trivia-lobby')} 
+          onBack={() => {
+            window.location.hash = '';
+            setCurrentView('trivia-lobby');
+          }} 
         />;
 
       
