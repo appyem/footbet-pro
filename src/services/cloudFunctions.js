@@ -243,3 +243,13 @@ export const assignTriviaQuestions = async (gameId) => {
   return callPublicFunction('assignTriviaQuestions', { gameId });
 };
 
+/**
+ * Cancelar reto de trivia (público) - REQUIERE UID
+ * Solo el creador puede cancelar si nadie ha aceptado
+ * Devuelve los créditos congelados automáticamente
+ */
+export const cancelTriviaGame = async (gameId, phone, uid) => {
+  return callPublicFunction('cancelTriviaGame', { gameId, phone, uid });
+};
+
+

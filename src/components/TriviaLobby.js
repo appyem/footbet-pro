@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Trophy, Users, Wallet, Plus, Clock, CheckCircle, XCircle, Gamepad2 } from 'lucide-react';
 import { db } from '../services/firebase';
 import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
-import { acceptTriviaGame, rejectTriviaGame } from '../services/cloudFunctions';
+import { acceptTriviaGame, rejectTriviaGame, cancelTriviaGame } from '../services/cloudFunctions';
 import TriviaChallengeModal from './TriviaChallengeModal';
 
 const TriviaLobby = ({ onBack }) => {
@@ -234,6 +234,32 @@ const TriviaLobby = ({ onBack }) => {
     }
   };
 
+
+
+  // Función para CANCELAR reto (solo creador, si nadie aceptó)
+  const handleCancelChallenge = async (gameId) => {
+    if (!window.confirm('¿Estás seguro de cancelar este reto? Se devolverán tus créditos.')) {
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      const result = await cancelTriviaGame(gameId, phone, uid);
+      alert('✅ ' + result.message);
+      // El listener actualizará automáticamente la lista
+    } catch (err) {
+      console.error('Error cancelando reto:', err);
+      setError('❌ Error: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+
   // Función para RECHAZAR reto
   const handleRejectChallenge = async (gameId) => {
     setLoading(true);
@@ -395,9 +421,17 @@ const TriviaLobby = ({ onBack }) => {
                       </p>
                     </div>
                   </div>
-                  <div className="bg-blue-900/30 border border-blue-500/30 rounded p-2 mt-2">
+                                    <div className="bg-blue-900/30 border border-blue-500/30 rounded p-2 mt-2">
                     <p className="text-blue-300 text-xs">⏳ Esperando que los invitados acepten...</p>
                   </div>
+                  <button
+                    onClick={() => handleCancelChallenge(game.id)}
+                    disabled={loading}
+                    className="w-full mt-2 bg-red-600 hover:bg-red-700 text-white text-sm px-3 py-2 rounded flex items-center justify-center gap-1 disabled:opacity-50"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Cancelar Reto
+                  </button>
                 </div>
               ))}
             </div>

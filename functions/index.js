@@ -1635,6 +1635,143 @@ exports.finishTriviaGame = onCall(async (request) => {
   };
 });
 
+
+
+/**
+ * Función: Cancelar reto de trivia
+ * Solo el creador puede cancelar si nadie ha aceptado
+ * Devuelve los créditos congelados automáticamente
+ */
+exports.cancelTriviaGame = onCall(async (request) => {
+  const { gameId, phone, uid } = request.data;
+  
+  if (!gameId || !phone || !uid) {
+    throw new HttpsError('invalid-argument', 'ID del juego, teléfono y UID son requeridos');
+  }
+  
+  console.log('🚫 Iniciando cancelTriviaGame para juego:', gameId);
+  
+  // Verificar UID del creador
+  const creatorPhone = await verifyClientUid(phone, uid);
+  console.log('✅ Creador verificado:', creatorPhone);
+  
+  const gameRef = db.collection('trivia_games').doc(gameId);
+  const gameDoc = await gameRef.get();
+  
+  if (!gameDoc.exists) {
+    throw new HttpsError('not-found', 'Juego no encontrado');
+  }
+  
+  const gameData = gameDoc.data();
+  
+  // Solo el creador puede cancelar
+  if (gameData.creatorPhone !== creatorPhone) {
+    throw new HttpsError('permission-denied', 'Solo el creador puede cancelar el reto');
+  }
+  
+  // Solo se puede cancelar si está en estado "waiting"
+  if (gameData.status !== 'waiting') {
+    throw new HttpsError('failed-precondition', 'El reto ya no se puede cancelar (ya inició o finalizó)');
+  }
+  
+  // Verificar que NADIE haya aceptado
+  const invitedPlayers = gameData.invitedPlayers || [];
+  const acceptedPlayers = invitedPlayers.filter(p => p.status === 'accepted');
+  
+  if (acceptedPlayers.length > 0) {
+    throw new HttpsError('failed-precondition', 
+      `No se puede cancelar: ${acceptedPlayers.length} jugador(es) ya aceptaron el reto`);
+  }
+  
+  console.log('✅ Validaciones pasadas, procediendo a cancelar');
+  
+  // Transacción para devolver créditos y eliminar juego
+  try {
+    await db.runTransaction(async (transaction) => {
+      // FASE 1: LEER balance del creador
+      console.log('📖 Leyendo balance del creador:', creatorPhone);
+      const balanceRef = db.collection('client_balances').doc(creatorPhone);
+      const balanceDoc = await transaction.get(balanceRef);
+      
+      const currentBalance = balanceDoc.exists ? (balanceDoc.data().balance || 0) : 0;
+      const currentFrozen = balanceDoc.exists ? (balanceDoc.data().frozenBalance || 0) : 0;
+      
+      console.log(`💰 Balance actual: ${currentBalance}, Frozen: ${currentFrozen}`);
+      
+      // FASE 2: ESCRIBIR cambios
+      // Devolver los créditos congelados
+      const newFrozen = currentFrozen - gameData.betAmount;
+      
+      console.log(`✅ Devolviendo ${gameData.betAmount} créditos. Nuevo frozen: ${newFrozen}`);
+      
+      transaction.set(balanceRef, {
+        balance: currentBalance, // El balance total no cambia
+        frozenBalance: Math.max(0, newFrozen), // Solo se descongela
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      
+      // Registrar transacción
+      const transactionRef = db.collection('transactions').doc();
+      transaction.set(transactionRef, {
+        phone: creatorPhone,
+        type: 'trivia_cancel_refund',
+        amount: 0,
+        betAmount: gameData.betAmount,
+        description: `Reto cancelado - Créditos descongelados`,
+        gameId: gameId,
+        balanceBefore: currentBalance,
+        balanceAfter: currentBalance,
+        frozenBefore: currentFrozen,
+        frozenAfter: Math.max(0, newFrozen),
+        createdAt: new Date().toISOString()
+      });
+      
+      // Eliminar el documento del juego
+      transaction.delete(gameRef);
+      
+      console.log('✅ Juego eliminado y créditos devueltos');
+    });
+    
+    console.log('🎉 Reto cancelado exitosamente');
+  } catch (txError) {
+    console.error('❌ Error en transacción:', txError.message);
+    throw new HttpsError('internal', 'Error al cancelar el reto: ' + txError.message);
+  }
+  
+  // Notificación Telegram
+  const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
+  const telegramChatId = "6567201196";
+  
+  const telegramMessage = `🚫 *RETO CANCELADO* 🚫\n\n` +
+    `👤 *Creador:* ${creatorPhone}\n` +
+    `💰 *Apuesta devuelta:* ${gameData.betAmount} créditos\n` +
+    `📋 *ID:* ${gameId}\n\n` +
+    `✅ Créditos devueltos al saldo congelado`;
+  
+  try {
+    await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: telegramChatId,
+        text: telegramMessage,
+        parse_mode: "Markdown"
+      })
+    });
+  } catch (error) {
+    console.error("Error enviando notificación a Telegram:", error);
+  }
+  
+  return {
+    success: true,
+    message: `Reto cancelado. Se devolvieron ${gameData.betAmount} créditos a tu saldo disponible.`
+  };
+});
+
+
+
+
+
 // ═══════════════════════════════════════════════════════════════
 // 🆕 FUNCIÓN HÍBRIDA: Asignar preguntas (Groq + Banco fallback)
 // ═══════════════════════════════════════════════════════════════
