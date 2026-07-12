@@ -14,9 +14,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   const [gameStarted, setGameStarted] = useState(false);
   const [gameFinished, setGameFinished] = useState(false);
   const [results, setResults] = useState(null);
-  const [myAnswers, setMyAnswers] = useState({});
   
-  // 🔒 Prevenir múltiples llamadas simultáneas
   const isGeneratingRef = useRef(false);
   const hasGeneratedRef = useRef(false);
 
@@ -31,6 +29,17 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     
     return isCreator || isAcceptedInvited;
   }, [game, phone, uid]);
+
+  // 🔍 Obtener respuestas del jugador actual desde Firestore
+  const getMyAnswers = useCallback(() => {
+    if (!game || !game.answers || !game.answers[phone]) return {};
+    const firestoreAnswers = game.answers[phone];
+    const localAnswers = {};
+    Object.keys(firestoreAnswers).forEach(key => {
+      localAnswers[key] = firestoreAnswers[key].selected;
+    });
+    return localAnswers;
+  }, [game, phone]);
 
   // Cargar juego y escuchar cambios en tiempo real
   useEffect(() => {
@@ -61,7 +70,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     return () => unsubscribe();
   }, [gameId]);
 
-    // Generar preguntas cuando todos aceptan (solo una vez)
+  // Generar preguntas cuando todos aceptan (solo una vez)
   useEffect(() => {
     if (!game || !gameId) return;
     if (hasGeneratedRef.current) return;
@@ -71,14 +80,12 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     
     console.log('🔍 useEffect generate: allAccepted=', allAccepted, 'hasQuestions=', hasQuestions, 'status=', game.status);
     
-    // Si ya hay preguntas, marcar como generado
     if (hasQuestions) {
       hasGeneratedRef.current = true;
       setGameStarted(true);
       return;
     }
     
-    // Generar preguntas si todos aceptaron Y no hay preguntas aún
     if (allAccepted && !hasQuestions && !isGeneratingRef.current) {
       console.log('✅ Todos aceptaron, asignando preguntas...');
       isGeneratingRef.current = true;
@@ -150,9 +157,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     try {
       await submitTriviaAnswer(gameId, phone, uid, currentQuestion, selectedAnswer);
       
-      // Guardar respuesta localmente
-      setMyAnswers(prev => ({ ...prev, [currentQuestion]: selectedAnswer }));
-      
+      // El estado se actualizará automáticamente desde el onSnapshot
       setSelectedAnswer(null);
       handleNextQuestion();
     } catch (err) {
@@ -173,13 +178,15 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     setTimeLeft(15);
   };
 
-  // Finalizar juego (cualquier jugador puede finalizar cuando todos hayan jugado)
+  // Finalizar juego
   const handleFinishGame = async () => {
     setLoading(true);
     setError('');
 
     try {
+      console.log('🏁 Llamando finishTriviaGame con:', { gameId, phone, uid });
       const result = await finishTriviaGame(gameId, phone, uid);
+      console.log('✅ finishTriviaGame exitoso:', result);
       setGameFinished(true);
       setResults({
         winners: result.winners,
@@ -187,11 +194,32 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
         prizePerWinner: result.prizePerWinner
       });
     } catch (err) {
+      console.error('❌ Error en finishTriviaGame:', err);
       setError('❌ Error: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  // 🔒 Obtener respuestas actuales desde Firestore (no desde estado local)
+  const myAnswers = getMyAnswers();
+  const myAnswerCount = Object.keys(myAnswers).length;
+  const totalQuestions = game?.questions?.length || 0;
+  const allAnswered = myAnswerCount >= totalQuestions;
+
+  // Verificar si todos los jugadores ya respondieron
+  const totalPlayers = game?.invitedPlayers?.length + 1 || 1;
+  const playersWhoFinished = (game?.answers ? Object.keys(game.answers).length : 0);
+  const allPlayersFinished = playersWhoFinished >= totalPlayers;
+
+  // 🔍 DEBUG
+  console.log('🔍 DEBUG finishGame:');
+  console.log('  - myAnswerCount:', myAnswerCount);
+  console.log('  - allAnswered:', allAnswered);
+  console.log('  - totalPlayers:', totalPlayers);
+  console.log('  - playersWhoFinished:', playersWhoFinished);
+  console.log('  - allPlayersFinished:', allPlayersFinished);
+  console.log('  - totalQuestions:', totalQuestions);
 
   // Pantalla de carga
   if (!game || loading) {
@@ -299,16 +327,56 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     );
   }
 
-  // Verificar si ya respondí todas las preguntas
-  const myAnswerCount = Object.keys(myAnswers).length;
-  const allAnswered = myAnswerCount >= 10;
+  // 🔒 VALIDACIÓN: Verificar que hay preguntas
+  if (!game.questions || game.questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4 relative overflow-hidden">
+        <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
+          <source src="/video/estadio.mp4" type="video/mp4" />
+        </video>
+        <div className="fixed inset-0 bg-black/60 z-0"></div>
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-red-500/30 shadow-2xl relative z-10">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <p className="text-red-200 text-center mb-4">Error: No hay preguntas disponibles</p>
+          <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">
+            Volver
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  // Verificar si todos los jugadores ya respondieron
-  const totalPlayers = game.invitedPlayers?.length + 1 || 1;
-  const playersWhoFinished = (game.answers ? Object.keys(game.answers).length : 0);
-  const allPlayersFinished = playersWhoFinished >= totalPlayers;
+  // 🔒 VALIDACIÓN: Si currentQuestion es inválido, mostrar pantalla de espera
+  if (currentQuestion >= game.questions.length) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4 relative overflow-hidden">
+        <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
+          <source src="/video/estadio.mp4" type="video/mp4" />
+        </video>
+        <div className="fixed inset-0 bg-black/60 z-0"></div>
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-purple-500/30 shadow-2xl relative z-10">
+          <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+          <h2 className="text-white text-xl font-bold text-center mb-4">✅ Ya respondiste todas las preguntas</h2>
+          <p className="text-gray-300 text-center mb-4">
+            Esperando a que los demás jugadores terminen ({playersWhoFinished}/{totalPlayers})
+          </p>
+          {allPlayersFinished && (
+            <button
+              onClick={handleFinishGame}
+              disabled={loading}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 mb-3"
+            >
+              {loading ? 'Finalizando...' : <><Trophy className="w-5 h-5" /> Finalizar Juego</>}
+            </button>
+          )}
+          <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-xl">
+            Volver al lobby
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  // Pantalla de juego (preguntas)
   const question = game.questions[currentQuestion];
 
   return (
@@ -329,14 +397,14 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
               </span>
             </div>
             <div className="text-purple-300 font-medium">
-              Pregunta {currentQuestion + 1}/10
+              Pregunta {currentQuestion + 1}/{game.questions.length}
             </div>
           </div>
           
           <div className="w-full bg-gray-700 rounded-full h-2">
             <div 
               className="bg-purple-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentQuestion + 1) / 10) * 100}%` }}
+              style={{ width: `${((currentQuestion + 1) / game.questions.length) * 100}%` }}
             ></div>
           </div>
         </div>
@@ -350,12 +418,12 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
               <button
                 key={idx}
                 onClick={() => setSelectedAnswer(idx)}
-                disabled={loading}
+                disabled={loading || myAnswers[currentQuestion] !== undefined}
                 className={`w-full p-4 rounded-xl text-left transition-all ${
-                  selectedAnswer === idx
+                  selectedAnswer === idx || myAnswers[currentQuestion] === idx
                     ? 'bg-purple-600 border-2 border-purple-400'
                     : 'bg-gray-700 border-2 border-transparent hover:bg-gray-600'
-                }`}
+                } ${myAnswers[currentQuestion] !== undefined ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span className="text-white font-medium">
                   {String.fromCharCode(65 + idx)}. {option}
@@ -363,6 +431,12 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
               </button>
             ))}
           </div>
+          
+          {myAnswers[currentQuestion] !== undefined && (
+            <div className="mt-4 bg-green-900/30 border border-green-500/30 rounded-lg p-3">
+              <p className="text-green-300 text-sm">✅ Ya respondiste esta pregunta</p>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -375,7 +449,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
         <div className="space-y-3">
           <button
             onClick={handleSubmitAnswer}
-            disabled={loading || selectedAnswer === null}
+            disabled={loading || selectedAnswer === null || myAnswers[currentQuestion] !== undefined}
             className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? 'Enviando...' : <><CheckCircle className="w-5 h-5" /> Enviar Respuesta</>}
