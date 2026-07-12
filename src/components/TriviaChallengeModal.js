@@ -86,7 +86,7 @@ const TriviaChallengeModal = ({ phone, uid, onClose }) => {
     } else {
       // En desktop: usar wa.me (abrirá WhatsApp Web si no hay nativo)
       // Si quieres forzar solo nativo en desktop también, comenta esta línea:
-      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+      window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
       
       // Y descomenta esta línea para forzar solo nativo (fallará si no está instalado):
       // window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
