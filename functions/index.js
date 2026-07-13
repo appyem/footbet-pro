@@ -2035,17 +2035,28 @@ exports.registerClient = onCall(async (request) => {
         createdAt: new Date().toISOString()
       });
       
-      // Crear balance inicial en 0
+            // Crear balance inicial con 500 créditos de regalo
       await db.collection('client_balances').doc(phoneWithCountry).set({
         phone: phoneWithCountry,
-        balance: 0,
+        balance: 500, // 🎁 Regalo de bienvenida
         frozenBalance: 0,
-        totalDeposited: 0,
+        totalDeposited: 500,
         totalWithdrawn: 0,
         updatedAt: new Date().toISOString()
       }, { merge: true });
       
-      console.log(`✅ Nuevo cliente registrado: ${phoneWithCountry} con UID: ${newUid}`);
+      // Registrar transacción del regalo
+      await db.collection('transactions').add({
+        phone: phoneWithCountry,
+        type: 'welcome_bonus',
+        amount: 500,
+        description: '🎁 Regalo de bienvenida - Primera vez',
+        balanceBefore: 0,
+        balanceAfter: 500,
+        createdAt: new Date().toISOString()
+      });
+      
+      console.log(`✅ Nuevo cliente registrado: ${phoneWithCountry} con UID: ${newUid} + 500 créditos de regalo`);
     }
   }
   

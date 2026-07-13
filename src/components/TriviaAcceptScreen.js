@@ -371,10 +371,13 @@ const TriviaAcceptScreen = ({ gameId, onBack }) => {
     );
   }
 
-  // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════
   // PANTALLA 4: Detalles del reto y aceptación
   // ═══════════════════════════════════════════════════════
   if (!validated) return null;
+
+  // Detectar si es usuario nuevo (balance inicial de 500 = regalo)
+  const isNewUser = balance === 500 && game?.betAmount <= 500;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-gray-900 to-blue-800 flex items-center justify-center p-4 relative overflow-hidden">
@@ -383,6 +386,47 @@ const TriviaAcceptScreen = ({ gameId, onBack }) => {
       </video>
       <div className="fixed inset-0 bg-black/60 z-0"></div>
       <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-blue-500/30 shadow-2xl relative z-10">
+        
+        {/* 🎁 MENSAJE DE BIENVENIDA ANIMADO (solo usuarios nuevos) */}
+        {isNewUser && (
+          <div className="mb-4 relative overflow-hidden">
+            {/* Fondo animado con gradiente */}
+            <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/20 via-orange-500/20 to-pink-500/20 animate-pulse"></div>
+            
+            {/* Confetti animado */}
+            <div className="absolute inset-0 pointer-events-none">
+              {[...Array(20)].map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute w-2 h-2 bg-yellow-400 rounded-full animate-bounce"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                    animationDelay: `${Math.random() * 2}s`,
+                    animationDuration: `${1 + Math.random() * 2}s`
+                  }}
+                ></div>
+              ))}
+            </div>
+            
+            {/* Contenido del mensaje */}
+            <div className="relative bg-gradient-to-r from-yellow-900/80 via-orange-900/80 to-pink-900/80 border-2 border-yellow-400 rounded-xl p-4 shadow-2xl animate-pulse">
+              <div className="text-center">
+                <div className="text-5xl mb-2 animate-bounce">🎉</div>
+                <h2 className="text-xl font-bold text-yellow-300 mb-1">
+                  ¡Bienvenido!
+                </h2>
+                <p className="text-yellow-100 text-sm mb-2">
+                  Te regalamos <span className="text-2xl font-bold text-yellow-300">500 créditos</span> por ser nuevo
+                </p>
+                <p className="text-yellow-200 text-xs">
+                  💰 ¡Ya puedes aceptar este reto!
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="text-center mb-6">
           <Trophy className="w-16 h-16 text-blue-400 mx-auto mb-3" />
           <h1 className="text-2xl font-bold text-white">¡Te han retado!</h1>
