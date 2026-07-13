@@ -371,10 +371,18 @@ const TriviaAcceptScreen = ({ gameId, onBack }) => {
     );
   }
 
-    // ═══════════════════════════════════════════════════════
+     // ═══════════════════════════════════════════════════════
   // PANTALLA 4: Detalles del reto y aceptación
   // ═══════════════════════════════════════════════════════
   if (!validated) return null;
+
+  // 🆕 LOGS DE DEPURACIÓN
+  console.log('🔍 === PANTALLA 4 DEBUG ===');
+  console.log('💰 Balance:', balance);
+  console.log('🎮 Apuesta del reto:', game?.betAmount);
+  console.log('✅ Condición balance === 500:', balance === 500);
+  console.log('✅ Condición game?.betAmount <= 500:', game?.betAmount <= 500);
+  console.log('✅ isNewUser:', balance === 500 && game?.betAmount <= 500);
 
   // Detectar si es usuario nuevo (balance inicial de 500 = regalo)
   const isNewUser = balance === 500 && game?.betAmount <= 500;
