@@ -1564,7 +1564,7 @@ exports.finishTriviaGame = onCall(async (request) => {
           newBalance = currentBalance - gameData.betAmount;
           console.log(`💸 ${playerPhone}: Perdedor - Pierde apuesta ${gameData.betAmount}, Balance ${currentBalance} -> ${newBalance}`);
         }
-        2
+        
         console.log(`✅ ${playerPhone}: Balance ${currentBalance} -> ${newBalance}, Frozen ${currentFrozen} -> ${newFrozen}, Ganador: ${isWinner}`);
         
         transaction.set(ref, {
