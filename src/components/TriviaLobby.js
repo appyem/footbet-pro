@@ -218,14 +218,41 @@ const TriviaLobby = ({ onBack }) => {
     return () => unsubscribe();
   }, [validated, phone]);
 
-  // Función para ACEPTAR reto
+    // Función para ACEPTAR reto
   const handleAcceptChallenge = async (gameId) => {
     setLoading(true);
     setError('');
     
     try {
+      // Buscar el juego para obtener el creatorPhone
+      const gameRef = doc(db, 'trivia_games', gameId);
+      const gameDoc = await getDoc(gameRef);
+      
+      if (!gameDoc.exists()) {
+        setError('Reto no encontrado');
+        setLoading(false);
+        return;
+      }
+      
+      const gameData = gameDoc.data();
+      
       await acceptTriviaGame(gameId, phone, uid);
       alert('✅ ¡Reto aceptado! Esperando a que todos acepten para iniciar el juego.');
+      
+      // 🆕 Notificar al creador por WhatsApp
+      if (gameData.creatorPhone && gameData.creatorPhone !== phone) {
+        const creatorPhone = gameData.creatorPhone.replace(/\D/g, '');
+        const message = `🎮 *¡ACEPTÉ TU RETO DE TRIVIA!* 🎮\n\n` +
+          `Hola! Acepté tu reto de trivia.\n` +
+          `💰 *Apuesta:* ${gameData.betAmount} créditos\n\n` +
+          `🎯 *Estoy listo para jugar!*\n` +
+          `👉 *Entra al lobby para iniciar el juego.*\n\n` +
+          `¡Buena suerte! 🏆`;
+        
+        // Abrir WhatsApp nativo con el mensaje al creador
+        window.location.href = `whatsapp://send?phone=${creatorPhone}&text=${encodeURIComponent(message)}`;
+      }
+      
     } catch (err) {
       console.error('Error aceptando reto:', err);
       setError('❌ Error: ' + err.message);

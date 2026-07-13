@@ -75,7 +75,7 @@ const TriviaAcceptScreen = ({ gameId, onBack }) => {
     }
   };
 
-  const handleAccept = async () => {
+    const handleAccept = async () => {
     if (!game || !validated) return;
     if (balance < game.betAmount) {
       setError(`Saldo insuficiente. Necesitas ${game.betAmount} créditos. Disponible: ${balance}`);
@@ -86,6 +86,21 @@ const TriviaAcceptScreen = ({ gameId, onBack }) => {
     try {
       await acceptTriviaGame(gameId, phone, uid);
       setSuccess('✅ ¡Reto aceptado! Esperando a que inicie el juego...');
+      
+      // 🆕 Notificar al creador por WhatsApp
+      if (game.creatorPhone) {
+        const creatorPhone = game.creatorPhone.replace(/\D/g, '');
+        const message = `🎮 *¡ACEPTÉ TU RETO DE TRIVIA!* 🎮\n\n` +
+          `Hola! Acepté tu reto de trivia.\n` +
+          `💰 *Apuesta:* ${game.betAmount} créditos\n\n` +
+          `🎯 *Estoy listo para jugar!*\n` +
+          `👉 *Entra al lobby para iniciar el juego.*\n\n` +
+          `¡Buena suerte! 🏆`;
+        
+        // Abrir WhatsApp nativo con el mensaje al creador
+        window.location.href = `whatsapp://send?phone=${creatorPhone}&text=${encodeURIComponent(message)}`;
+      }
+      
       setTimeout(() => { onBack && onBack(); }, 3000);
     } catch (err) {
       setError('❌ Error: ' + err.message);
