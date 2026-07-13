@@ -1558,16 +1558,20 @@ exports.finishTriviaGame = onCall(async (request) => {
       // FASE 2: ESCRIBIR cambios para jugadores finales
       console.log('💾 Aplicando cambios...');
       
-      for (const playerPhone of finalPlayers) {
-        const { ref, currentBalance, currentFrozen } = balances[playerPhone];
-        const isWinner = finalWinners.includes(playerPhone);
-        
-        let newFrozen = currentFrozen - gameData.betAmount;
-        let newBalance = currentBalance;
-        
-        if (isWinner) {
-          newBalance = currentBalance + prizePerWinner;
-        }
+                for (const playerPhone of finalPlayers) {
+            const { ref, currentBalance, currentFrozen } = balances[playerPhone];
+            const isWinner = winners.includes(playerPhone);
+            
+            let newFrozen = currentFrozen - gameData.betAmount;
+            let newBalance = currentBalance;
+            
+            if (isWinner) {
+              // 🆕 CORRECCIÓN: Calcular premio neto (premio recibido - apuesta aportada)
+              // El jugador ya aportó betAmount al pozo, entonces el premio neto es:
+              const netPrize = prizePerWinner - gameData.betAmount;
+              newBalance = currentBalance + netPrize;
+              console.log(`💰 ${playerPhone}: Premio bruto ${prizePerWinner}, Apuesta ${gameData.betAmount}, Neto ${netPrize}`);
+            }
         
         console.log(`✅ ${playerPhone}: Balance ${currentBalance} -> ${newBalance}, Frozen ${currentFrozen} -> ${newFrozen}, Ganador: ${isWinner}`);
         
