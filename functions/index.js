@@ -1554,11 +1554,15 @@ exports.finishTriviaGame = onCall(async (request) => {
         let newFrozen = currentFrozen - gameData.betAmount;
         let newBalance = currentBalance;
         
-        if (isWinner) {
+                if (isWinner) {
           // 🆕 CORRECCIÓN CRÍTICA: Calcular premio neto
           const netPrize = prizePerWinner - gameData.betAmount;
           newBalance = currentBalance + netPrize;
-          console.log(`💰 ${playerPhone}: Premio bruto ${prizePerWinner}, Apuesta ${gameData.betAmount}, Neto ${netPrize}`);
+          console.log(`💰 ${playerPhone}: Ganador - Premio bruto ${prizePerWinner}, Apuesta ${gameData.betAmount}, Neto ${netPrize}`);
+        } else {
+          // 🆕 CORRECCIÓN CRÍTICA: Perdedor PIERDE su apuesta
+          newBalance = currentBalance - gameData.betAmount;
+          console.log(`💸 ${playerPhone}: Perdedor - Pierde apuesta ${gameData.betAmount}, Balance ${currentBalance} -> ${newBalance}`);
         }
         
         console.log(`✅ ${playerPhone}: Balance ${currentBalance} -> ${newBalance}, Frozen ${currentFrozen} -> ${newFrozen}, Ganador: ${isWinner}`);
