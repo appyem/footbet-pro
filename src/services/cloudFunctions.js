@@ -18,6 +18,7 @@ const FUNCTIONS = {
   getBalance: 'https://getbalance-wxcqdudneq-uc.a.run.app',
   // 🎮 Juego de Trivia
   createTriviaGame: 'https://createtriviagame-wxcqdudneq-uc.a.run.app',
+  registerClient: 'https://registerclient-wxcqdudneq-uc.a.run.app',
   acceptTriviaGame: 'https://accepttriviagame-wxcqdudneq-uc.a.run.app',
   rejectTriviaGame: 'https://rejecttriviagame-wxcqdudneq-uc.a.run.app',
   cancelTriviaGame: 'https://canceltriviagame-wxcqdudneq-uc.a.run.app',
@@ -251,6 +252,13 @@ export const assignTriviaQuestions = async (gameId) => {
  */
 export const cancelTriviaGame = async (gameId, phone, uid) => {
   return callPublicFunction('cancelTriviaGame', { gameId, phone, uid });
+};
+
+/**
+ * Registrar cliente automáticamente (crea UID si no existe)
+ */
+export const registerClient = async (phone) => {
+  return callPublicFunction('registerClient', { phone });
 };
 
 

@@ -1979,3 +1979,81 @@ Reglas:
     questions: questions
   };
 });
+
+
+/**
+ * Función: Registrar cliente automáticamente
+ * Si el teléfono no tiene UID, crea uno automáticamente
+ */
+exports.registerClient = onCall(async (request) => {
+  const { phone } = request.data;
+  
+  if (!phone) {
+    throw new HttpsError('invalid-argument', 'Teléfono es requerido');
+  }
+  
+  const phoneNormalized = phone.replace(/\D/g, '');
+  const phoneWithCountry = phoneNormalized.startsWith('57') ? phoneNormalized : '57' + phoneNormalized;
+  
+  // Buscar si ya tiene UID
+  const uidQuery = await db.collection('client_uids')
+    .where('phone', '==', phoneWithCountry)
+    .limit(1)
+    .get();
+  
+  if (!uidQuery.empty) {
+    // Ya existe, devolver el UID existente
+    const existingUid = uidQuery.docs[0].data().uid;
+    return {
+      success: true,
+      phone: phoneWithCountry,
+      uid: existingUid,
+      isNew: false,
+      message: 'Cliente ya registrado'
+    };
+  }
+  
+  // No existe, generar UID único de 6 dígitos
+  let clientUid;
+  let uidGenerated = false;
+  
+  while (!uidGenerated) {
+    const newUid = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    const uidCheck = await db.collection('client_uids')
+      .where('uid', '==', newUid)
+      .limit(1)
+      .get();
+    
+    if (uidCheck.empty) {
+      clientUid = newUid;
+      uidGenerated = true;
+      
+      await db.collection('client_uids').add({
+        phone: phoneWithCountry,
+        uid: newUid,
+        createdAt: new Date().toISOString()
+      });
+      
+      // Crear balance inicial en 0
+      await db.collection('client_balances').doc(phoneWithCountry).set({
+        phone: phoneWithCountry,
+        balance: 0,
+        frozenBalance: 0,
+        totalDeposited: 0,
+        totalWithdrawn: 0,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      
+      console.log(`✅ Nuevo cliente registrado: ${phoneWithCountry} con UID: ${newUid}`);
+    }
+  }
+  
+  return {
+    success: true,
+    phone: phoneWithCountry,
+    uid: clientUid,
+    isNew: true,
+    message: 'Cliente registrado exitosamente'
+  };
+});
