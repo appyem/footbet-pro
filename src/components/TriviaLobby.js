@@ -239,18 +239,31 @@ const TriviaLobby = ({ onBack }) => {
       await acceptTriviaGame(gameId, phone, uid);
       alert('✅ ¡Reto aceptado! Esperando a que todos acepten para iniciar el juego.');
       
-      // 🆕 Notificar al creador por WhatsApp
-      if (gameData.creatorPhone && gameData.creatorPhone !== phone) {
-        const creatorPhone = gameData.creatorPhone.replace(/\D/g, '');
+            // 🆕 Notificar al creador por WhatsApp
+      if (game.creatorPhone) {
+        // Normalizar el número del creador para WhatsApp
+        let creatorPhone = game.creatorPhone.replace(/\D/g, '');
+        
+        // Asegurar que tenga el código de país 57
+        if (!creatorPhone.startsWith('57')) {
+          creatorPhone = '57' + creatorPhone;
+        }
+        
+        // Eliminar el signo + si existe
+        creatorPhone = creatorPhone.replace('+', '');
+        
         const message = `🎮 *¡ACEPTÉ TU RETO DE TRIVIA!* 🎮\n\n` +
           `Hola! Acepté tu reto de trivia.\n` +
-          `💰 *Apuesta:* ${gameData.betAmount} créditos\n\n` +
+          `💰 *Apuesta:* ${game.betAmount} créditos\n\n` +
           `🎯 *Estoy listo para jugar!*\n` +
           `👉 *Entra al lobby para iniciar el juego.*\n\n` +
           `¡Buena suerte! 🏆`;
         
-        // Abrir WhatsApp nativo con el mensaje al creador
-        window.location.href = `whatsapp://send?phone=${creatorPhone}&text=${encodeURIComponent(message)}`;
+        // Usar wa.me en lugar de whatsapp:// para mejor compatibilidad
+        const whatsappUrl = `https://wa.me/${creatorPhone}?text=${encodeURIComponent(message)}`;
+        
+        // Abrir WhatsApp
+        window.open(whatsappUrl, '_blank');
       }
       
     } catch (err) {
