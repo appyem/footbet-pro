@@ -234,15 +234,15 @@ const TriviaLobby = ({ onBack }) => {
         return;
       }
       
-      const gameData = gameDoc.data();
+            const gameData = gameDoc.data();
       
       await acceptTriviaGame(gameId, phone, uid);
       alert('✅ ¡Reto aceptado! Esperando a que todos acepten para iniciar el juego.');
       
             // 🆕 Notificar al creador por WhatsApp
-      if (game.creatorPhone) {
+      if (gameData.creatorPhone) {
         // Normalizar el número del creador para WhatsApp
-        let creatorPhone = game.creatorPhone.replace(/\D/g, '');
+        let creatorPhone = gameData.creatorPhone.replace(/\D/g, '');
         
         // Asegurar que tenga el código de país 57
         if (!creatorPhone.startsWith('57')) {
@@ -254,7 +254,7 @@ const TriviaLobby = ({ onBack }) => {
         
         const message = `🎮 *¡ACEPTÉ TU RETO DE TRIVIA!* 🎮\n\n` +
           `Hola! Acepté tu reto de trivia.\n` +
-          `💰 *Apuesta:* ${game.betAmount} créditos\n\n` +
+          `💰 *Apuesta:* ${gameData.betAmount} créditos\n\n` +
           `🎯 *Estoy listo para jugar!*\n` +
           `👉 *Entra al lobby para iniciar el juego.*\n\n` +
           `¡Buena suerte! 🏆`;
