@@ -1974,6 +1974,165 @@ Reglas:
 });
 
 
+
+/**
+ * Función: Aprobar activación de cuenta (solo admin)
+ * Acredita los 500 créditos de bienvenida
+ */
+exports.activateAccount = onCall(async (request) => {
+  // Verificar que sea admin
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debe estar autenticado');
+  }
+  
+  const adminRef = db.collection('admin').doc(request.auth.uid);
+  const adminDoc = await adminRef.get();
+  
+  if (!adminDoc.exists) {
+    throw new HttpsError('permission-denied', 'Solo administradores pueden aprobar activaciones');
+  }
+  
+  const { phone, approve, reason } = request.data;
+  
+  if (!phone) {
+    throw new HttpsError('invalid-argument', 'Teléfono es requerido');
+  }
+  
+  const phoneNormalized = phone.replace(/\D/g, '');
+  const phoneWithCountry = phoneNormalized.startsWith('57') ? phoneNormalized : '57' + phoneNormalized;
+  
+  // Obtener balance actual
+  const balanceRef = db.collection('client_balances').doc(phoneWithCountry);
+  const balanceDoc = await balanceRef.get();
+  
+  if (!balanceDoc.exists) {
+    throw new HttpsError('not-found', 'Cuenta no encontrada');
+  }
+  
+  const balanceData = balanceDoc.data();
+  const currentBalance = balanceData.balance || 0;
+  
+  if (approve) {
+    // Aprobar activación - Acreditar 500 créditos
+    const bonusAmount = 500;
+    const newBalance = currentBalance + bonusAmount;
+    
+    await balanceRef.set({
+      phone: phoneWithCountry,
+      balance: newBalance,
+      frozenBalance: balanceData.frozenBalance || 0,
+      totalDeposited: (balanceData.totalDeposited || 0) + bonusAmount,
+      totalWithdrawn: balanceData.totalWithdrawn || 0,
+      pendingActivation: false,
+      activationStatus: 'approved',
+      activatedAt: new Date().toISOString(),
+      activatedBy: request.auth.uid,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    
+    // Registrar transacción
+    await db.collection('transactions').add({
+      phone: phoneWithCountry,
+      type: 'welcome_bonus',
+      amount: bonusAmount,
+      description: '🎁 Regalo de bienvenida - Cuenta activada manualmente',
+      balanceBefore: currentBalance,
+      balanceAfter: newBalance,
+      approvedBy: request.auth.uid,
+      createdAt: new Date().toISOString()
+    });
+    
+    // Notificación a Telegram
+    const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
+    const telegramChatId = "6567201196";
+    const telegramMessage = 
+      `✅ *CUENTA ACTIVADA* ✅\n\n` +
+      `📱 *Teléfono:* ${phoneWithCountry}\n` +
+      `💰 *Créditos acreditados:* ${bonusAmount}\n` +
+      `💼 *Saldo actual:* ${newBalance}\n` +
+      `👤 *Aprobado por:* Admin\n` +
+      `📅 *Fecha:* ${new Date().toLocaleString('es-CO')}`;
+    
+    try {
+      await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: telegramChatId,
+          text: telegramMessage,
+          parse_mode: "Markdown"
+        })
+      });
+    } catch (error) {
+      console.error("Error enviando notificación a Telegram:", error);
+    }
+    
+    return { 
+      success: true, 
+      newBalance: newBalance,
+      message: `Cuenta activada. Se acreditaron ${bonusAmount} créditos.` 
+    };
+    
+  } else {
+    // Rechazar activación
+    await balanceRef.set({
+      phone: phoneWithCountry,
+      pendingActivation: false,
+      activationStatus: 'rejected',
+      rejectionReason: reason || 'No especificado',
+      rejectedAt: new Date().toISOString(),
+      rejectedBy: request.auth.uid,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    
+    return { 
+      success: true, 
+      message: 'Activación rechazada' 
+    };
+  }
+});
+
+/**
+ * Función: Listar cuentas pendientes de activación (solo admin)
+ */
+exports.listPendingActivations = onCall(async (request) => {
+  // Verificar que sea admin
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debe estar autenticado');
+  }
+  
+  const adminRef = db.collection('admin').doc(request.auth.uid);
+  const adminDoc = await adminRef.get();
+  
+  if (!adminDoc.exists) {
+    throw new HttpsError('permission-denied', 'Solo administradores pueden ver esta lista');
+  }
+  
+  const pendingQuery = await db.collection('client_balances')
+    .where('pendingActivation', '==', true)
+    .orderBy('createdAt', 'desc')
+    .limit(50)
+    .get();
+  
+  const pendingAccounts = [];
+  pendingQuery.forEach(doc => {
+    const data = doc.data();
+    pendingAccounts.push({
+      phone: data.phone,
+      createdAt: data.createdAt,
+      activationStatus: data.activationStatus || 'pending'
+    });
+  });
+  
+  return {
+    success: true,
+    accounts: pendingAccounts,
+    total: pendingAccounts.length
+  };
+});
+
+
+
 /**
  * Función: Registrar cliente automáticamente
  * Si el teléfono no tiene UID, crea uno automáticamente
@@ -2022,34 +2181,54 @@ exports.registerClient = onCall(async (request) => {
       clientUid = newUid;
       uidGenerated = true;
       
-      await db.collection('client_uids').add({
+            await db.collection('client_uids').add({
         phone: phoneWithCountry,
         uid: newUid,
         createdAt: new Date().toISOString()
       });
       
-            // Crear balance inicial con 500 créditos de regalo
+      // 🔒 NUEVA LÓGICA: Crear cuenta PENDIENTE DE ACTIVACIÓN
+      // Los 500 créditos se dan SOLO cuando el admin aprueba manualmente
       await db.collection('client_balances').doc(phoneWithCountry).set({
         phone: phoneWithCountry,
-        balance: 500, // 🎁 Regalo de bienvenida
+        balance: 0, // 🎁 Se acreditarán tras verificación manual
         frozenBalance: 0,
-        totalDeposited: 500,
+        totalDeposited: 0,
         totalWithdrawn: 0,
+        pendingActivation: true, // 🔒 Marca de cuenta pendiente
+        activationStatus: 'awaiting_whatsapp', // Estado: esperando mensaje de WhatsApp
+        createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }, { merge: true });
       
-      // Registrar transacción del regalo
-      await db.collection('transactions').add({
-        phone: phoneWithCountry,
-        type: 'welcome_bonus',
-        amount: 500,
-        description: '🎁 Regalo de bienvenida - Primera vez',
-        balanceBefore: 0,
-        balanceAfter: 500,
-        createdAt: new Date().toISOString()
-      });
+      console.log(`🆕 Nuevo cliente registrado: ${phoneWithCountry} con UID: ${newUid} - PENDIENTE DE ACTIVACIÓN`);
       
-      console.log(`✅ Nuevo cliente registrado: ${phoneWithCountry} con UID: ${newUid} + 500 créditos de regalo`);
+      // 📱 Notificación a Telegram para el admin
+      const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
+      const telegramChatId = "6567201196";
+      const telegramMessage = 
+        `🆕 *NUEVO REGISTRO PENDIENTE* 🆕\n\n` +
+        `📱 *Teléfono:* ${phoneWithCountry}\n` +
+        `🔐 *UID:* ${newUid}\n` +
+        `⏳ *Estado:* Esperando mensaje de WhatsApp\n\n` +
+        `📋 *Acción requerida:*\n` +
+        `1. Revisar si este número envió "ACTIVAR ${phoneWithCountry}" al WhatsApp del negocio\n` +
+        `2. Si coincide → Aprobar desde el panel admin\n` +
+        `3. Se acreditarán 500 créditos de regalo`;
+      
+      try {
+        await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: telegramChatId,
+            text: telegramMessage,
+            parse_mode: "Markdown"
+          })
+        });
+      } catch (error) {
+        console.error("Error enviando notificación a Telegram:", error);
+      }
     }
   }
   
