@@ -6,7 +6,7 @@ import { assignTriviaQuestions, submitTriviaAnswer, finishTriviaGame } from '../
 
 const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
 
-  // Guardar credenciales en localStorage al montar
+  // Guardar credenciales en localStorage al montar (garantiza que no se cierre la sesión al volver al lobby)
   React.useEffect(() => {
     if (phone) localStorage.setItem('trivia_phone', phone);
     if (uid) localStorage.setItem('trivia_uid', uid);
@@ -21,7 +21,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   const [gameStarted, setGameStarted] = useState(false);
   const [gameFinished, setGameFinished] = useState(false);
   const [results, setResults] = useState(null);
-  const [isTimeExpired, setIsTimeExpired] = useState(false); // 🆕 Estado para bloquear UI
+  const [isTimeExpired, setIsTimeExpired] = useState(false);
   
   const isGeneratingRef = useRef(false);
   const hasGeneratedRef = useRef(false);
@@ -86,8 +86,6 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     const allAccepted = game.invitedPlayers?.every(p => p.status === 'accepted');
     const hasQuestions = game.questions && game.questions.length > 0;
     
-    console.log('🔍 useEffect generate: allAccepted=', allAccepted, 'hasQuestions=', hasQuestions, 'status=', game.status);
-    
     if (hasQuestions) {
       hasGeneratedRef.current = true;
       setGameStarted(true);
@@ -95,7 +93,6 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     }
     
     if (allAccepted && !hasQuestions && !isGeneratingRef.current) {
-      console.log('✅ Todos aceptaron, asignando preguntas...');
       isGeneratingRef.current = true;
       
       const assignQuestionsWithRetry = async (retryCount = 0) => {
@@ -104,18 +101,12 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
           const result = await assignTriviaQuestions(gameId);
           
           if (result.success) {
-            console.log('✅ Preguntas asignadas exitosamente desde:', result.source);
             hasGeneratedRef.current = true;
             setGameStarted(true);
           }
         } catch (err) {
-          console.error('Error asignando preguntas:', err);
-          
           if (retryCount < 3) {
-            console.log(`⏳ Reintentando en 3 segundos... (intento ${retryCount + 1}/3)`);
-            setTimeout(() => {
-              assignQuestionsWithRetry(retryCount + 1);
-            }, 3000);
+            setTimeout(() => assignQuestionsWithRetry(retryCount + 1), 3000);
           } else {
             setError('Error al asignar preguntas: ' + err.message);
             isGeneratingRef.current = false;
@@ -136,7 +127,6 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          // ⏰ TIEMPO AGOTADO: Registrar como timeout y avanzar
           setIsTimeExpired(true);
           handleTimeout();
           clearInterval(timer);
@@ -154,26 +144,18 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   const handleTimeout = async () => {
     const myAnswers = getMyAnswers();
     
-    // Si ya respondió esta pregunta, no hacer nada
     if (myAnswers[currentQuestion] !== undefined) {
       handleNextQuestion();
       return;
     }
 
-    console.log(`⏰ Tiempo agotado en pregunta ${currentQuestion + 1}`);
-    
     try {
-      // Enviar respuesta especial -1 para indicar timeout
       await submitTriviaAnswer(gameId, phone, uid, currentQuestion, -1);
-      console.log('✅ Timeout registrado en Firestore');
     } catch (err) {
       console.error('Error registrando timeout:', err);
     }
     
-    // Avanzar a la siguiente pregunta después de 1.5 segundos
-    setTimeout(() => {
-      handleNextQuestion();
-    }, 1500);
+    setTimeout(() => handleNextQuestion(), 1500);
   };
 
   // Enviar respuesta
@@ -183,9 +165,8 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
       return;
     }
 
-    // 🆕 Validar que no se haya acabado el tiempo
     if (isTimeExpired) {
-      setError('⏰ El tiempo se acabó. Avanzando a la siguiente pregunta...');
+      setError('⏰ El tiempo se acabó. Avanzando...');
       return;
     }
 
@@ -199,8 +180,6 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
 
     try {
       await submitTriviaAnswer(gameId, phone, uid, currentQuestion, selectedAnswer);
-      
-      // El estado se actualizará automáticamente desde el onSnapshot
       setSelectedAnswer(null);
       handleNextQuestion();
     } catch (err) {
@@ -220,7 +199,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     setCurrentQuestion((prev) => prev + 1);
     setSelectedAnswer(null);
     setTimeLeft(15);
-    setIsTimeExpired(false); // 🆕 Resetear estado de timeout
+    setIsTimeExpired(false);
   };
 
   // Finalizar juego
@@ -229,9 +208,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     setError('');
 
     try {
-      console.log('🏁 Llamando finishTriviaGame con:', { gameId, phone, uid });
       const result = await finishTriviaGame(gameId, phone, uid);
-      console.log('✅ finishTriviaGame exitoso:', result);
       setGameFinished(true);
       setResults({
         winners: result.winners,
@@ -239,32 +216,32 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
         prizePerWinner: result.prizePerWinner
       });
     } catch (err) {
-      console.error('❌ Error en finishTriviaGame:', err);
       setError('❌ Error: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔒 Obtener respuestas actuales desde Firestore (no desde estado local)
   const myAnswers = getMyAnswers();
   const myAnswerCount = Object.keys(myAnswers).length;
   const totalQuestions = game?.questions?.length || 0;
   const allAnswered = myAnswerCount >= totalQuestions;
 
-  // Verificar si todos los jugadores ya respondieron
-  const totalPlayers = game?.invitedPlayers?.length + 1 || 1;
-  const playersWhoFinished = (game?.answers ? Object.keys(game.answers).length : 0);
-  const allPlayersFinished = playersWhoFinished >= totalPlayers;
+  
 
-  // 🔍 DEBUG
-  console.log('🔍 DEBUG finishGame:');
-  console.log('  - myAnswerCount:', myAnswerCount);
-  console.log('  - allAnswered:', allAnswered);
-  console.log('  - totalPlayers:', totalPlayers);
-  console.log('  - playersWhoFinished:', playersWhoFinished);
-  console.log('  - allPlayersFinished:', allPlayersFinished);
-  console.log('  - totalQuestions:', totalQuestions);
+  // 🆕 AUTO-REDIRECT: Si el jugador terminó y no es el creador, llevarlo al lobby en 3 seg
+  useEffect(() => {
+    if (allAnswered && !gameFinished) {
+      const isCreator = game?.creatorPhone === phone;
+      if (!isCreator) {
+        const timer = setTimeout(() => {
+          console.log('✅ Jugador invitado terminó, redirigiendo al lobby...');
+          onBack();
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [allAnswered, gameFinished, game, phone, onBack]);
 
   // Pantalla de carga
   if (!game || loading) {
@@ -274,11 +251,9 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
           <source src="/video/estadio.mp4" type="video/mp4" />
         </video>
         <div className="fixed inset-0 bg-black/60 z-0"></div>
-        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-purple-500/30 shadow-2xl relative z-10">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-white text-lg">Cargando juego...</p>
-          </div>
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-purple-500/30 shadow-2xl relative z-10 text-center">
+          <div className="w-16 h-16 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white text-lg">Cargando juego...</p>
         </div>
       </div>
     );
@@ -292,12 +267,10 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
           <source src="/video/estadio.mp4" type="video/mp4" />
         </video>
         <div className="fixed inset-0 bg-black/60 z-0"></div>
-        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-red-500/30 shadow-2xl relative z-10">
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-red-500/30 shadow-2xl relative z-10 text-center">
           <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <p className="text-red-200 text-center mb-4">{error}</p>
-          <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">
-            Volver
-          </button>
+          <p className="text-red-200 mb-4">{error}</p>
+          <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">Volver</button>
         </div>
       </div>
     );
@@ -306,25 +279,17 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   // Esperando a que todos acepten
   if (!gameStarted && !gameFinished) {
     const pendingCount = game.invitedPlayers?.filter(p => p.status === 'pending').length || 0;
-    
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4 relative overflow-hidden">
         <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
           <source src="/video/estadio.mp4" type="video/mp4" />
         </video>
         <div className="fixed inset-0 bg-black/60 z-0"></div>
-        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-purple-500/30 shadow-2xl relative z-10">
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-purple-500/30 shadow-2xl relative z-10 text-center">
           <Clock className="w-16 h-16 text-purple-400 mx-auto mb-4 animate-pulse" />
-          <h2 className="text-white text-xl font-bold text-center mb-4">Esperando jugadores...</h2>
-          <p className="text-gray-300 text-center mb-4">
-            Faltan {pendingCount} jugador(es) por aceptar
-          </p>
-          <div className="bg-purple-900/30 border border-purple-500/30 rounded-lg p-4 mb-4">
-            <p className="text-purple-300 text-sm">💡 Las preguntas se generarán automáticamente cuando todos acepten</p>
-          </div>
-          <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">
-            Volver al lobby
-          </button>
+          <h2 className="text-white text-xl font-bold mb-4">Esperando jugadores...</h2>
+          <p className="text-gray-300 mb-4">Faltan {pendingCount} jugador(es) por aceptar</p>
+          <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">Volver al lobby</button>
         </div>
       </div>
     );
@@ -333,40 +298,30 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   // Pantalla de resultados
   if (gameFinished && results) {
     const isWinner = results.winners.includes(phone);
-    
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4 relative overflow-hidden">
         <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
           <source src="/video/estadio.mp4" type="video/mp4" />
         </video>
         <div className="fixed inset-0 bg-black/60 z-0"></div>
-        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-purple-500/30 shadow-2xl relative z-10">
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-purple-500/30 shadow-2xl relative z-10 text-center">
           <Trophy className={`w-16 h-16 mx-auto mb-4 ${isWinner ? 'text-yellow-400' : 'text-gray-400'}`} />
-          <h2 className="text-white text-2xl font-bold text-center mb-4">
-            {isWinner ? '🏆 ¡GANASTE!' : 'Juego Terminado'}
-          </h2>
-          
+          <h2 className="text-white text-2xl font-bold mb-4">{isWinner ? '🏆 ¡GANASTE!' : 'Juego Terminado'}</h2>
           <div className="space-y-3 mb-6">
             {Object.entries(results.scores).map(([playerPhone, score]) => (
               <div key={playerPhone} className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
-                <span className="text-white font-medium">
-                  {playerPhone === phone ? '👤 Tú' : playerPhone}
-                </span>
+                <span className="text-white font-medium">{playerPhone === phone ? '👤 Tú' : playerPhone}</span>
                 <span className="text-purple-400 font-bold">{score}/10</span>
               </div>
             ))}
           </div>
-
           {isWinner && (
-            <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-4 mb-4 text-center">
+            <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-4 mb-4">
               <p className="text-green-300 text-sm">Premio ganado</p>
               <p className="text-white text-3xl font-bold">{results.prizePerWinner} créditos</p>
             </div>
           )}
-
-          <button onClick={onBack} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl">
-            Volver al lobby
-          </button>
+          <button onClick={onBack} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl">Volver al lobby</button>
         </div>
       </div>
     );
@@ -380,48 +335,58 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
           <source src="/video/estadio.mp4" type="video/mp4" />
         </video>
         <div className="fixed inset-0 bg-black/60 z-0"></div>
-        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-red-500/30 shadow-2xl relative z-10">
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-red-500/30 shadow-2xl relative z-10 text-center">
           <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <p className="text-red-200 text-center mb-4">Error: No hay preguntas disponibles</p>
-          <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">
-            Volver
-          </button>
+          <p className="text-red-200 mb-4">Error: No hay preguntas disponibles</p>
+          <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">Volver</button>
         </div>
       </div>
     );
   }
 
-  // 🔒 VALIDACIÓN: Si currentQuestion es inválido, mostrar pantalla de espera
-  if (currentQuestion >= game.questions.length) {
+  // 🆕 PANTALLA DE ESPERA MEJORADA: Cuando el jugador ya respondió todo
+  if (allAnswered && !gameFinished) {
+    const isCreator = game.creatorPhone === phone;
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4 relative overflow-hidden">
         <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
           <source src="/video/estadio.mp4" type="video/mp4" />
         </video>
         <div className="fixed inset-0 bg-black/60 z-0"></div>
-        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-purple-500/30 shadow-2xl relative z-10">
-          <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-          <h2 className="text-white text-xl font-bold text-center mb-4">✅ Ya respondiste todas las preguntas</h2>
-          <p className="text-gray-300 text-center mb-4">
-            Esperando a que los demás jugadores terminen ({playersWhoFinished}/{totalPlayers})
-          </p>
-          {allPlayersFinished && (
-            <button
-              onClick={handleFinishGame}
-              disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 mb-3"
-            >
-              {loading ? 'Finalizando...' : <><Trophy className="w-5 h-5" /> Finalizar Juego</>}
-            </button>
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-green-500/30 shadow-2xl relative z-10 text-center">
+          <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4 animate-bounce" />
+          <h2 className="text-white text-xl font-bold mb-2">✅ ¡Has terminado!</h2>
+          
+          {isCreator ? (
+            <>
+              <p className="text-gray-300 mb-6">Todos los jugadores han respondido.</p>
+              <button
+                onClick={handleFinishGame}
+                disabled={loading}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 mb-3"
+              >
+                {loading ? 'Finalizando...' : <><Trophy className="w-5 h-5" /> Finalizar Juego y Ver Resultados</>}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-gray-300 mb-2">Esperando a que tu oponente termine...</p>
+              <p className="text-purple-300 text-sm mb-6">Serás redirigido al lobby automáticamente en unos segundos.</p>
+              <button
+                onClick={onBack}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" /> Ir al lobby ahora
+              </button>
+            </>
           )}
-          <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-xl">
-            Volver al lobby
-          </button>
         </div>
       </div>
     );
   }
 
+  // Pantalla principal del juego (solo si aún no ha terminado todas)
   const question = game.questions[currentQuestion];
   const questionAnswered = myAnswers[currentQuestion] !== undefined;
   const isDisabled = loading || questionAnswered || isTimeExpired;
@@ -439,37 +404,22 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-2">
               <Clock className={`w-6 h-6 ${timeLeft <= 5 ? 'text-red-400 animate-pulse' : 'text-purple-400'}`} />
-              <span className={`text-2xl font-bold ${timeLeft <= 5 ? 'text-red-400' : 'text-white'}`}>
-                {timeLeft}s
-              </span>
+              <span className={`text-2xl font-bold ${timeLeft <= 5 ? 'text-red-400' : 'text-white'}`}>{timeLeft}s</span>
             </div>
-            <div className="text-purple-300 font-medium">
-              Pregunta {currentQuestion + 1}/{game.questions.length}
-            </div>
+            <div className="text-purple-300 font-medium">Pregunta {currentQuestion + 1}/{game.questions.length}</div>
           </div>
           
-          {/* 🆕 Barra de progreso del tiempo */}
           <div className="w-full bg-gray-700 rounded-full h-3 mb-2 overflow-hidden">
-            <div 
-              className={`h-3 rounded-full transition-all duration-1000 ${
-                timeLeft <= 5 ? 'bg-red-500 animate-pulse' : 'bg-purple-500'
-              }`}
-              style={{ width: `${(timeLeft / 15) * 100}%` }}
-            ></div>
+            <div className={`h-3 rounded-full transition-all duration-1000 ${timeLeft <= 5 ? 'bg-red-500 animate-pulse' : 'bg-purple-500'}`} style={{ width: `${(timeLeft / 15) * 100}%` }}></div>
           </div>
-          
           <div className="w-full bg-gray-700 rounded-full h-2">
-            <div 
-              className="bg-purple-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentQuestion + 1) / game.questions.length) * 100}%` }}
-            ></div>
+            <div className="bg-purple-500 h-2 rounded-full transition-all duration-300" style={{ width: `${((currentQuestion + 1) / game.questions.length) * 100}%` }}></div>
           </div>
         </div>
 
         {/* Pregunta */}
         <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-4 border border-purple-500/30">
           <h2 className="text-white text-xl font-bold mb-6">{question.question}</h2>
-          
           <div className="space-y-3">
             {question.options.map((option, idx) => (
               <button
@@ -482,20 +432,16 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
                     : 'bg-gray-700 border-2 border-transparent hover:bg-gray-600'
                 } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <span className="text-white font-medium">
-                  {String.fromCharCode(65 + idx)}. {option}
-                </span>
+                <span className="text-white font-medium">{String.fromCharCode(65 + idx)}. {option}</span>
               </button>
             ))}
           </div>
           
-          {/* 🆕 Mensaje cuando se acaba el tiempo */}
           {isTimeExpired && !questionAnswered && (
             <div className="mt-4 bg-red-900/30 border border-red-500/30 rounded-lg p-3">
-              <p className="text-red-300 text-sm font-bold">⏰ ¡Tiempo agotado! Avanzando a la siguiente pregunta...</p>
+              <p className="text-red-300 text-sm font-bold">⏰ ¡Tiempo agotado! Avanzando...</p>
             </div>
           )}
-          
           {questionAnswered && (
             <div className="mt-4 bg-green-900/30 border border-green-500/30 rounded-lg p-3">
               <p className="text-green-300 text-sm">✅ Ya respondiste esta pregunta</p>
@@ -519,31 +465,11 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
             {loading ? 'Enviando...' : <><CheckCircle className="w-5 h-5" /> Enviar Respuesta</>}
           </button>
 
-          {/* Botón finalizar (cuando todos hayan jugado) */}
-          {allAnswered && allPlayersFinished && (
-            <button
-              onClick={handleFinishGame}
-              disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading ? 'Finalizando...' : <><Trophy className="w-5 h-5" /> Finalizar Juego</>}
-            </button>
-          )}
-
-          {allAnswered && !allPlayersFinished && (
-            <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-3 text-center">
-              <p className="text-blue-300 text-sm">✅ Ya respondiste todas las preguntas</p>
-              <p className="text-blue-200 text-xs mt-1">
-                Esperando a que los demás jugadores terminen ({playersWhoFinished}/{totalPlayers})
-              </p>
-            </div>
-          )}
-
           <button
             onClick={onBack}
             className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2"
           >
-            <ArrowLeft className="w-4 h-4" /> Salir del juego
+            <ArrowLeft className="w-4 h-4" /> Volver al Lobby
           </button>
         </div>
       </div>
