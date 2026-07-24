@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Trophy, Users, Wallet, Plus, Clock, CheckCircle, XCircle, Gamepad2, Key } from 'lucide-react';
+import { ArrowLeft, Trophy, Users, Wallet, Plus, Clock, CheckCircle, XCircle, Gamepad2, Key, Gift } from 'lucide-react';
 import { db } from '../services/firebase';
 import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
 import { acceptTriviaGame, rejectTriviaGame, cancelTriviaGame, registerClient } from '../services/cloudFunctions';
@@ -11,10 +11,10 @@ const TriviaLobby = ({ onBack }) => {
   const [validated, setValidated] = useState(!!localStorage.getItem('trivia_phone'));
   const [balance, setBalance] = useState(0);
   const [frozenBalance, setFrozenBalance] = useState(0);
+  const [isPendingActivation, setIsPendingActivation] = useState(false); // 🆕 Estado de activación
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // 🆕 Estados para el flujo de registro ágil
   const [step, setStep] = useState(!!localStorage.getItem('trivia_phone') ? 'validated' : 'phone');
   const [registeredUid, setRegisteredUid] = useState('');
   
@@ -25,7 +25,6 @@ const TriviaLobby = ({ onBack }) => {
   
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Cargar datos guardados al iniciar
   useEffect(() => {
     const savedPhone = localStorage.getItem('trivia_phone');
     const savedUid = localStorage.getItem('trivia_uid');
@@ -46,31 +45,27 @@ const TriviaLobby = ({ onBack }) => {
         const data = balanceDoc.data();
         setBalance(data.balance || 0);
         setFrozenBalance(data.frozenBalance || 0);
+        setIsPendingActivation(data.pendingActivation || false); // 🆕 Verificar si está pendiente
       }
     } catch (err) {
       console.error('Error cargando balance:', err);
     }
   };
 
-  // PASO 1: Validar teléfono (verificar si existe o crear UID)
   const handlePhoneSubmit = async () => {
     if (!phone.trim()) {
       setError('Ingresa tu teléfono');
       return;
     }
-    
     setLoading(true);
     setError('');
-    
     try {
       const phoneNormalized = phone.replace(/\D/g, '');
       const phoneWithCountry = phoneNormalized.startsWith('57') ? phoneNormalized : '57' + phoneNormalized;
       
-      // Llamar a registerClient (crea UID y 500 créditos si no existe)
       const registerResult = await registerClient(phoneWithCountry);
       
       if (registerResult.isNew) {
-        // 🆕 Usuario nuevo - mostrar UID generado y mensaje de regalo
         setRegisteredUid(registerResult.uid);
         setPhone(registerResult.phone);
         setUid(registerResult.uid);
@@ -78,12 +73,9 @@ const TriviaLobby = ({ onBack }) => {
         setLoading(false);
         return;
       }
-      
-      // Usuario existente - pedir UID
       setPhone(registerResult.phone);
       setStep('uid');
       setLoading(false);
-      
     } catch (err) {
       console.error('Error en registerClient:', err);
       setError('Error al validar: ' + err.message);
@@ -91,21 +83,17 @@ const TriviaLobby = ({ onBack }) => {
     }
   };
 
-  // PASO 2: Validar UID (solo para usuarios existentes)
   const handleUidSubmit = async () => {
     if (!uid.trim()) {
       setError('Ingresa tu código de acceso');
       return;
     }
-    
     if (uid.length !== 6) {
       setError('El código debe tener 6 dígitos');
       return;
     }
-    
     setLoading(true);
     setError('');
-    
     try {
       const uidNormalized = uid.toString().trim();
       const uidQuery = query(
@@ -120,16 +108,12 @@ const TriviaLobby = ({ onBack }) => {
         setLoading(false);
         return;
       }
-      
       localStorage.setItem('trivia_phone', phone);
       localStorage.setItem('trivia_uid', uidNormalized);
-      
       await loadBalance(phone);
-      
       setValidated(true);
       setStep('validated');
       setLoading(false);
-      
     } catch (err) {
       console.error(err);
       setError('Error al validar: ' + err.message);
@@ -137,18 +121,15 @@ const TriviaLobby = ({ onBack }) => {
     }
   };
 
-  // Continuar después de registro automático
   const handleContinueAfterRegister = async () => {
     localStorage.setItem('trivia_phone', phone);
     localStorage.setItem('trivia_uid', uid);
-    
     await loadBalance(phone);
-    
     setValidated(true);
     setStep('validated');
   };
 
-  // Listener para actualizar balance en tiempo real
+  // Listener para actualizar balance y estado de activación en tiempo real
   useEffect(() => {
     if (!validated || !phone) return;
     const balanceRef = doc(db, 'client_balances', phone);
@@ -157,12 +138,13 @@ const TriviaLobby = ({ onBack }) => {
         const data = docSnap.data();
         setBalance(data.balance || 0);
         setFrozenBalance(data.frozenBalance || 0);
+        setIsPendingActivation(data.pendingActivation || false);
       }
     });
     return () => unsubscribe();
   }, [validated, phone]);
 
-  // Listener para retos pendientes
+  // Listeners de juegos (sin cambios)
   useEffect(() => {
     if (!validated || !phone) return;
     const q = query(collection(db, 'trivia_games'), where('status', '==', 'waiting'));
@@ -180,7 +162,6 @@ const TriviaLobby = ({ onBack }) => {
     return () => unsubscribe();
   }, [validated, phone]);
 
-  // Listener para juegos que YO creé
   useEffect(() => {
     if (!validated || !phone) return;
     const q = query(collection(db, 'trivia_games'), where('creatorPhone', '==', phone), where('status', '==', 'waiting'));
@@ -194,7 +175,6 @@ const TriviaLobby = ({ onBack }) => {
     return () => unsubscribe();
   }, [validated, phone]);
 
-  // Listener para juegos activos
   useEffect(() => {
     if (!validated || !phone) return;
     const q = query(collection(db, 'trivia_games'), where('status', '==', 'active'));
@@ -213,7 +193,6 @@ const TriviaLobby = ({ onBack }) => {
     return () => unsubscribe();
   }, [validated, phone]);
 
-  // Listener para juegos finalizados
   useEffect(() => {
     if (!validated || !phone) return;
     const q = query(collection(db, 'trivia_games'), where('status', '==', 'finished'));
@@ -292,11 +271,9 @@ const TriviaLobby = ({ onBack }) => {
   };
 
   // ═══════════════════════════════════════════════════════
-  // PANTALLAS DE VALIDACIÓN (Flujo Ágil)
+  // PANTALLAS DE VALIDACIÓN
   // ═══════════════════════════════════════════════════════
   if (!validated) {
-    
-    // PASO 1: Ingresar teléfono
     if (step === 'phone') {
       return (
         <div className="min-h-screen bg-gradient-to-br from-blue-900 via-gray-900 to-blue-800 flex items-center justify-center p-4 relative overflow-hidden">
@@ -317,7 +294,7 @@ const TriviaLobby = ({ onBack }) => {
               <div>
                 <label className="text-white text-sm font-medium mb-2 block">📱 Número de teléfono</label>
                 <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))} placeholder="Ej: 3001234567" className="w-full bg-white/10 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 border border-white/20" autoFocus />
-                <p className="text-gray-400 text-xs mt-2">💡 Si es tu primera vez, se te asignará un código y 500 créditos gratis automáticamente.</p>
+                <p className="text-gray-400 text-xs mt-2">💡 Si es tu primera vez, se te asignará un código y 500 créditos gratis tras verificar tu WhatsApp.</p>
               </div>
               <button onClick={handlePhoneSubmit} disabled={loading || !phone.trim()} className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 rounded-xl transition-all transform hover:scale-105 shadow-2xl disabled:opacity-50 flex items-center justify-center gap-2">
                 {loading ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Validando...</> : <><CheckCircle className="w-5 h-5" /> Continuar</>}
@@ -331,42 +308,59 @@ const TriviaLobby = ({ onBack }) => {
       );
     }
 
-    // PASO 2: Usuario nuevo - Mostrar UID generado y regalo
+    // 🆕 PASO 2: Usuario nuevo - Mostrar UID e instrucciones de activación por WhatsApp
     if (step === 'registered') {
+      const phoneDisplay = phone.replace('57', '');
       return (
         <div className="min-h-screen bg-gradient-to-br from-blue-900 via-gray-900 to-blue-800 flex items-center justify-center p-4 relative overflow-hidden">
           <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
             <source src="/video/estadio.mp4" type="video/mp4" />
           </video>
           <div className="fixed inset-0 bg-black/60 z-0"></div>
-          <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-8 w-full max-w-md shadow-2xl border border-green-500/30 relative z-10">
+          <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-8 w-full max-w-md shadow-2xl border border-yellow-500/30 relative z-10">
             <div className="text-center mb-6">
-              <div className="w-24 h-24 bg-gradient-to-br from-green-500 to-green-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl border-4 border-green-400/30">
-                <CheckCircle className="w-12 h-12 text-white" />
+              <div className="w-24 h-24 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl border-4 border-yellow-400/30">
+                <Key className="w-12 h-12 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-white mb-2">¡Registro Exitoso!</h1>
-              <p className="text-green-300 text-sm">Tu cuenta ha sido creada automáticamente</p>
+              <h1 className="text-2xl font-bold text-white mb-2">¡Cuenta Creada!</h1>
+              <p className="text-yellow-300 text-sm">Tu código de acceso ha sido generado</p>
             </div>
-            <div className="bg-gradient-to-r from-green-900/50 to-blue-900/50 border border-green-500/30 rounded-xl p-4 mb-4 text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Key className="w-5 h-5 text-yellow-400" />
-                <span className="text-yellow-300 text-sm font-bold">Tu código de acceso:</span>
-              </div>
-              <p className="text-white text-4xl font-mono font-bold tracking-widest my-3">{registeredUid}</p>
-              <p className="text-gray-300 text-xs">📱 Teléfono: {phone}</p>
+            
+            <div className="bg-gray-900/50 border border-yellow-500/30 rounded-xl p-4 mb-4 text-center">
+              <p className="text-gray-300 text-xs mb-1">Tu código de acceso:</p>
+              <p className="text-white text-4xl font-mono font-bold tracking-widest my-2">{registeredUid}</p>
+              <p className="text-gray-400 text-xs">📱 Teléfono: {phoneDisplay}</p>
             </div>
-            <div className="bg-yellow-900/30 border border-yellow-500/30 rounded-lg p-3 mb-6 text-center">
-              <p className="text-yellow-200 text-xs">🎁 <strong>¡Felicidades!</strong> Hemos acreditado <strong>500 créditos</strong> de regalo en tu cuenta para que empieces a jugar.</p>
+
+            <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-4 mb-6">
+              <p className="text-yellow-200 text-sm font-bold mb-2 flex items-center gap-2">
+                <Gift className="w-4 h-4" />
+                ¡Tienes 500 créditos de regalo esperándote!
+              </p>
+              <p className="text-yellow-100 text-xs mb-3">
+                Para activarlos y empezar a jugar, sigue este paso de seguridad:
+              </p>
+              <ol className="text-yellow-100 text-xs space-y-2 list-decimal list-inside">
+                <li>Abre tu WhatsApp.</li>
+                <li>Envía el mensaje exacto: <code className="bg-yellow-800 px-1 rounded text-white font-mono">ACTIVAR {phoneDisplay}</code></li>
+                <li>Al número: <strong>+57 321 517 7902</strong></li>
+              </ol>
+              <p className="text-yellow-200 text-xs mt-3 italic">
+                Un administrador verificará tu mensaje y activará tus créditos automáticamente.
+              </p>
             </div>
-            <button onClick={handleContinueAfterRegister} className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-3 rounded-xl transition-all transform hover:scale-105 shadow-2xl flex items-center justify-center gap-2">
-              <CheckCircle className="w-5 h-5" /> Continuar al Lobby
+
+            <button 
+              onClick={handleContinueAfterRegister} 
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 rounded-xl transition-all transform hover:scale-105 shadow-2xl flex items-center justify-center gap-2"
+            >
+              <CheckCircle className="w-5 h-5" /> Entendido, Ir al Lobby
             </button>
           </div>
         </div>
       );
     }
 
-    // PASO 3: Usuario existente - Ingresar UID
     if (step === 'uid') {
       return (
         <div className="min-h-screen bg-gradient-to-br from-blue-900 via-gray-900 to-blue-800 flex items-center justify-center p-4 relative overflow-hidden">
@@ -386,7 +380,7 @@ const TriviaLobby = ({ onBack }) => {
             <div className="space-y-4">
               <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-3 mb-4 text-center">
                 <p className="text-blue-300 text-xs">📱 Teléfono registrado:</p>
-                <p className="text-white font-bold text-lg">{phone}</p>
+                <p className="text-white font-bold text-lg">{phone.replace('57', '')}</p>
               </div>
               <div>
                 <label className="text-white text-sm font-medium mb-2 block">🔐 Código de acceso (6 dígitos)</label>
@@ -407,8 +401,10 @@ const TriviaLobby = ({ onBack }) => {
   }
 
   // ═══════════════════════════════════════════════════════
-  // LOBBY PRINCIPAL (Sin cambios, solo se muestra si validated=true)
+  // LOBBY PRINCIPAL
   // ═══════════════════════════════════════════════════════
+  const phoneDisplay = phone.replace('57', '');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-gray-900 to-blue-800 pb-8 relative overflow-hidden">
       <video autoPlay loop muted playsInline className="fixed inset-0 w-full h-full object-cover z-0">
@@ -424,6 +420,21 @@ const TriviaLobby = ({ onBack }) => {
           <h1 className="text-2xl font-bold text-white">🧠 Trivia de Fútbol</h1>
           <p className="text-blue-300 text-sm">¡Reta a tus amigos!</p>
         </div>
+
+        {/* 🆕 Banner de Pendiente de Activación */}
+        {isPendingActivation && (
+          <div className="bg-yellow-900/50 border border-yellow-500/50 rounded-xl p-4 mb-6 flex items-start gap-3 animate-pulse">
+            <Clock className="w-6 h-6 text-yellow-400 flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="text-yellow-300 font-bold text-sm mb-1">⏳ Cuenta Pendiente de Activación</h3>
+              <p className="text-yellow-100 text-xs">
+                Para recibir tus <strong>500 créditos de regalo</strong> y poder crear retos, envía el mensaje 
+                <code className="bg-yellow-800 px-1 rounded mx-1 text-white font-mono">ACTIVAR {phoneDisplay}</code> 
+                al WhatsApp <strong>+57 321 517 7902</strong>. Tus créditos aparecerán aquí automáticamente en cuanto el admin los apruebe.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="bg-gradient-to-r from-yellow-600 to-yellow-800 rounded-xl p-4 mb-6 shadow-lg border border-yellow-500/30">
           <div className="flex items-center justify-between">
@@ -442,11 +453,20 @@ const TriviaLobby = ({ onBack }) => {
           </div>
         </div>
 
-        <button onClick={() => setShowCreateModal(true)} className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl flex items-center justify-center gap-2 mb-6">
-          <Plus className="w-6 h-6" /> Crear Nuevo Reto
+        {/* 🆕 Botón de Crear Reto con validación de activación */}
+        <button 
+          onClick={() => isPendingActivation ? alert('⚠️ Primero debes activar tu cuenta enviando el mensaje de WhatsApp para recibir tus 500 créditos de regalo.') : setShowCreateModal(true)} 
+          disabled={isPendingActivation}
+          className={`w-full py-4 rounded-xl transition-all transform shadow-2xl flex items-center justify-center gap-2 mb-6 font-bold ${
+            isPendingActivation 
+              ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+              : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white hover:scale-105'
+          }`}
+        >
+          <Plus className="w-6 h-6" /> {isPendingActivation ? 'Activa tu cuenta primero' : 'Crear Nuevo Reto'}
         </button>
 
-        {/* Mis Retos Creados */}
+        {/* Resto del Lobby (sin cambios) */}
         {myCreatedGames.length > 0 && (
           <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6 border border-blue-500/30">
             <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2"><Clock className="w-5 h-5 text-blue-400" /> Mis Retos Creados ({myCreatedGames.length})</h2>
@@ -473,7 +493,6 @@ const TriviaLobby = ({ onBack }) => {
           </div>
         )}
 
-        {/* Retos Pendientes */}
         {pendingInvitations.length > 0 && (
           <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6 border border-yellow-500/30">
             <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2"><Clock className="w-5 h-5 text-yellow-400" /> Retos Pendientes ({pendingInvitations.length})</h2>
@@ -501,7 +520,6 @@ const TriviaLobby = ({ onBack }) => {
           </div>
         )}
 
-        {/* Juegos Activos */}
         {myActiveGames.length > 0 && (
           <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6 border border-green-500/30">
             <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2"><Trophy className="w-5 h-5 text-green-400" /> Mis Juegos Activos ({myActiveGames.length})</h2>
@@ -524,7 +542,6 @@ const TriviaLobby = ({ onBack }) => {
           </div>
         )}
 
-        {/* Juegos Finalizados */}
         {myFinishedGames.length > 0 && (
           <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6 border border-purple-500/30">
             <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2"><Trophy className="w-5 h-5 text-purple-400" /> Historial ({myFinishedGames.length})</h2>
