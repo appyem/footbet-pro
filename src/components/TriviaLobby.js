@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Trophy, Users, Wallet, Plus, Clock, CheckCircle, XCircle, Gamepad2, Key, Gift } from 'lucide-react';
+import { ArrowLeft, Trophy, Users, Wallet, Plus, Clock, CheckCircle, XCircle, Gamepad2, Key, Gift, RefreshCw } from 'lucide-react';
 import { db } from '../services/firebase';
 import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
 import { acceptTriviaGame, rejectTriviaGame, cancelTriviaGame, registerClient } from '../services/cloudFunctions';
@@ -11,7 +11,7 @@ const TriviaLobby = ({ onBack }) => {
   const [validated, setValidated] = useState(!!localStorage.getItem('trivia_phone'));
   const [balance, setBalance] = useState(0);
   const [frozenBalance, setFrozenBalance] = useState(0);
-  const [isPendingActivation, setIsPendingActivation] = useState(false); // 🆕 Estado de activación
+  const [isPendingActivation, setIsPendingActivation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -24,6 +24,10 @@ const TriviaLobby = ({ onBack }) => {
   const [myFinishedGames, setMyFinishedGames] = useState([]);
   
   const [showCreateModal, setShowCreateModal] = useState(false);
+  
+  // 🆕 Estados para el modal de detalles y revancha
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedGame, setSelectedGame] = useState(null);
 
   useEffect(() => {
     const savedPhone = localStorage.getItem('trivia_phone');
@@ -45,7 +49,7 @@ const TriviaLobby = ({ onBack }) => {
         const data = balanceDoc.data();
         setBalance(data.balance || 0);
         setFrozenBalance(data.frozenBalance || 0);
-        setIsPendingActivation(data.pendingActivation || false); // 🆕 Verificar si está pendiente
+        setIsPendingActivation(data.pendingActivation || false);
       }
     } catch (err) {
       console.error('Error cargando balance:', err);
@@ -129,6 +133,25 @@ const TriviaLobby = ({ onBack }) => {
     setStep('validated');
   };
 
+  // 🆕 Función para ver detalles de la partida
+  const handleViewDetails = (game) => {
+    setSelectedGame(game);
+    setShowDetailsModal(true);
+  };
+
+  // 🆕 Función para preparar la revancha
+  const handleRematch = (game) => {
+    const opponent = game.creatorPhone === phone 
+      ? game.invitedPlayers?.find(p => p.status === 'accepted')?.phone 
+      : game.creatorPhone;
+    
+    // Guardamos en localStorage para que el modal de crear reto lo pre-cargue
+    localStorage.setItem('rematch_opponent', opponent || '');
+    localStorage.setItem('rematch_bet', game.betAmount || 100);
+    
+    setShowCreateModal(true);
+  };
+
   // Listener para actualizar balance y estado de activación en tiempo real
   useEffect(() => {
     if (!validated || !phone) return;
@@ -144,7 +167,7 @@ const TriviaLobby = ({ onBack }) => {
     return () => unsubscribe();
   }, [validated, phone]);
 
-  // Listeners de juegos (sin cambios)
+  // Listeners de juegos
   useEffect(() => {
     if (!validated || !phone) return;
     const q = query(collection(db, 'trivia_games'), where('status', '==', 'waiting'));
@@ -308,15 +331,10 @@ const TriviaLobby = ({ onBack }) => {
       );
     }
 
-        // 🆕 PASO 2: Usuario nuevo - Mostrar UID y botón directo a WhatsApp Nativo
     if (step === 'registered') {
       const phoneDisplay = phone.replace('57', '');
-      
-      // 🎯 Mensaje llamativo, divertido y con la info exacta que necesita el admin
       const whatsappMessage = `🎮 ¡Hola FootBet! ⚽\n\nQuiero activar mi cuenta y recibir mis 🎁 500 créditos de regalo.\n\n📱 Mi teléfono: ${phoneDisplay}\n\n¡Estoy listo para jugar! 🏆`;
-      
-      // Este enlace oficial de Meta abre la app NATIVA de WhatsApp en celulares automáticamente
-     const whatsappUrl = `whatsapp://send?phone=573215177902&text=${encodeURIComponent(whatsappMessage)}`;
+      const whatsappUrl = `whatsapp://send?phone=573215177902&text=${encodeURIComponent(whatsappMessage)}`;
 
       return (
         <div className="min-h-screen bg-gradient-to-br from-blue-900 via-gray-900 to-blue-800 flex items-center justify-center p-4 relative overflow-hidden">
@@ -355,7 +373,6 @@ const TriviaLobby = ({ onBack }) => {
               </p>
             </div>
 
-            {/* 🆕 BOTÓN PARA ABRIR WHATSAPP NATIVO DIRECTAMENTE */}
             <button 
               onClick={() => window.location.href = whatsappUrl} 
               className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl flex items-center justify-center gap-2 mb-3"
@@ -437,7 +454,6 @@ const TriviaLobby = ({ onBack }) => {
           <p className="text-blue-300 text-sm">¡Reta a tus amigos!</p>
         </div>
 
-        {/* 🆕 Banner de Pendiente de Activación */}
         {isPendingActivation && (
           <div className="bg-yellow-900/50 border border-yellow-500/50 rounded-xl p-4 mb-6 flex items-start gap-3 animate-pulse">
             <Clock className="w-6 h-6 text-yellow-400 flex-shrink-0 mt-1" />
@@ -469,7 +485,6 @@ const TriviaLobby = ({ onBack }) => {
           </div>
         </div>
 
-        {/* 🆕 Botón de Crear Reto con validación de activación */}
         <button 
           onClick={() => isPendingActivation ? alert('⚠️ Primero debes activar tu cuenta enviando el mensaje de WhatsApp para recibir tus 500 créditos de regalo.') : setShowCreateModal(true)} 
           disabled={isPendingActivation}
@@ -482,7 +497,6 @@ const TriviaLobby = ({ onBack }) => {
           <Plus className="w-6 h-6" /> {isPendingActivation ? 'Activa tu cuenta primero' : 'Crear Nuevo Reto'}
         </button>
 
-        {/* Resto del Lobby (sin cambios) */}
         {myCreatedGames.length > 0 && (
           <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6 border border-blue-500/30">
             <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2"><Clock className="w-5 h-5 text-blue-400" /> Mis Retos Creados ({myCreatedGames.length})</h2>
@@ -558,27 +572,70 @@ const TriviaLobby = ({ onBack }) => {
           </div>
         )}
 
+        {/* 🆕 Juegos Finalizados con Detalles y Revancha */}
         {myFinishedGames.length > 0 && (
           <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6 border border-purple-500/30">
-            <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2"><Trophy className="w-5 h-5 text-purple-400" /> Historial ({myFinishedGames.length})</h2>
+            <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-purple-400" /> Historial de Partidas ({myFinishedGames.length})
+            </h2>
             <div className="space-y-3">
-              {myFinishedGames.slice(0, 5).map(game => (
-                <div key={game.id} className="bg-gray-700 rounded-lg p-4 border border-purple-500/50">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-white font-medium">{game.winners?.includes(phone) ? '🏆 Ganaste' : '😔 Perdiste'}</p>
-                      <p className="text-purple-400 font-bold">{game.betAmount} créditos</p>
-                      <p className="text-gray-400 text-xs">{new Date(game.finishedAt).toLocaleDateString('es-CO')}</p>
-                    </div>
-                    {game.winners?.includes(phone) && (
-                      <div className="text-right">
-                        <p className="text-green-400 font-bold">+{game.prizePerWinner}</p>
-                        <p className="text-gray-400 text-xs">créditos</p>
+              {myFinishedGames.slice(0, 5).map(game => {
+                const isWinner = game.winners?.includes(phone);
+                const userScore = game.scores?.[phone] || 0;
+                const opponentPhone = game.creatorPhone === phone 
+                  ? game.invitedPlayers?.find(p => p.status === 'accepted')?.phone 
+                  : game.creatorPhone;
+                const opponentScore = game.scores?.[opponentPhone] || 0;
+
+                return (
+                  <div key={game.id} className={`bg-gray-700 rounded-lg p-4 border-2 shadow-lg transition-all ${
+                    isWinner ? 'border-yellow-500 shadow-yellow-500/10' : 'border-red-500 shadow-red-500/10'
+                  }`}>
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          {isWinner ? (
+                            <span className="bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
+                              <Trophy className="w-3 h-3" /> ¡GANASTE!
+                            </span>
+                          ) : (
+                            <span className="bg-red-500/20 text-red-300 px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
+                              <XCircle className="w-3 h-3" /> PERDISTE
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-white font-medium text-sm">
+                          {game.creatorPhone === phone ? '👑 Reto creado por ti' : `🎯 Retado por ${opponentPhone?.replace('57', '')}`}
+                        </p>
+                        <p className="text-purple-400 font-bold text-lg">{game.betAmount} créditos</p>
+                        <p className="text-gray-400 text-xs">{new Date(game.finishedAt).toLocaleDateString('es-CO')}</p>
                       </div>
-                    )}
+                      <div className="text-right">
+                        <p className="text-white text-2xl font-bold">{userScore} <span className="text-gray-500 text-sm">pts</span></p>
+                        <p className="text-gray-400 text-xs">vs {opponentScore} pts</p>
+                        {isWinner && (
+                          <p className="text-green-400 font-bold text-sm mt-1">+{game.prizePerWinner} créditos</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 mt-3 pt-3 border-t border-gray-600">
+                      <button 
+                        onClick={() => handleViewDetails(game)}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2 rounded flex items-center justify-center gap-1 transition-colors font-medium"
+                      >
+                        <Gamepad2 className="w-3 h-3" /> Ver Detalles
+                      </button>
+                      <button 
+                        onClick={() => handleRematch(game)}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-2 rounded flex items-center justify-center gap-1 transition-colors font-medium"
+                      >
+                        <RefreshCw className="w-3 h-3" /> Revancha
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -595,6 +652,83 @@ const TriviaLobby = ({ onBack }) => {
           <ArrowLeft className="w-4 h-4" /> Volver a Juegos
         </button>
       </div>
+
+      {/* 🆕 Modal de Detalles de la Partida */}
+      {showDetailsModal && selectedGame && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-purple-500/30 shadow-2xl">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <Gamepad2 className="w-6 h-6 text-purple-400" />
+                  Detalles de la Partida
+                </h2>
+                <button 
+                  onClick={() => setShowDetailsModal(false)}
+                  className="text-gray-400 hover:text-white p-2 transition-colors"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="bg-gray-900/50 rounded-xl p-4 mb-6 flex justify-around items-center border border-gray-700">
+                <div className="text-center">
+                  <p className="text-gray-400 text-xs mb-1">Tu puntaje</p>
+                  <p className="text-3xl font-bold text-white">{selectedGame.scores?.[phone] || 0}</p>
+                </div>
+                <div className="text-gray-500 font-bold text-xl">VS</div>
+                <div className="text-center">
+                  <p className="text-gray-400 text-xs mb-1">Oponente</p>
+                  <p className="text-3xl font-bold text-white">
+                    {selectedGame.scores?.[selectedGame.creatorPhone === phone ? selectedGame.invitedPlayers?.find(p => p.status === 'accepted')?.phone : selectedGame.creatorPhone] || 0}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-white font-bold text-lg mb-3">Desglose pregunta por pregunta</h3>
+                {selectedGame.questions?.map((q, index) => {
+                  const userAnswer = selectedGame.answers?.[phone]?.[index]?.selected;
+                  const correctAnswer = q.correctAnswer;
+                  const isCorrect = userAnswer === correctAnswer;
+                  
+                  return (
+                    <div key={index} className={`rounded-lg p-4 border ${isCorrect ? 'bg-green-900/20 border-green-500/30' : 'bg-red-900/20 border-red-500/30'}`}>
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-1 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
+                          {isCorrect ? <CheckCircle className="w-4 h-4 text-white" /> : <XCircle className="w-4 h-4 text-white" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-white font-medium text-sm mb-2">
+                            <span className="text-gray-400">Pregunta {index + 1}:</span> {q.question}
+                          </p>
+                          <div className="space-y-1 text-sm">
+                            <p className={isCorrect ? 'text-green-400' : 'text-red-400'}>
+                              Tu respuesta: <span className="font-bold">{q.options[userAnswer] !== undefined ? q.options[userAnswer] : 'Sin responder'}</span>
+                            </p>
+                            {!isCorrect && (
+                              <p className="text-green-400">
+                                Respuesta correcta: <span className="font-bold">{q.options[correctAnswer]}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button 
+                onClick={() => setShowDetailsModal(false)}
+                className="w-full mt-6 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCreateModal && <TriviaChallengeModal phone={phone} uid={uid} onClose={() => setShowCreateModal(false)} />}
     </div>
