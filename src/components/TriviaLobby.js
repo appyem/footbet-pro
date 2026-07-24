@@ -311,8 +311,11 @@ const TriviaLobby = ({ onBack }) => {
         // 🆕 PASO 2: Usuario nuevo - Mostrar UID y botón directo a WhatsApp Nativo
     if (step === 'registered') {
       const phoneDisplay = phone.replace('57', '');
-      const whatsappMessage = `ACTIVAR ${phoneDisplay}`;
-      // Este enlace oficial de Meta abre la app NATIVA de WhatsApp en móviles
+      
+      // 🎯 Mensaje llamativo, divertido y con la info exacta que necesita el admin
+      const whatsappMessage = `🎮 ¡Hola FootBet! ⚽\n\nQuiero activar mi cuenta y recibir mis 🎁 500 créditos de regalo.\n\n📱 Mi teléfono: ${phoneDisplay}\n\n¡Estoy listo para jugar! 🏆`;
+      
+      // Este enlace oficial de Meta abre la app NATIVA de WhatsApp en celulares automáticamente
       const whatsappUrl = `https://wa.me/573215177902?text=${encodeURIComponent(whatsappMessage)}`;
 
       return (
@@ -341,14 +344,14 @@ const TriviaLobby = ({ onBack }) => {
                 <Gift className="w-4 h-4" />
                 ¡Tienes 500 créditos de regalo esperándote!
               </p>
-              <p className="text-yellow-100 text-xs mb-3">
-                Para activarlos, solo debes enviar el mensaje de verificación:
+              <p className="text-yellow-100 text-xs mb-3 text-center">
+                Para activarlos, toca el botón de abajo. Se abrirá tu WhatsApp con un mensaje listo para enviar.
               </p>
-              <div className="bg-gray-900/50 rounded p-2 mb-3 text-center">
-                <code className="text-green-400 font-mono text-sm font-bold">{whatsappMessage}</code>
+              <div className="bg-gray-900/50 rounded p-3 mb-3 text-left border border-yellow-500/30">
+                <p className="text-green-400 text-xs font-mono whitespace-pre-wrap">{whatsappMessage}</p>
               </div>
-              <p className="text-yellow-200 text-xs italic">
-                Un administrador verificará tu mensaje y activará tus créditos automáticamente.
+              <p className="text-yellow-200 text-xs italic text-center">
+                Un administrador verificará tu mensaje y activará tus créditos al instante. ⚡
               </p>
             </div>
 
