@@ -316,7 +316,7 @@ const TriviaLobby = ({ onBack }) => {
       const whatsappMessage = `🎮 ¡Hola FootBet! ⚽\n\nQuiero activar mi cuenta y recibir mis 🎁 500 créditos de regalo.\n\n📱 Mi teléfono: ${phoneDisplay}\n\n¡Estoy listo para jugar! 🏆`;
       
       // Este enlace oficial de Meta abre la app NATIVA de WhatsApp en celulares automáticamente
-      const whatsappUrl = `https://wa.me/573215177902?text=${encodeURIComponent(whatsappMessage)}`;
+     const whatsappUrl = `whatsapp://send?phone=573215177902&text=${encodeURIComponent(whatsappMessage)}`;
 
       return (
         <div className="min-h-screen bg-gradient-to-br from-blue-900 via-gray-900 to-blue-800 flex items-center justify-center p-4 relative overflow-hidden">
