@@ -2073,21 +2073,72 @@ exports.activateAccount = onCall(async (request) => {
       message: `Cuenta activada. Se acreditaron ${bonusAmount} créditos.` 
     };
     
-  } else {
-    // Rechazar activación
-    await balanceRef.set({
+    } else {
+    // 🗑️ Rechazar activación y ELIMINAR TODOS los rastros del usuario
+    console.log(`🗑️ Rechazando y eliminando todos los registros de: ${phoneWithCountry}`);
+    
+    // 1. Buscar el UID del usuario en client_uids
+    const uidQuery = await db.collection('client_uids')
+      .where('phone', '==', phoneWithCountry)
+      .limit(1)
+      .get();
+    
+    let deletedUid = null;
+    
+    // 2. Eliminar el documento de client_uids (el código de 6 dígitos)
+    if (!uidQuery.empty) {
+      const uidDoc = uidQuery.docs[0];
+      deletedUid = uidDoc.data().uid;
+      await uidDoc.ref.delete();
+      console.log(`✅ Eliminado UID ${deletedUid} de client_uids`);
+    }
+    
+    // 3. Eliminar el documento de client_balances
+    await balanceRef.delete();
+    console.log(`✅ Eliminado balance de client_balances`);
+    
+    // 4. Registrar en transacciones que se eliminó (para auditoría)
+    await db.collection('transactions').add({
       phone: phoneWithCountry,
-      pendingActivation: false,
-      activationStatus: 'rejected',
-      rejectionReason: reason || 'No especificado',
-      rejectedAt: new Date().toISOString(),
+      type: 'account_deleted',
+      amount: 0,
+      description: `🗑️ Cuenta eliminada - Rechazo de activación. UID eliminado: ${deletedUid || 'N/A'}`,
+      balanceBefore: balanceData.balance || 0,
+      balanceAfter: 0,
       rejectedBy: request.auth.uid,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
+      rejectionReason: reason || 'No especificado',
+      createdAt: new Date().toISOString()
+    });
+    
+    // 5. Notificación a Telegram
+    const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
+    const telegramChatId = "6567201196";
+    const telegramMessage = 
+      `🗑️ *CUENTA ELIMINADA* 🗑️\n\n` +
+      `📱 *Teléfono:* ${phoneWithCountry}\n` +
+      `🔐 *UID eliminado:* ${deletedUid || 'N/A'}\n` +
+      `❌ *Razón:* ${reason || 'No especificado'}\n` +
+      `👤 *Eliminado por:* Admin\n` +
+      `📅 *Fecha:* ${new Date().toLocaleString('es-CO')}\n\n` +
+      `✅ Todos los registros han sido eliminados permanentemente.`;
+    
+    try {
+      await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: telegramChatId,
+          text: telegramMessage,
+          parse_mode: "Markdown"
+        })
+      });
+    } catch (error) {
+      console.error("Error enviando notificación a Telegram:", error);
+    }
     
     return { 
       success: true, 
-      message: 'Activación rechazada' 
+      message: `Activación rechazada. Todos los registros de ${phoneWithCountry} han sido eliminados permanentemente.` 
     };
   }
 });
