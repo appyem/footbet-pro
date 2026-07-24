@@ -25,7 +25,10 @@ const FUNCTIONS = {
   generateTriviaQuestions: 'https://generatetriviaquestions-wxcqdudneq-uc.a.run.app',
   assignTriviaQuestions: 'https://assigntriviaquestions-wxcqdudneq-uc.a.run.app',
   submitTriviaAnswer: 'https://submittriviaanswer-wxcqdudneq-uc.a.run.app',
-  finishTriviaGame: 'https://finishtriviagame-wxcqdudneq-uc.a.run.app'
+  finishTriviaGame: 'https://finishtriviagame-wxcqdudneq-uc.a.run.app',
+  // 🆕 Activación de cuentas (Admin)
+  activateAccount: 'https://activateaccount-wxcqdudneq-uc.a.run.app',
+  listPendingActivations: 'https://listpendingactivations-wxcqdudneq-uc.a.run.app'
 };
 
 /**
