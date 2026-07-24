@@ -262,3 +262,16 @@ export const registerClient = async (phone) => {
 };
 
 
+/**
+ * Aprobar activación de cuenta (solo admin)
+ */
+export const activateAccount = async (phone, approve, reason) => {
+  return callFunction('activateAccount', { phone, approve, reason });
+};
+
+/**
+ * Listar cuentas pendientes de activación (solo admin)
+ */
+export const listPendingActivations = async () => {
+  return callFunction('listPendingActivations', {});
+};
