@@ -1346,8 +1346,9 @@ exports.submitTriviaAnswer = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'Índice de pregunta inválido (debe ser 0-9)');
   }
   
-  if (selectedOption === undefined || selectedOption < 0 || selectedOption > 3) {
-    throw new HttpsError('invalid-argument', 'Opción seleccionada inválida (debe ser 0-3)');
+    // 🆕 Permitir -1 como indicador de timeout (tiempo agotado)
+  if (selectedOption === undefined || selectedOption < -1 || selectedOption > 3) {
+    throw new HttpsError('invalid-argument', 'Opción seleccionada inválida (debe ser 0-3 o -1 para timeout)');
   }
   
   // Verificar UID del jugador
@@ -1384,14 +1385,16 @@ exports.submitTriviaAnswer = onCall(async (request) => {
     throw new HttpsError('already-exists', 'Ya respondiste esta pregunta');
   }
   
-  // Registrar respuesta con timestamp
+    // 🆕 Registrar respuesta con timestamp y flag de timeout
+  const isTimeout = selectedOption === -1;
   const newAnswers = {
     ...currentAnswers,
     [playerPhone]: {
       ...playerAnswers,
       [questionIndex]: {
         selected: selectedOption,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        isTimeout: isTimeout // 🆕 Marcar si fue timeout
       }
     }
   };

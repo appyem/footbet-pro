@@ -6,11 +6,12 @@ import { assignTriviaQuestions, submitTriviaAnswer, finishTriviaGame } from '../
 
 const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
 
-    // Guardar credenciales en localStorage al montar
+  // Guardar credenciales en localStorage al montar
   React.useEffect(() => {
     if (phone) localStorage.setItem('trivia_phone', phone);
     if (uid) localStorage.setItem('trivia_uid', uid);
-  }, [phone, uid]);  
+  }, [phone, uid]);
+  
   const [game, setGame] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -20,6 +21,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   const [gameStarted, setGameStarted] = useState(false);
   const [gameFinished, setGameFinished] = useState(false);
   const [results, setResults] = useState(null);
+  const [isTimeExpired, setIsTimeExpired] = useState(false); // 🆕 Estado para bloquear UI
   
   const isGeneratingRef = useRef(false);
   const hasGeneratedRef = useRef(false);
@@ -127,15 +129,18 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     }
   }, [game, gameId]);
 
-  // Timer de 15 segundos por pregunta
+  // 🆕 Timer de 15 segundos por pregunta con registro de timeout
   useEffect(() => {
     if (!gameStarted || gameFinished || currentQuestion >= 10) return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          handleNextQuestion();
-          return 15;
+          // ⏰ TIEMPO AGOTADO: Registrar como timeout y avanzar
+          setIsTimeExpired(true);
+          handleTimeout();
+          clearInterval(timer);
+          return 0;
         }
         return prev - 1;
       });
@@ -145,10 +150,42 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameStarted, gameFinished, currentQuestion]);
 
+  // 🆕 Función para manejar cuando se acaba el tiempo
+  const handleTimeout = async () => {
+    const myAnswers = getMyAnswers();
+    
+    // Si ya respondió esta pregunta, no hacer nada
+    if (myAnswers[currentQuestion] !== undefined) {
+      handleNextQuestion();
+      return;
+    }
+
+    console.log(`⏰ Tiempo agotado en pregunta ${currentQuestion + 1}`);
+    
+    try {
+      // Enviar respuesta especial -1 para indicar timeout
+      await submitTriviaAnswer(gameId, phone, uid, currentQuestion, -1);
+      console.log('✅ Timeout registrado en Firestore');
+    } catch (err) {
+      console.error('Error registrando timeout:', err);
+    }
+    
+    // Avanzar a la siguiente pregunta después de 1.5 segundos
+    setTimeout(() => {
+      handleNextQuestion();
+    }, 1500);
+  };
+
   // Enviar respuesta
   const handleSubmitAnswer = async () => {
     if (selectedAnswer === null) {
       setError('Selecciona una respuesta');
+      return;
+    }
+
+    // 🆕 Validar que no se haya acabado el tiempo
+    if (isTimeExpired) {
+      setError('⏰ El tiempo se acabó. Avanzando a la siguiente pregunta...');
       return;
     }
 
@@ -177,11 +214,13 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   const handleNextQuestion = () => {
     if (currentQuestion >= 9) {
       setTimeLeft(15);
+      setIsTimeExpired(false);
       return;
     }
     setCurrentQuestion((prev) => prev + 1);
     setSelectedAnswer(null);
     setTimeLeft(15);
+    setIsTimeExpired(false); // 🆕 Resetear estado de timeout
   };
 
   // Finalizar juego
@@ -384,6 +423,8 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   }
 
   const question = game.questions[currentQuestion];
+  const questionAnswered = myAnswers[currentQuestion] !== undefined;
+  const isDisabled = loading || questionAnswered || isTimeExpired;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 p-4 relative overflow-hidden">
@@ -407,6 +448,16 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
             </div>
           </div>
           
+          {/* 🆕 Barra de progreso del tiempo */}
+          <div className="w-full bg-gray-700 rounded-full h-3 mb-2 overflow-hidden">
+            <div 
+              className={`h-3 rounded-full transition-all duration-1000 ${
+                timeLeft <= 5 ? 'bg-red-500 animate-pulse' : 'bg-purple-500'
+              }`}
+              style={{ width: `${(timeLeft / 15) * 100}%` }}
+            ></div>
+          </div>
+          
           <div className="w-full bg-gray-700 rounded-full h-2">
             <div 
               className="bg-purple-500 h-2 rounded-full transition-all duration-300"
@@ -423,13 +474,13 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
             {question.options.map((option, idx) => (
               <button
                 key={idx}
-                onClick={() => setSelectedAnswer(idx)}
-                disabled={loading || myAnswers[currentQuestion] !== undefined}
+                onClick={() => !isDisabled && setSelectedAnswer(idx)}
+                disabled={isDisabled}
                 className={`w-full p-4 rounded-xl text-left transition-all ${
                   selectedAnswer === idx || myAnswers[currentQuestion] === idx
                     ? 'bg-purple-600 border-2 border-purple-400'
                     : 'bg-gray-700 border-2 border-transparent hover:bg-gray-600'
-                } ${myAnswers[currentQuestion] !== undefined ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span className="text-white font-medium">
                   {String.fromCharCode(65 + idx)}. {option}
@@ -438,7 +489,14 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
             ))}
           </div>
           
-          {myAnswers[currentQuestion] !== undefined && (
+          {/* 🆕 Mensaje cuando se acaba el tiempo */}
+          {isTimeExpired && !questionAnswered && (
+            <div className="mt-4 bg-red-900/30 border border-red-500/30 rounded-lg p-3">
+              <p className="text-red-300 text-sm font-bold">⏰ ¡Tiempo agotado! Avanzando a la siguiente pregunta...</p>
+            </div>
+          )}
+          
+          {questionAnswered && (
             <div className="mt-4 bg-green-900/30 border border-green-500/30 rounded-lg p-3">
               <p className="text-green-300 text-sm">✅ Ya respondiste esta pregunta</p>
             </div>
@@ -455,7 +513,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
         <div className="space-y-3">
           <button
             onClick={handleSubmitAnswer}
-            disabled={loading || selectedAnswer === null || myAnswers[currentQuestion] !== undefined}
+            disabled={isDisabled || selectedAnswer === null}
             className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? 'Enviando...' : <><CheckCircle className="w-5 h-5" /> Enviar Respuesta</>}

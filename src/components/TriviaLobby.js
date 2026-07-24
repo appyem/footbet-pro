@@ -688,9 +688,11 @@ const TriviaLobby = ({ onBack }) => {
               <div className="space-y-4">
                 <h3 className="text-white font-bold text-lg mb-3">Desglose pregunta por pregunta</h3>
                 {selectedGame.questions?.map((q, index) => {
-                  const userAnswer = selectedGame.answers?.[phone]?.[index]?.selected;
+                                    const answerData = selectedGame.answers?.[phone]?.[index];
+                  const userAnswer = answerData?.selected;
+                  const isTimeout = answerData?.isTimeout || false;
                   const correctAnswer = q.correctAnswer;
-                  const isCorrect = userAnswer === correctAnswer;
+                  const isCorrect = userAnswer === correctAnswer && !isTimeout;
                   
                   return (
                     <div key={index} className={`rounded-lg p-4 border ${isCorrect ? 'bg-green-900/20 border-green-500/30' : 'bg-red-900/20 border-red-500/30'}`}>
@@ -703,8 +705,10 @@ const TriviaLobby = ({ onBack }) => {
                             <span className="text-gray-400">Pregunta {index + 1}:</span> {q.question}
                           </p>
                           <div className="space-y-1 text-sm">
-                            <p className={isCorrect ? 'text-green-400' : 'text-red-400'}>
-                              Tu respuesta: <span className="font-bold">{q.options[userAnswer] !== undefined ? q.options[userAnswer] : 'Sin responder'}</span>
+                                                        <p className={isCorrect ? 'text-green-400' : isTimeout ? 'text-orange-400' : 'text-red-400'}>
+                              Tu respuesta: <span className="font-bold">
+                                {isTimeout ? '⏰ Tiempo agotado' : q.options[userAnswer] !== undefined ? q.options[userAnswer] : 'Sin responder'}
+                              </span>
                             </p>
                             {!isCorrect && (
                               <p className="text-green-400">
