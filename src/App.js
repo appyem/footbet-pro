@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
 import { submitMatchResult, deleteSeller as deleteSellerFromServer, createMatch, updateMatch, deleteMatch as deleteMatchFromServer } from './services/cloudFunctions';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth';
-import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, RefreshCw, Info, Wallet } from 'lucide-react';
+import { Phone, LogOut, Home, Ticket, FileText, BarChart3, LockIcon, Settings, Plus, User, Mail, Percent, Calendar, Clock, CheckCircle, AlertCircle, X, Save, Trash2, Download, Award, Users, DollarSign, Database, Star, Crown, BarChart2, Search, RefreshCw, Info, Wallet, Volume2, VolumeX } from 'lucide-react';
 import { getCurrentDate, getCurrentTime, shouldCloseMatch } from './services/matchService';
 import { getCountryFlag, getCountryOptions } from './services/countryFlags';
 import PublicDashboard from './components/PublicDashboard';
@@ -1732,7 +1732,7 @@ const [currentView, setCurrentView] = useState('login'); // Siempre login inicia
   }, []);
 
   
-  // 🎵 Función para reproducir sonido de gol
+    // 🎵 Función para reproducir sonido de gol
   const playGoalSound = () => {
     if (audioEnabled && goalSoundRef.current) {
       goalSoundRef.current.currentTime = 0;
@@ -1741,6 +1741,21 @@ const [currentView, setCurrentView] = useState('login'); // Siempre login inicia
       });
     }
   };
+
+  // 🎵 Función para alternar (mute/unmute) el sonido global
+  const toggleAudio = useCallback(() => {
+    if (!bgMusicRef.current) {
+      initializeAudio();
+      return;
+    }
+    if (audioEnabled) {
+      bgMusicRef.current.pause();
+      setAudioEnabled(false);
+    } else {
+      bgMusicRef.current.play().catch(err => console.log('Error al reproducir audio:', err));
+      setAudioEnabled(true);
+    }
+  }, [audioEnabled, initializeAudio]);
 
 
 // ✅ Verificar hash DESPUÉS de montar el componente
@@ -3296,11 +3311,22 @@ useEffect(() => {
     </div>
   </div>
 ), [loginEmail, loginPassword, handleLogin, setCurrentView, initializeAudio, audioEnabled]);
-  return (
+    return (
     <div className="min-h-screen bg-gray-900 text-white">
       {renderCurrentView()}
+      
+      {/* 🎵 Botón Flotante de Control de Audio (Global para pantallas de juego) */}
+      {(currentView === 'public-dashboard' || currentView === 'mis-resultados' || currentView === 'game-selection' || currentView === 'trivia-lobby' || currentView === 'trivia-accept' || currentView === 'trivia-game') && (
+        <button
+          onClick={toggleAudio}
+          className="fixed top-4 right-4 z-50 bg-gray-800/80 backdrop-blur-sm hover:bg-gray-700 text-white p-3 rounded-full shadow-lg border border-gray-600 transition-all transform hover:scale-110"
+          title={audioEnabled ? "Silenciar música" : "Activar música"}
+        >
+          {audioEnabled ? <Volume2 className="w-6 h-6 text-green-400" /> : <VolumeX className="w-6 h-6 text-red-400" />}
+        </button>
+      )}
 
-    {currentView !== 'login' && currentView !== 'public-dashboard' && currentView !== 'mis-resultados' && currentView !== 'game-selection' && currentView !== 'trivia-lobby' && currentView !== 'trivia-accept' && currentView !== 'trivia-game' && (
+      {currentView !== 'login' && currentView !== 'public-dashboard' && currentView !== 'mis-resultados' && currentView !== 'game-selection' && currentView !== 'trivia-lobby' && currentView !== 'trivia-accept' && currentView !== 'trivia-game' && (
       <NavigationBar 
        currentView={currentView}
        setCurrentView={setCurrentView}
