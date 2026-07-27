@@ -1760,17 +1760,21 @@ useEffect(() => {
       setTriviaGameId(gameId);
       setCurrentView('trivia-accept');
       console.log('✅ Vista cambiada a trivia-accept, gameId:', gameId);
-    } else if (hash.includes('trivia-game/')) {
-      const gameId = hash.split('trivia-game/')[1];
-      setTriviaGameId(gameId);
-      setTriviaGamePhone(window.triviaGamePhone);
-      setTriviaGameUid(window.triviaGameUid);
-      setCurrentView('trivia-game');
-      console.log('✅ Vista cambiada a trivia-game, gameId:', gameId);
-    } else {
-      setCurrentView('login');
-      console.log('✅ Vista cambiada a login');
-  }
+
+          } else if (hash.includes('trivia-game/')) {
+        const gameId = hash.split('trivia-game/')[1];
+        setTriviaGameId(gameId);
+        setTriviaGamePhone(window.triviaGamePhone);
+        setTriviaGameUid(window.triviaGameUid);
+        setCurrentView('trivia-game');
+        console.log('✅ Vista cambiada a trivia-game, gameId:', gameId);
+      } else if (hash.includes('trivia-lobby')) {
+        setCurrentView('trivia-lobby');
+        console.log('✅ Vista cambiada a trivia-lobby');
+      } else {
+        setCurrentView('login');
+        console.log('✅ Vista cambiada a login');
+      }
   };
 
   // Ejecutar inmediatamente después de montar
