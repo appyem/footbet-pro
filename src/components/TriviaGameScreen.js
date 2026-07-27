@@ -6,7 +6,7 @@ import { assignTriviaQuestions, submitTriviaAnswer, finishTriviaGame } from '../
 
 const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
 
-  // Guardar credenciales en localStorage al montar (garantiza que no se cierre la sesión al volver al lobby)
+  // Guardar credenciales en localStorage al montar
   React.useEffect(() => {
     if (phone) localStorage.setItem('trivia_phone', phone);
     if (uid) localStorage.setItem('trivia_uid', uid);
@@ -29,12 +29,8 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   // 🔒 SEGURIDAD: Validar que el jugador puede participar
   const validatePlayerAccess = useCallback(() => {
     if (!game || !phone || !uid) return false;
-    
     const isCreator = game.creatorPhone === phone;
-    const isAcceptedInvited = game.invitedPlayers?.some(
-      p => p.phone === phone && p.status === 'accepted'
-    );
-    
+    const isAcceptedInvited = game.invitedPlayers?.some(p => p.phone === phone && p.status === 'accepted');
     return isCreator || isAcceptedInvited;
   }, [game, phone, uid]);
 
@@ -49,10 +45,16 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     return localAnswers;
   }, [game, phone]);
 
+  // 🆕 FUNCIÓN CLAVE: Forzar navegación directa al Lobby de Trivia
+  const handleGoToLobby = useCallback(() => {
+    if (phone) localStorage.setItem('trivia_phone', phone);
+    if (uid) localStorage.setItem('trivia_uid', uid);
+    window.location.hash = 'trivia-lobby';
+  }, [phone, uid]);
+
   // Cargar juego y escuchar cambios en tiempo real
   useEffect(() => {
     if (!gameId) return;
-
     const gameRef = doc(db, 'trivia_games', gameId);
     
     const unsubscribe = onSnapshot(gameRef, (docSnap) => {
@@ -60,11 +62,9 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
         setError('Juego no encontrado');
         return;
       }
-
       const gameData = { id: docSnap.id, ...docSnap.data() };
       setGame(gameData);
 
-      // Si el juego terminó, mostrar resultados
       if (gameData.status === 'finished') {
         setGameFinished(true);
         setResults({
@@ -99,7 +99,6 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
         try {
           setLoading(true);
           const result = await assignTriviaQuestions(gameId);
-          
           if (result.success) {
             hasGeneratedRef.current = true;
             setGameStarted(true);
@@ -115,12 +114,42 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
           setLoading(false);
         }
       };
-
       assignQuestionsWithRetry();
     }
   }, [game, gameId]);
 
-  // 🆕 Timer de 15 segundos por pregunta con registro de timeout
+  // 🆕 1. handleNextQuestion debe estar ANTES de handleTimeout
+  const handleNextQuestion = useCallback(() => {
+    if (currentQuestion >= 9) {
+      setTimeLeft(15);
+      setIsTimeExpired(false);
+      return;
+    }
+    setCurrentQuestion((prev) => prev + 1);
+    setSelectedAnswer(null);
+    setTimeLeft(15);
+    setIsTimeExpired(false);
+  }, [currentQuestion]);
+
+  // 🆕 2. handleTimeout debe estar ANTES del useEffect del timer y envuelto en useCallback
+  const handleTimeout = useCallback(async () => {
+    const myAnswers = getMyAnswers();
+    
+    if (myAnswers[currentQuestion] !== undefined) {
+      handleNextQuestion();
+      return;
+    }
+
+    try {
+      await submitTriviaAnswer(gameId, phone, uid, currentQuestion, -1);
+    } catch (err) {
+      console.error('Error registrando timeout:', err);
+    }
+    
+    setTimeout(() => handleNextQuestion(), 1500);
+  }, [currentQuestion, gameId, phone, uid, getMyAnswers, handleNextQuestion]);
+
+  // 🆕 3. useEffect del timer con handleTimeout en las dependencias
   useEffect(() => {
     if (!gameStarted || gameFinished || currentQuestion >= 10) return;
 
@@ -137,26 +166,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     }, 1000);
 
     return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameStarted, gameFinished, currentQuestion]);
-
-  // 🆕 Función para manejar cuando se acaba el tiempo
-  const handleTimeout = async () => {
-    const myAnswers = getMyAnswers();
-    
-    if (myAnswers[currentQuestion] !== undefined) {
-      handleNextQuestion();
-      return;
-    }
-
-    try {
-      await submitTriviaAnswer(gameId, phone, uid, currentQuestion, -1);
-    } catch (err) {
-      console.error('Error registrando timeout:', err);
-    }
-    
-    setTimeout(() => handleNextQuestion(), 1500);
-  };
+  }, [gameStarted, gameFinished, currentQuestion, handleTimeout]);
 
   // Enviar respuesta
   const handleSubmitAnswer = async () => {
@@ -189,19 +199,6 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     }
   };
 
-  // Pasar a siguiente pregunta
-  const handleNextQuestion = () => {
-    if (currentQuestion >= 9) {
-      setTimeLeft(15);
-      setIsTimeExpired(false);
-      return;
-    }
-    setCurrentQuestion((prev) => prev + 1);
-    setSelectedAnswer(null);
-    setTimeLeft(15);
-    setIsTimeExpired(false);
-  };
-
   // Finalizar juego
   const handleFinishGame = async () => {
     setLoading(true);
@@ -227,21 +224,19 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
   const totalQuestions = game?.questions?.length || 0;
   const allAnswered = myAnswerCount >= totalQuestions;
 
-  
-
-  // 🆕 AUTO-REDIRECT: Si el jugador terminó y no es el creador, llevarlo al lobby en 3 seg
+  // 🆕 AUTO-REDIRECT: Si el jugador terminó y no es el creador, llevarlo al LOBBY en 3 seg
   useEffect(() => {
     if (allAnswered && !gameFinished) {
       const isCreator = game?.creatorPhone === phone;
       if (!isCreator) {
         const timer = setTimeout(() => {
-          console.log('✅ Jugador invitado terminó, redirigiendo al lobby...');
-          onBack();
+          console.log('✅ Jugador invitado terminó, redirigiendo al LOBBY...');
+          handleGoToLobby();
         }, 3000);
         return () => clearTimeout(timer);
       }
     }
-  }, [allAnswered, gameFinished, game, phone, onBack]);
+  }, [allAnswered, gameFinished, game, phone, handleGoToLobby]);
 
   // Pantalla de carga
   if (!game || loading) {
@@ -270,7 +265,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
         <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-red-500/30 shadow-2xl relative z-10 text-center">
           <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
           <p className="text-red-200 mb-4">{error}</p>
-          <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">Volver</button>
+          <button onClick={handleGoToLobby} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">Volver al Lobby</button>
         </div>
       </div>
     );
@@ -289,7 +284,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
           <Clock className="w-16 h-16 text-purple-400 mx-auto mb-4 animate-pulse" />
           <h2 className="text-white text-xl font-bold mb-4">Esperando jugadores...</h2>
           <p className="text-gray-300 mb-4">Faltan {pendingCount} jugador(es) por aceptar</p>
-          <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">Volver al lobby</button>
+          <button onClick={handleGoToLobby} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">Volver al Lobby</button>
         </div>
       </div>
     );
@@ -321,13 +316,13 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
               <p className="text-white text-3xl font-bold">{results.prizePerWinner} créditos</p>
             </div>
           )}
-          <button onClick={onBack} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl">Volver al lobby</button>
+          <button onClick={handleGoToLobby} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl">Volver al Lobby</button>
         </div>
       </div>
     );
   }
 
-  // 🔒 VALIDACIÓN: Verificar que hay preguntas
+  // VALIDACIÓN: Verificar que hay preguntas
   if (!game.questions || game.questions.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-purple-800 flex items-center justify-center p-4 relative overflow-hidden">
@@ -338,13 +333,13 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
         <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 max-w-md w-full border border-red-500/30 shadow-2xl relative z-10 text-center">
           <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
           <p className="text-red-200 mb-4">Error: No hay preguntas disponibles</p>
-          <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">Volver</button>
+          <button onClick={handleGoToLobby} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">Volver al Lobby</button>
         </div>
       </div>
     );
   }
 
-  // 🆕 PANTALLA DE ESPERA MEJORADA: Cuando el jugador ya respondió todo
+  // PANTALLA DE ESPERA MEJORADA: Cuando el jugador ya respondió todo
   if (allAnswered && !gameFinished) {
     const isCreator = game.creatorPhone === phone;
 
@@ -374,10 +369,10 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
               <p className="text-gray-300 mb-2">Esperando a que tu oponente termine...</p>
               <p className="text-purple-300 text-sm mb-6">Serás redirigido al lobby automáticamente en unos segundos.</p>
               <button
-                onClick={onBack}
+                onClick={handleGoToLobby}
                 className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2"
               >
-                <ArrowLeft className="w-4 h-4" /> Ir al lobby ahora
+                <ArrowLeft className="w-4 h-4" /> Ir al Lobby ahora
               </button>
             </>
           )}
@@ -386,7 +381,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
     );
   }
 
-  // Pantalla principal del juego (solo si aún no ha terminado todas)
+  // Pantalla principal del juego
   const question = game.questions[currentQuestion];
   const questionAnswered = myAnswers[currentQuestion] !== undefined;
   const isDisabled = loading || questionAnswered || isTimeExpired;
@@ -466,7 +461,7 @@ const TriviaGameScreen = ({ gameId, phone, uid, onBack }) => {
           </button>
 
           <button
-            onClick={onBack}
+            onClick={handleGoToLobby}
             className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" /> Volver al Lobby
