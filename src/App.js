@@ -1828,6 +1828,8 @@ useEffect(() => {
   const [triviaGamePhone, setTriviaGamePhone] = useState(null);
   const [triviaGameUid, setTriviaGameUid] = useState(null);
   const [adminTab, setAdminTab] = useState('dashboard');
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(false);
 
     // Función para abrir modal de créditos
   const openCreditModal = (phone) => {
@@ -1835,12 +1837,56 @@ useEffect(() => {
     setShowCreditModal(true);
   };
 
-  const matchResultsRef = useRef(matchResults);
+    const matchResultsRef = useRef(matchResults);
   // eslint-disable-next-line no-empty-pattern
   const [] = useState(false);
   useEffect(() => {
     matchResultsRef.current = matchResults;
   }, [matchResults]);
+
+  // 📱 DETECTOR DE INSTALACIÓN PWA
+  useEffect(() => {
+    // 1. Verificar si ya está instalada (modo standalone)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    setIsInstalled(isStandalone);
+
+    // 2. Escuchar el evento de instalación disponible
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // 3. Escuchar cuando la instalación se completa exitosamente
+    window.addEventListener('appinstalled', () => {
+      setDeferredPrompt(null);
+      setIsInstalled(true);
+      console.log('✅ PWA instalada exitosamente');
+    });
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+    // 📱 FUNCIÓN PARA DISPARAR LA INSTALACIÓN
+  const handleInstallApp = useCallback(async () => {
+    if (!deferredPrompt) {
+      alert('La instalación no está disponible en este momento. Intenta desde Chrome o Safari.');
+      return;
+    }
+    
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('✅ Usuario aceptó instalar la PWA');
+      setDeferredPrompt(null);
+      setIsInstalled(true);
+    } else {
+      console.log('❌ Usuario rechazó instalar la PWA');
+    }
+  }, [deferredPrompt]);
 
   // ✅ useMemo para calcular partidos sin resultados (se recalcula cuando cambia matchResults)
   const allMatches = useMemo(() => {
@@ -3203,22 +3249,36 @@ useEffect(() => {
       </button>
 
 
-            {/* 💰 BOTÓN COMPRAR CRÉDITOS */}
-      <button
-        onClick={() => {
-          const phone = prompt('Ingresa tu número de teléfono (solo números):\nEj: 3113003606');
-          if (phone && phone.trim()) {
-            openCreditModal(phone.replace(/\D/g, ''));
-          }
-        }}
-        className="w-full bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-yellow-500/50 flex items-center justify-center gap-3 mb-6"
-      >
-        <span className="text-2xl">💰</span>
-        <div className="text-left">
-          <div className="text-lg">COMPRAR CRÉDITOS</div>
-          <div className="text-xs text-yellow-200 font-normal">Recarga y juega con tus amigos</div>
-        </div>
-      </button>
+        {/* 💰 BOTÓN COMPRAR CRÉDITOS */}
+<button
+  onClick={() => {
+    const phone = prompt('Ingresa tu número de teléfono (solo números):\nEj: 3113003606');
+    if (phone && phone.trim()) {
+      openCreditModal(phone.replace(/\D/g, ''));
+    }
+  }}
+  className="w-full bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-yellow-500/50 flex items-center justify-center gap-3 mb-6"
+>
+  <span className="text-2xl">💰</span>
+  <div className="text-left">
+    <div className="text-lg">COMPRAR CRÉDITOS</div>
+    <div className="text-xs text-yellow-200 font-normal">Recarga y juega con tus amigos</div>
+  </div>
+</button>
+
+{/* 📱 BOTÓN DE DESCARGA PWA (Solo aparece si NO está instalada y el navegador lo permite) */}
+{!isInstalled && deferredPrompt && (
+  <button
+    onClick={handleInstallApp}
+    className="w-full bg-gradient-to-r from-indigo-500 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-indigo-500/50 flex items-center justify-center gap-3 mb-6 border-2 border-indigo-300 animate-pulse"
+  >
+    <Download className="w-6 h-6" />
+    <div className="text-left">
+      <div className="text-lg">DESCARGAR APP</div>
+      <div className="text-xs text-indigo-200 font-normal">Instala en tu celular o PC para acceso rápido</div>
+    </div>
+  </button>
+)}
 
 
             {/* 🎮 BOTÓN JUEGOS */}
@@ -3310,7 +3370,7 @@ useEffect(() => {
       </div>
     </div>
   </div>
-), [loginEmail, loginPassword, handleLogin, setCurrentView, initializeAudio, audioEnabled]);
+), [loginEmail, loginPassword, handleLogin, setCurrentView, initializeAudio, audioEnabled, isInstalled, deferredPrompt, handleInstallApp]);
     return (
     <div className="min-h-screen bg-gray-900 text-white">
       {renderCurrentView()}
