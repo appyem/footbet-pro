@@ -3217,7 +3217,36 @@ useEffect(() => {
         <p className="text-green-300 text-sm">¡Tu suerte comienza aquí!</p>
       </div>
 
-      {/* 🔹 BOTÓN PRINCIPAL - IR A APOSTAR (GRANDE Y ATRACTIVO) */}
+            {/* 📱 BOTÓN DE DESCARGA PWA (Primero que todos, desaparece si ya está instalada) */}
+      {!isInstalled && deferredPrompt && (
+        <button
+          onClick={handleInstallApp}
+          className="w-full bg-gradient-to-r from-indigo-500 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-indigo-500/50 flex items-center justify-center gap-3 mb-6 border-2 border-indigo-300 animate-pulse"
+        >
+          <Download className="w-6 h-6" />
+          <div className="text-left">
+            <div className="text-lg">DESCARGAR APP</div>
+            <div className="text-xs text-indigo-200 font-normal">Instala en tu celular o PC para acceso rápido</div>
+          </div>
+        </button>
+      )}
+
+      {/* 🔹 1. BOTÓN JUEGOS */}
+      <button
+        onClick={() => {
+          if (!audioEnabled) initializeAudio();
+          setCurrentView('game-selection');
+        }}
+        className="w-full bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-400 hover:to-purple-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-purple-500/50 flex items-center justify-center gap-3 mb-6"
+      >
+        <span className="text-2xl">🎮</span>
+        <div className="text-left">
+          <div className="text-lg">JUEGOS</div>
+          <div className="text-xs text-purple-200 font-normal">Reta a tus amigos y gana</div>
+        </div>
+      </button>
+
+      {/* 🔹 2. BOTÓN PRINCIPAL - IR A APOSTAR */}
       <button
         onClick={() => {
           initializeAudio();
@@ -3232,8 +3261,24 @@ useEffect(() => {
         </div>
       </button>
 
+      {/* 🔹 3. BOTÓN COMPRAR CRÉDITOS */}
+      <button
+        onClick={() => {
+          const phone = prompt('Ingresa tu número de teléfono (solo números):\nEj: 3113003606');
+          if (phone && phone.trim()) {
+            openCreditModal(phone.replace(/\D/g, ''));
+          }
+        }}
+        className="w-full bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-yellow-500/50 flex items-center justify-center gap-3 mb-6"
+      >
+        <span className="text-2xl">💰</span>
+        <div className="text-left">
+          <div className="text-lg">COMPRAR CRÉDITOS</div>
+          <div className="text-xs text-yellow-200 font-normal">Recarga y juega con tus amigos</div>
+        </div>
+      </button>
 
-            {/* 🔹 BOTÓN SECUNDARIO - VER MIS RESULTADOS */}
+      {/* 🔹 4. BOTÓN VER MIS RESULTADOS */}
       <button
         onClick={() => {
           if (!audioEnabled) initializeAudio();
@@ -3245,54 +3290,6 @@ useEffect(() => {
         <div className="text-left">
           <div className="text-lg">VER MIS RESULTADOS</div>
           <div className="text-xs text-blue-200 font-normal">Consulta tus jugadas y estadísticas</div>
-        </div>
-      </button>
-
-
-        {/* 💰 BOTÓN COMPRAR CRÉDITOS */}
-<button
-  onClick={() => {
-    const phone = prompt('Ingresa tu número de teléfono (solo números):\nEj: 3113003606');
-    if (phone && phone.trim()) {
-      openCreditModal(phone.replace(/\D/g, ''));
-    }
-  }}
-  className="w-full bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-yellow-500/50 flex items-center justify-center gap-3 mb-6"
->
-  <span className="text-2xl">💰</span>
-  <div className="text-left">
-    <div className="text-lg">COMPRAR CRÉDITOS</div>
-    <div className="text-xs text-yellow-200 font-normal">Recarga y juega con tus amigos</div>
-  </div>
-</button>
-
-{/* 📱 BOTÓN DE DESCARGA PWA (Solo aparece si NO está instalada y el navegador lo permite) */}
-{!isInstalled && deferredPrompt && (
-  <button
-    onClick={handleInstallApp}
-    className="w-full bg-gradient-to-r from-indigo-500 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-indigo-500/50 flex items-center justify-center gap-3 mb-6 border-2 border-indigo-300 animate-pulse"
-  >
-    <Download className="w-6 h-6" />
-    <div className="text-left">
-      <div className="text-lg">DESCARGAR APP</div>
-      <div className="text-xs text-indigo-200 font-normal">Instala en tu celular o PC para acceso rápido</div>
-    </div>
-  </button>
-)}
-
-
-            {/* 🎮 BOTÓN JUEGOS */}
-      <button
-        onClick={() => {
-          if (!audioEnabled) initializeAudio();
-          setCurrentView('game-selection');
-        }}
-        className="w-full bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-400 hover:to-purple-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-purple-500/50 flex items-center justify-center gap-3 mb-6"
-      >
-        <span className="text-2xl">🎮</span>
-        <div className="text-left">
-          <div className="text-lg">JUEGOS</div>
-          <div className="text-xs text-purple-200 font-normal">Reta a tus amigos y gana</div>
         </div>
       </button>
 
