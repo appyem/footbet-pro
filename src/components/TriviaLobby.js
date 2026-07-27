@@ -572,22 +572,26 @@ const TriviaLobby = ({ onBack }) => {
           </div>
         )}
 
-        {/* 🆕 Juegos Finalizados con Detalles y Revancha */}
+                {/* 🆕 Juegos Finalizados con Detalles y Revancha */}
         {myFinishedGames.length > 0 && (
           <div className="bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 mb-6 border border-purple-500/30">
             <h2 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
               <Trophy className="w-5 h-5 text-purple-400" /> Historial de Partidas ({myFinishedGames.length})
             </h2>
             <div className="space-y-3">
-              {myFinishedGames.slice(0, 5).map(game => {
-                const isWinner = game.winners?.includes(phone);
-                const userScore = game.scores?.[phone] || 0;
-                const opponentPhone = game.creatorPhone === phone 
-                  ? game.invitedPlayers?.find(p => p.status === 'accepted')?.phone 
-                  : game.creatorPhone;
-                const opponentScore = game.scores?.[opponentPhone] || 0;
+              {/* 🆕 Ordenar por fecha de finalización (de la más reciente a la más antigua) */}
+              {[...myFinishedGames]
+                .sort((a, b) => new Date(b.finishedAt) - new Date(a.finishedAt))
+                .slice(0, 5)
+                .map(game => {
+                  const isWinner = game.winners?.includes(phone);
+                  const userScore = game.scores?.[phone] || 0;
+                  const opponentPhone = game.creatorPhone === phone 
+                    ? game.invitedPlayers?.find(p => p.status === 'accepted')?.phone 
+                    : game.creatorPhone;
+                  const opponentScore = game.scores?.[opponentPhone] || 0;
 
-                return (
+                  return (
                   <div key={game.id} className={`bg-gray-700 rounded-lg p-4 border-2 shadow-lg transition-all ${
                     isWinner ? 'border-yellow-500 shadow-yellow-500/10' : 'border-red-500 shadow-red-500/10'
                   }`}>
