@@ -2231,19 +2231,19 @@ useEffect(() => {
     ...bet,
     stake: 5000
   }));
-  const newTicket = {
-    id: `TKT${String(tickets.length + 1).padStart(3, '0')}`,
-    customerId: `CUST${String(tickets.length + 1).padStart(3, '0')}`,
-    customerName: customerName,
-    customerPhone: formattedPhone,
-    bets: betsArray,
-    totalStake: 5000,
-    verificationCode,
-    sellerId: currentUser.id,
-    sellerName: currentUser?.name || 'Invitado',
-    date: getCurrentDate(),
-    time: getCurrentTime()
-  };
+      const newTicket = {
+      id: `TKT${String(tickets.length + 1).padStart(3, '0')}`,
+      customerId: `CUST${String(tickets.length + 1).padStart(3, '0')}`,
+      customerName: customerName,
+      customerPhone: formattedPhone,
+      bets: betsArray,
+      totalStake: 5000,
+      verificationCode,
+      sellerId: currentUser?.id || 'public',
+      sellerName: currentUser?.name || 'Invitado',
+      date: getCurrentDate(),
+      time: getCurrentTime()
+    };
   try {
     await addDoc(collection(db, 'tickets'), newTicket);
     setTickets(prev => [...prev, newTicket]);
@@ -3029,6 +3029,7 @@ useEffect(() => {
   }, [matches, customerName, customerPhone, selectedBets, toggleBetSelection, generateTicket]);
   const renderCurrentView = () => {
   // 🔒 Protección crítica: no renderizar dashboards si no hay usuario autenticado
+  // 'bet-selection' DEBE estar aquí porque es el panel del vendedor para generar tickets
   if (['seller-dashboard', 'admin-dashboard', 'bet-selection', 'sales', 'reports', 'settings'].includes(currentView)) {
     if (!currentUser || !currentUser.id) {
       setCurrentView('login');
@@ -3133,11 +3134,11 @@ useEffect(() => {
           <p className="text-purple-300 text-sm">¡Reta a tus amigos y gana!</p>
         </div>
 
-        {/* 🔹 JUEGO 1: LA JUGADA 7 */}
+                {/* 🔹 JUEGO 1: LA JUGADA 7 */}
         <button
           onClick={() => {
             initializeAudio();
-            setCurrentView('bet-selection');
+            setCurrentView('public-dashboard'); // ✅ CORREGIDO: Ahora va a la vista pública de apuestas
           }}
           className="w-full bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 shadow-2xl hover:shadow-green-500/50 flex items-center justify-center gap-3 mb-4"
         >
