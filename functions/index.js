@@ -1498,29 +1498,59 @@ exports.finishTriviaGame = onCall(async (request) => {
       `Se necesitan al menos 2 jugadores que hayan respondido todas las preguntas. Solo ${finalPlayers.length} lo hicieron.`);
   }
   
-  const scores = {};
+   const playerStats = {};
   
   for (const playerPhone of finalPlayers) {
     let correctCount = 0;
     const playerAnswers = answers[playerPhone] || {};
+    let firstAnswerTime = null;
+    let lastAnswerTime = null;
     
     for (let i = 0; i < totalQuestions; i++) {
       const answer = playerAnswers[i];
       const correctAnswer = gameData.questions[i].correctAnswer;
       
-      if (answer && answer.selected === correctAnswer) {
-        correctCount++;
+      if (answer) {
+        if (answer.selected === correctAnswer) {
+          correctCount++;
+        }
+        const answerTime = new Date(answer.timestamp).getTime();
+        if (!firstAnswerTime || answerTime < firstAnswerTime) {
+          firstAnswerTime = answerTime;
+        }
+        if (!lastAnswerTime || answerTime > lastAnswerTime) {
+          lastAnswerTime = answerTime;
+        }
       }
     }
     
-    scores[playerPhone] = correctCount;
-    console.log(`✅ ${playerPhone}: ${correctCount} respuestas correctas`);
+    // Tiempo en segundos entre la primera y la última respuesta
+    const timeTaken = (firstAnswerTime && lastAnswerTime) ? Math.round((lastAnswerTime - firstAnswerTime) / 1000) : 999999;
+    
+    playerStats[playerPhone] = {
+      score: correctCount,
+      timeTaken: timeTaken
+    };
+    console.log(`✅ ${playerPhone}: ${correctCount} respuestas correctas, Tiempo: ${timeTaken}s`);
   }
   
-  const maxScore = Math.max(...Object.values(scores));
-  const winners = finalPlayers.filter(p => scores[p] === maxScore);
+  // Ordenar jugadores: primero por puntaje (descendente), luego por tiempo (ascendente)
+  const sortedPlayers = [...finalPlayers].sort((a, b) => {
+    if (playerStats[b].score !== playerStats[a].score) {
+      return playerStats[b].score - playerStats[a].score;
+    }
+    return playerStats[a].timeTaken - playerStats[b].timeTaken;
+  });
   
-  console.log('🏆 Ganadores:', winners, 'con puntaje:', maxScore);
+  const maxScore = playerStats[sortedPlayers[0]].score;
+  const minTimeForMaxScore = playerStats[sortedPlayers[0]].timeTaken;
+  
+  // Ganadores son los que tienen el puntaje máximo Y el menor tiempo para ese puntaje (empate exacto)
+  const winners = sortedPlayers.filter(p => 
+    playerStats[p].score === maxScore && playerStats[p].timeTaken === minTimeForMaxScore
+  );
+  
+  console.log('🏆 Ganadores:', winners, 'con puntaje:', maxScore, 'y tiempo:', minTimeForMaxScore, 's');
   
   const finalWinners = winners;
   
@@ -1576,15 +1606,15 @@ exports.finishTriviaGame = onCall(async (request) => {
           updatedAt: new Date().toISOString()
         }, { merge: true });
         
-        const transactionRef = db.collection('transactions').doc();
+                const transactionRef = db.collection('transactions').doc();
         transaction.set(transactionRef, {
           phone: playerPhone,
           type: isWinner ? 'trivia_win' : 'trivia_loss',
           amount: isWinner ? prizePerWinner : 0,
           betAmount: gameData.betAmount,
           description: isWinner 
-            ? `Ganó trivia - ${scores[playerPhone]}/${totalQuestions} correctas`
-            : `Perdió trivia - ${scores[playerPhone]}/${totalQuestions} correctas`,
+            ? `Ganó trivia - ${playerStats[playerPhone].score}/${totalQuestions} correctas en ${playerStats[playerPhone].timeTaken}s`
+            : `Perdió trivia - ${playerStats[playerPhone].score}/${totalQuestions} correctas en ${playerStats[playerPhone].timeTaken}s`,
           gameId: gameId,
           balanceBefore: currentBalance,
           balanceAfter: newBalance,
@@ -1622,12 +1652,13 @@ exports.finishTriviaGame = onCall(async (request) => {
         });
       }
       
-      console.log('🎮 Actualizando estado del juego...');
+            console.log('🎮 Actualizando estado del juego...');
       transaction.update(gameRef, {
         status: 'finished',
         finishedAt: new Date().toISOString(),
         winners: finalWinners,
-        scores: scores,
+        scores: Object.fromEntries(finalPlayers.map(p => [p, playerStats[p].score])),
+        timeTaken: Object.fromEntries(finalPlayers.map(p => [p, playerStats[p].timeTaken])), // 🆕 Guardar tiempos
         totalPool: totalPool,
         prizePerWinner: prizePerWinner,
         finalPlayers: finalPlayers,
@@ -1646,19 +1677,19 @@ exports.finishTriviaGame = onCall(async (request) => {
   const telegramToken = "8870849365:AAE40yszlSGVi6LRDiARJtTn87vrnHMU_Mk";
   const telegramChatId = "6567201196";
   
-  const winnersText = finalWinners.map(w => `${w} (${scores[w]}/${totalQuestions})`).join(', ');
+  const winnersText = finalWinners.map(w => `${w} (${playerStats[w].score}/${totalQuestions} en ${playerStats[w].timeTaken}s)`).join(', ');
   const refundedText = playersWithPartialAnswers.length > 0 
     ? `\n💸 *Devoluciones:* ${playersWithPartialAnswers.join(', ')}`
     : '';
   
-  const telegramMessage = `🏆 *TRIVIA FINALIZADA* 🏆\n\n` +
+    const telegramMessage = `🏆 *TRIVIA FINALIZADA* 🏆\n\n` +
     `📋 *ID:* ${gameId}\n` +
     `💰 *Pozo total:* ${totalPool} créditos\n` +
     `👑 *Ganador(es):* ${winnersText}\n` +
     `💵 *Premio:* ${prizePerWinner} créditos c/u\n` +
     refundedText +
     `\n\n📊 *Resultados:*\n` +
-    finalPlayers.map(p => `• ${p}: ${scores[p]}/${totalQuestions}`).join('\n');
+    finalPlayers.map(p => `• ${p}: ${playerStats[p].score}/${totalQuestions} (⏱️ ${playerStats[p].timeTaken}s)`).join('\n');
   
   try {
     await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
@@ -1674,10 +1705,15 @@ exports.finishTriviaGame = onCall(async (request) => {
     console.error("Error enviando notificación a Telegram:", error);
   }
   
+    // 🆕 Crear el objeto scores a partir de playerStats para el retorno
+  const finalScores = Object.fromEntries(finalPlayers.map(p => [p, playerStats[p].score]));
+  const finalTimes = Object.fromEntries(finalPlayers.map(p => [p, playerStats[p].timeTaken]));
+
   return {
     success: true,
     winners: finalWinners,
-    scores: scores,
+    scores: finalScores,
+    timeTaken: finalTimes, // 🆕 Retornar también los tiempos al frontend
     totalPool: totalPool,
     prizePerWinner: prizePerWinner,
     finalPlayers: finalPlayers,

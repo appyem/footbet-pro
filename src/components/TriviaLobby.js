@@ -671,16 +671,20 @@ const TriviaLobby = ({ onBack }) => {
                 </button>
               </div>
 
-              <div className="bg-gray-900/50 rounded-xl p-4 mb-6 flex justify-around items-center border border-gray-700">
+                            <div className="bg-gray-900/50 rounded-xl p-4 mb-6 flex justify-around items-center border border-gray-700">
                 <div className="text-center">
                   <p className="text-gray-400 text-xs mb-1">Tu puntaje</p>
                   <p className="text-3xl font-bold text-white">{selectedGame.scores?.[phone] || 0}</p>
+                  <p className="text-gray-500 text-xs mt-1">⏱️ {selectedGame.timeTaken?.[phone] || 0}s</p>
                 </div>
                 <div className="text-gray-500 font-bold text-xl">VS</div>
                 <div className="text-center">
                   <p className="text-gray-400 text-xs mb-1">Oponente</p>
                   <p className="text-3xl font-bold text-white">
                     {selectedGame.scores?.[selectedGame.creatorPhone === phone ? selectedGame.invitedPlayers?.find(p => p.status === 'accepted')?.phone : selectedGame.creatorPhone] || 0}
+                  </p>
+                  <p className="text-gray-500 text-xs mt-1">
+                    ⏱️ {selectedGame.timeTaken?.[selectedGame.creatorPhone === phone ? selectedGame.invitedPlayers?.find(p => p.status === 'accepted')?.phone : selectedGame.creatorPhone] || 0}s
                   </p>
                 </div>
               </div>
